@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Clients - AnaVibe Tools</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand-block">
+          <div class="brand-mark">A</div>
+          <div>
+            <p class="eyebrow">Plateforme premium</p>
+            <h1>AnaVibe Tools</h1>
+          </div>
+        </div>
+        <nav class="side-nav" aria-label="Navigation principale">
+          <a class="nav-link" href="../index.html">🏠 <span>Accueil</span></a>
+          <a class="nav-link" href="../audit-restaurant/index.html">🍽 <span>Audit Restaurant</span></a>
+          <a class="nav-link" href="../audit-linkedin/index.html">💼 <span>Audit LinkedIn</span></a>
+          <a class="nav-link active" href="index.html">📊 <span>Dashboard Clients</span></a>
+          <a class="nav-link" href="../google-optimizer/index.html">📍 <span>Google Business Optimizer PRO</span></a>
+          <a class="nav-link" href="../content-planner/index.html">📅 <span>Content Planner PRO</span></a>
+        </nav>
+        <section class="coming-soon-panel">
+          <p class="panel-title">Clients precharges</p>
+          <ul>
+            <li>Chez Boris</li>
+            <li>Toast’Tea</li>
+          </ul>
+        </section>
+      </aside>
+
+      <div class="mobile-topbar">
+        <button class="menu-toggle" id="menuToggle" aria-label="Ouvrir le menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <strong>AnaVibe Tools</strong>
+      </div>
+
+      <main class="main-content module-page">
+        <header class="module-header card surface-glow">
+          <p class="eyebrow">Dashboard Clients</p>
+          <h2>Suivi mensuel des clients AnaVibe</h2>
+          <p>
+            Structure pensee pour accueillir plusieurs clients, afficher leur propre dashboard et ajouter de nouvelles
+            fiches sans modifier l’architecture globale.
+          </p>
+        </header>
+
+        <section class="dashboard-layout">
+          <aside class="dashboard-sidebar card">
+            <p class="eyebrow">Liste clients</p>
+            <h3>Dashboard Clients</h3>
+            <p>Chaque client possede son propre dashboard avec KPIs, progression et priorites.</p>
+            <div class="dashboard-list" id="clientList"></div>
+            <button class="add-client-btn" id="addClientButton">+ Ajouter un client</button>
+          </aside>
+
+          <div class="client-stack" id="clientDashboards"></div>
+        </section>
+
+        <section class="empty-state card hidden" id="emptyState">
+          <p class="eyebrow">Aucun client</p>
+          <h3>Ajoutez votre premier client</h3>
+          <p>La structure est deja prete pour accueillir de nouveaux comptes AnaVibe.</p>
+        </section>
+
+        <footer class="footer">
+          <p>© AnaVibe - Dashboard Clients.</p>
+        </footer>
+      </main>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+    <script src="../script.js"></script>
+  </body>
+</html>
