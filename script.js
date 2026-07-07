@@ -2611,6 +2611,97 @@ function createLineChartImage(title, labels, values) {
   return canvas.toDataURL('image/png');
 }
 
+function createCompactLineChartImage(title, labels, values) {
+  const canvas = document.createElement('canvas');
+  const width = 760;
+  const height = 480;
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#fffdf8';
+  ctx.fillRect(0, 0, width, height);
+
+  const paddingLeft = 60;
+  const paddingRight = 46;
+  const paddingTop = 46;
+  const paddingBottom = 46;
+  const chartWidth = width - paddingLeft - paddingRight;
+  const chartHeight = height - paddingTop - paddingBottom;
+
+  ctx.fillStyle = '#161616';
+  ctx.font = 'bold 20px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText(title, paddingLeft, 30);
+
+  const numericValues = values.filter((value) => value !== null && value !== undefined && !Number.isNaN(value));
+  const maxValue = numericValues.length ? Math.max(...numericValues, 1) : 1;
+
+  ctx.strokeStyle = 'rgba(61, 31, 38, 0.12)';
+  ctx.lineWidth = 1;
+  ctx.font = '13px Arial';
+  ctx.fillStyle = '#5e554f';
+  const gridSteps = 4;
+  for (let i = 0; i <= gridSteps; i += 1) {
+    const y = paddingTop + chartHeight - (chartHeight * i) / gridSteps;
+    ctx.beginPath();
+    ctx.moveTo(paddingLeft, y);
+    ctx.lineTo(width - paddingRight, y);
+    ctx.stroke();
+    const value = (maxValue * i) / gridSteps;
+    ctx.fillText(Math.round(value).toLocaleString('fr-FR'), 6, y + 4);
+  }
+
+  ctx.strokeStyle = 'rgba(61, 31, 38, 0.3)';
+  ctx.beginPath();
+  ctx.moveTo(paddingLeft, paddingTop);
+  ctx.lineTo(paddingLeft, paddingTop + chartHeight);
+  ctx.lineTo(width - paddingRight, paddingTop + chartHeight);
+  ctx.stroke();
+
+  const stepX = labels.length > 1 ? chartWidth / (labels.length - 1) : 0;
+  const points = values.map((value, index) => {
+    const x = paddingLeft + stepX * index;
+    const ratio = maxValue > 0 && value !== null ? value / maxValue : 0;
+    const y = paddingTop + chartHeight - chartHeight * ratio;
+    return { x, y, value };
+  });
+
+  ctx.strokeStyle = '#6e1f32';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  });
+  ctx.stroke();
+
+  points.forEach((point, index) => {
+    ctx.fillStyle = '#6e1f32';
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    const edgeAlign = index === 0 ? 'left' : index === points.length - 1 ? 'right' : 'center';
+
+    ctx.fillStyle = '#161616';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = edgeAlign;
+    const valueText = point.value === null || point.value === undefined ? '—' : Number(point.value).toLocaleString('fr-FR');
+    ctx.fillText(valueText, point.x, point.y - 10);
+
+    ctx.font = '11px Arial';
+    ctx.fillStyle = '#5e554f';
+    ctx.fillText(labels[index], point.x, height - 18);
+  });
+  ctx.textAlign = 'left';
+
+  return canvas.toDataURL('image/png');
+}
+
 function getMonthlySeries(clientData, section, field) {
   return clientData.monthOrder.map((key) => {
     const value = clientData.months[key][section][field];
@@ -2795,26 +2886,30 @@ function generateClientReportPdf(clientId) {
   doc.addPage();
   state.cursorY = state.marginTop;
   addPdfSectionTitle(state, '3. Évolution dans le temps');
-  const chartDefinitions = [
-    { key: 'googleBusiness.profileViews', title: 'Google Business — Vues de la fiche', section: 'googleBusiness', field: 'profileViews' },
-    { key: 'instagram.reach', title: 'Instagram — Portée', section: 'instagram', field: 'reach' },
-    { key: 'facebook.reach', title: 'Facebook — Portée', section: 'facebook', field: 'reach' }
-  ];
   const monthLabels = monthOrder.map((key) => data.months[key].label);
+  const chartDefinitions = [
+    { title: 'Google Business — Vues de la fiche', getSeries: () => getMonthlySeries(data, 'googleBusiness', 'profileViews') },
+    { title: 'Instagram — Portée', getSeries: () => getMonthlySeries(data, 'instagram', 'reach') },
+    { title: 'Facebook — Portée', getSeries: () => getMonthlySeries(data, 'facebook', 'reach') },
+    { title: 'Intentions clients (Google + Beacons)', getSeries: () => getMonthlyIntentionsSeries(data) }
+  ];
 
-  chartDefinitions.forEach((chartDef) => {
-    const series = getMonthlySeries(data, chartDef.section, chartDef.field);
-    const imageData = createLineChartImage(chartDef.title, monthLabels, series);
-    ensurePdfSpace(state, 78);
-    doc.addImage(imageData, 'PNG', state.marginLeft, state.cursorY, 174, 74);
-    state.cursorY += 80;
+  const chartColumnWidth = 84;
+  const chartRowHeight = 58;
+  const chartGap = 6;
+
+  chartDefinitions.forEach((chartDef, index) => {
+    const imageData = createCompactLineChartImage(chartDef.title, monthLabels, chartDef.getSeries());
+    const column = index % 2;
+    if (column === 0) {
+      ensurePdfSpace(state, chartRowHeight + 6);
+    }
+    const x = state.marginLeft + column * (chartColumnWidth + chartGap);
+    doc.addImage(imageData, 'PNG', x, state.cursorY, chartColumnWidth, chartRowHeight);
+    if (column === 1 || index === chartDefinitions.length - 1) {
+      state.cursorY += chartRowHeight + 6;
+    }
   });
-
-  const intentionsSeries = getMonthlyIntentionsSeries(data);
-  const intentionsImage = createLineChartImage('Intentions clients (Google + Beacons)', monthLabels, intentionsSeries);
-  ensurePdfSpace(state, 78);
-  doc.addImage(intentionsImage, 'PNG', state.marginLeft, state.cursorY, 174, 74);
-  state.cursorY += 80;
 
   doc.addPage();
   state.cursorY = state.marginTop;
