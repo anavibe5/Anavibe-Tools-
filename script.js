@@ -824,6 +824,323 @@ function renderMonthlySectionWithComparison(section, monthKey, monthData, previo
   return block;
 }
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function sumOrNull(values) {
+  const provided = values.filter((value) => value !== '' && value !== null && value !== undefined);
+  if (!provided.length) {
+    return null;
+  }
+  return values.reduce((total, value) => {
+    const numeric = value === '' || value === null || value === undefined || Number.isNaN(Number(value)) ? 0 : Number(value);
+    return total + numeric;
+  }, 0);
+}
+
+function computeIntentionsFromMonth(monthData) {
+  if (!monthData) {
+    return null;
+  }
+  return sumOrNull([
+    monthData.googleBusiness.calls,
+    monthData.googleBusiness.websiteClicks,
+    monthData.googleBusiness.directions,
+    monthData.beacons.bookingClicks,
+    monthData.beacons.phoneClicks,
+    monthData.beacons.directionsClicks
+  ]);
+}
+
+function computeIntentionsFromInitial(initialSituation) {
+  return sumOrNull([
+    initialSituation.googleCalls,
+    initialSituation.googleWebsiteClicks,
+    initialSituation.googleDirections
+  ]);
+}
+
+function computeEngagementRate(monthData) {
+  if (!monthData) {
+    return null;
+  }
+  const interactions = monthData.instagram.interactions;
+  const reach = monthData.instagram.reach;
+  if (interactions === '' || interactions === null || interactions === undefined) {
+    return null;
+  }
+  if (reach === '' || reach === null || reach === undefined || Number(reach) === 0) {
+    return null;
+  }
+  return (Number(interactions) / Number(reach)) * 100;
+}
+
+function computeEngagementRateFromInitial(initialSituation) {
+  const interactions = initialSituation.instagramInteractions;
+  const reach = initialSituation.instagramReach;
+  if (interactions === '' || interactions === null || interactions === undefined) {
+    return null;
+  }
+  if (reach === '' || reach === null || reach === undefined || Number(reach) === 0) {
+    return null;
+  }
+  return (Number(interactions) / Number(reach)) * 100;
+}
+
+function computeObjectivesRate(monthData) {
+  if (!monthData || !monthData.monthlyObjectives.length) {
+    return null;
+  }
+  const done = monthData.monthlyObjectives.filter((objective) => objective.done).length;
+  return (done / monthData.monthlyObjectives.length) * 100;
+}
+
+function computeActionCompletionRate(monthData) {
+  if (!monthData || !monthData.actionPlan.length) {
+    return null;
+  }
+  const done = monthData.actionPlan.filter((action) => action.status === 'Terminé').length;
+  return (done / monthData.actionPlan.length) * 100;
+}
+
+const googleScoreFields = [
+  ['googleBusiness', 'rating'],
+  ['googleBusiness', 'reviewsCount'],
+  ['googleBusiness', 'profileViews'],
+  ['googleBusiness', 'calls'],
+  ['googleBusiness', 'directions'],
+  ['googleBusiness', 'websiteClicks']
+];
+
+const instagramScoreFields = [
+  ['instagram', 'followers'],
+  ['instagram', 'reach'],
+  ['instagram', 'interactions'],
+  ['instagram', 'profileVisits'],
+  ['instagram', 'linkClicks']
+];
+
+const beaconsScoreFields = [
+  ['beacons', 'bookingClicks'],
+  ['beacons', 'phoneClicks'],
+  ['beacons', 'directionsClicks']
+];
+
+function averagePercentEvolution(fieldPairs, monthData, previousMonthData) {
+  if (!previousMonthData) {
+    return null;
+  }
+  const percents = fieldPairs
+    .map(([section, field]) => computeEvolution(previousMonthData[section][field], monthData[section][field]).percent)
+    .filter((percent) => percent !== null && !Number.isNaN(percent));
+
+  if (!percents.length) {
+    return null;
+  }
+  return percents.reduce((total, percent) => total + percent, 0) / percents.length;
+}
+
+function scoreFromEvolutionPercent(percent) {
+  if (percent === null || percent === undefined || Number.isNaN(percent)) {
+    return 50;
+  }
+  return clamp(50 + percent, 0, 100);
+}
+
+function computeGlobalScore(monthData, previousMonthData) {
+  const googlePercent = averagePercentEvolution(googleScoreFields, monthData, previousMonthData);
+  const instagramPercent = averagePercentEvolution(instagramScoreFields, monthData, previousMonthData);
+
+  const intentionsCurrent = computeIntentionsFromMonth(monthData);
+  const intentionsPrevious = previousMonthData ? computeIntentionsFromMonth(previousMonthData) : null;
+  const intentionsPercent = computeEvolution(intentionsPrevious, intentionsCurrent).percent;
+
+  const objectivesRate = computeObjectivesRate(monthData);
+  const actionsRate = computeActionCompletionRate(monthData);
+
+  const components = [
+    scoreFromEvolutionPercent(googlePercent),
+    scoreFromEvolutionPercent(instagramPercent),
+    scoreFromEvolutionPercent(intentionsPercent),
+    objectivesRate === null ? 50 : objectivesRate,
+    actionsRate === null ? 50 : actionsRate
+  ];
+
+  const average = components.reduce((total, value) => total + value, 0) / components.length;
+  return Math.round(clamp(average, 0, 100));
+}
+
+function getScoreBadge(score) {
+  if (score < 50) {
+    return { label: 'À surveiller', badgeClass: 'negative' };
+  }
+  if (score < 70) {
+    return { label: 'En progression', badgeClass: 'neutral' };
+  }
+  if (score < 85) {
+    return { label: 'Très bon mois', badgeClass: 'positive' };
+  }
+  return { label: 'Excellent mois', badgeClass: 'positive' };
+}
+
+function createEvolutionSummaryCard(label, percent) {
+  const card = document.createElement('div');
+  card.className = 'kpi-card card summary-card';
+  const hasValue = percent !== null && percent !== undefined && !Number.isNaN(percent);
+  const badgeClass = !hasValue ? 'neutral' : percent > 0 ? 'positive' : percent < 0 ? 'negative' : 'neutral';
+  const valueText = hasValue ? `${percent > 0 ? '+' : ''}${percent.toFixed(1)}%` : '—';
+  card.innerHTML = `
+    <span class="kpi-label">${escapeHtml(label)}</span>
+    <strong>${valueText}</strong>
+    <span class="evolution-badge ${badgeClass}">vs mois précédent</span>
+  `;
+  return card;
+}
+
+function createIntentionsSummaryCard(current, evolution) {
+  const card = document.createElement('div');
+  card.className = 'kpi-card card summary-card';
+  const fmt = formatEvolution(evolution, '');
+  card.innerHTML = `
+    <span class="kpi-label">Intentions clients générées</span>
+    <strong>${current === null ? '—' : formatNumber(current)}</strong>
+    <span class="evolution-badge ${fmt.badgeClass}">${fmt.text} vs mois précédent</span>
+  `;
+  return card;
+}
+
+function createObjectivesSummaryCard(done, total, rate) {
+  const card = document.createElement('div');
+  card.className = 'kpi-card card summary-card';
+  const badgeClass = rate === null ? 'neutral' : rate >= 70 ? 'positive' : rate >= 40 ? 'neutral' : 'negative';
+  const rateText = rate === null ? 'Aucun objectif' : `${Math.round(rate)}% atteints`;
+  card.innerHTML = `
+    <span class="kpi-label">Objectifs atteints</span>
+    <strong>${total ? `${done}/${total}` : '—'}</strong>
+    <span class="evolution-badge ${badgeClass}">${escapeHtml(rateText)}</span>
+  `;
+  return card;
+}
+
+function createScoreSummaryCard(score, badge) {
+  const card = document.createElement('div');
+  card.className = 'kpi-card card summary-card';
+  card.innerHTML = `
+    <span class="kpi-label">Score global du mois</span>
+    <strong>${score}/100</strong>
+    <span class="evolution-badge ${badge.badgeClass}">${escapeHtml(badge.label)}</span>
+  `;
+  return card;
+}
+
+function renderSummaryCards(monthData, previousMonthData, initialSituation) {
+  const grid = document.createElement('div');
+  grid.className = 'kpi-grid summary-grid';
+
+  const googlePercent = averagePercentEvolution(googleScoreFields, monthData, previousMonthData);
+  const instagramPercent = averagePercentEvolution(instagramScoreFields, monthData, previousMonthData);
+  const beaconsPercent = averagePercentEvolution(beaconsScoreFields, monthData, previousMonthData);
+
+  const intentionsCurrent = computeIntentionsFromMonth(monthData);
+  const intentionsPrevious = previousMonthData ? computeIntentionsFromMonth(previousMonthData) : null;
+  const intentionsEvolution = computeEvolution(intentionsPrevious, intentionsCurrent);
+
+  const objectivesDone = monthData.monthlyObjectives.filter((objective) => objective.done).length;
+  const objectivesTotal = monthData.monthlyObjectives.length;
+  const objectivesRate = computeObjectivesRate(monthData);
+
+  const score = computeGlobalScore(monthData, previousMonthData);
+  const scoreBadge = getScoreBadge(score);
+
+  grid.appendChild(createEvolutionSummaryCard('Évolution Google Business', googlePercent));
+  grid.appendChild(createEvolutionSummaryCard('Évolution Instagram', instagramPercent));
+  grid.appendChild(createEvolutionSummaryCard('Évolution Beacons', beaconsPercent));
+  grid.appendChild(createIntentionsSummaryCard(intentionsCurrent, intentionsEvolution));
+  grid.appendChild(createObjectivesSummaryCard(objectivesDone, objectivesTotal, objectivesRate));
+  grid.appendChild(createScoreSummaryCard(score, scoreBadge));
+
+  return grid;
+}
+
+const synthesisRowConfigs = [
+  { label: 'Avis Google', section: 'googleBusiness', field: 'reviewsCount' },
+  { label: 'Note Google', section: 'googleBusiness', field: 'rating' },
+  { label: 'Vues Google', section: 'googleBusiness', field: 'profileViews' },
+  { label: 'Appels Google', section: 'googleBusiness', field: 'calls' },
+  { label: 'Itinéraires Google', section: 'googleBusiness', field: 'directions' },
+  { label: 'Abonnés Instagram', section: 'instagram', field: 'followers' },
+  { label: 'Portée Instagram', section: 'instagram', field: 'reach' },
+  { label: 'Interactions Instagram', section: 'instagram', field: 'interactions' },
+  { label: 'Taux d’engagement', unit: '%', compute: computeEngagementRate, computeInitial: computeEngagementRateFromInitial },
+  { label: 'Clics lien', section: 'instagram', field: 'linkClicks' },
+  { label: 'Clics réservation Beacons', section: 'beacons', field: 'bookingClicks' },
+  { label: 'Intentions clients', compute: computeIntentionsFromMonth, computeInitial: computeIntentionsFromInitial }
+];
+
+function getSynthesisRowValues(rowConfig, monthData, previousMonthData, initialSituation) {
+  if (rowConfig.compute) {
+    return {
+      current: rowConfig.compute(monthData),
+      previous: previousMonthData ? rowConfig.compute(previousMonthData) : null,
+      initial: rowConfig.computeInitial ? rowConfig.computeInitial(initialSituation) : null
+    };
+  }
+
+  return {
+    current: monthData[rowConfig.section][rowConfig.field],
+    previous: previousMonthData ? previousMonthData[rowConfig.section][rowConfig.field] : '',
+    initial: getBaselineValue(initialSituation, rowConfig.section, rowConfig.field)
+  };
+}
+
+function renderSynthesisSection(monthData, previousMonthData, initialSituation) {
+  const block = document.createElement('div');
+  block.className = 'section-block';
+  block.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Vue d’ensemble</p>
+        <h3>Tableau de synthèse</h3>
+      </div>
+    </div>
+  `;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'comparison-scroll';
+
+  const table = document.createElement('table');
+  table.className = 'comparison-table';
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Indicateur</th>
+        <th>Initial</th>
+        <th>Mois précédent</th>
+        <th>Mois sélectionné</th>
+        <th>Évolution vs initial</th>
+        <th>Évolution vs mois précédent</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+
+  const tbody = table.querySelector('tbody');
+  synthesisRowConfigs.forEach((rowConfig) => {
+    const values = getSynthesisRowValues(rowConfig, monthData, previousMonthData, initialSituation);
+    tbody.appendChild(
+      createComparisonRow(
+        { label: rowConfig.label },
+        { initial: values.initial, previous: values.previous, current: values.current, unit: rowConfig.unit }
+      )
+    );
+  });
+
+  wrapper.appendChild(table);
+  block.appendChild(wrapper);
+  return block;
+}
+
 function createNoMonthsState() {
   const el = document.createElement('div');
   el.className = 'no-months-state';
@@ -1158,6 +1475,9 @@ function createDashboardCard(clientId) {
     const previousMonthKey = monthIndex > 0 ? freshData.monthOrder[monthIndex - 1] : null;
     const monthData = freshData.months[selectedMonth];
     const previousMonthData = previousMonthKey ? freshData.months[previousMonthKey] : null;
+
+    monthContent.appendChild(renderSummaryCards(monthData, previousMonthData, freshData.initialSituation));
+    monthContent.appendChild(renderSynthesisSection(monthData, previousMonthData, freshData.initialSituation));
 
     monthlySectionSchema.forEach((section) => {
       monthContent.appendChild(

@@ -815,3 +815,7 @@ a {
   background: rgba(94, 85, 79, 0.1);
   color: var(--text-soft);
 }
+
+.summary-card .evolution-badge {
+  margin-top: 12px;
+}
