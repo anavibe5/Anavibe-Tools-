@@ -716,3 +716,102 @@ a {
   font-size: 0.8rem;
   color: var(--text-soft);
 }
+
+.month-selector-row {
+  margin-top: 4px;
+}
+
+.month-select {
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(61, 31, 38, 0.14);
+  background: rgba(255, 255, 255, 0.85);
+  min-width: 220px;
+}
+
+.month-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(110, 31, 50, 0.12);
+}
+
+.no-months-state {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: var(--radius-md);
+  background: rgba(110, 31, 50, 0.06);
+  border: 1px dashed rgba(61, 31, 38, 0.18);
+}
+
+.no-months-state p {
+  color: var(--text-soft);
+  margin: 4px 0 0;
+}
+
+.comparison-scroll {
+  margin-top: 16px;
+  overflow-x: auto;
+}
+
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.comparison-table th,
+.comparison-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(61, 31, 38, 0.08);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.comparison-table th {
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: 0.72rem;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+
+.comparison-table td:first-child,
+.comparison-table th:first-child {
+  white-space: normal;
+  font-weight: 600;
+}
+
+.comparison-current {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.evolution-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(110, 31, 50, 0.08);
+  color: var(--text-soft);
+}
+
+.evolution-badge.positive {
+  background: rgba(46, 125, 50, 0.12);
+  color: #2e7d32;
+}
+
+.evolution-badge.negative {
+  background: rgba(198, 40, 40, 0.1);
+  color: #c62828;
+}
+
+.evolution-badge.neutral {
+  background: rgba(94, 85, 79, 0.1);
+  color: var(--text-soft);
+}

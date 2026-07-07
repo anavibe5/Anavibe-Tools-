@@ -1,171 +1,65 @@
-const clientSeedData = [
-  {
-    id: 'chez-boris',
-    general: {
-      name: 'Chez Boris',
-      type: 'Restaurant',
-      city: 'Lyon',
-      offer: 'Pack Visibilité Locale',
-      startDate: '2026-01-08',
-      mainGoal: 'Booster la visibilité locale et structurer le suivi mensuel.',
-      monthStatus: 'En bonne voie'
-    },
-    googleBusiness: {
-      rating: 4.7,
-      reviewsCount: 128,
-      newReviews: 9,
-      reviewsAnswered: 7,
-      profileViews: 2450,
-      calls: 86,
-      directions: 154,
-      websiteClicks: 61,
-      bookings: 32,
-      photosPublished: 6,
-      googlePosts: 4
-    },
-    instagram: {
-      followers: 1840,
-      newFollowers: 45,
-      reach: 9200,
-      impressions: 15400,
-      views: 3100,
-      interactions: 620,
-      engagementRate: 4.2,
-      profileVisits: 310,
-      linkClicks: 58,
-      posts: 8,
-      reels: 3,
-      stories: 14
-    },
-    facebook: {
-      followers: 960,
-      reach: 3200,
-      impressions: 5100,
-      interactions: 210,
-      linkClicks: 24,
-      posts: 5
-    },
-    beacons: {
-      bookingClicks: 74,
-      phoneClicks: 41,
-      directionsClicks: 62
-    },
-    businessResults: {
-      bookingsGenerated: 32,
-      estimatedRevenue: '4 200 €',
-      roi: '3.1x',
-      goalReached: 'Partiel',
-      remainingPotential: '1 800 €'
-    },
-    monthlyObjectives: [
-      { id: 'obj-boris-1', label: 'Répondre à tous les avis Google', done: true },
-      { id: 'obj-boris-2', label: 'Publier 8 posts Instagram', done: false },
-      { id: 'obj-boris-3', label: 'Lancer une offre via les Beacons réservation', done: false }
-    ],
-    actionPlan: [
-      { id: 'act-boris-1', label: 'Optimiser la fiche Google Business', status: 'Terminé' },
-      { id: 'act-boris-2', label: 'Créer un calendrier de contenu Instagram', status: 'En cours' },
-      { id: 'act-boris-3', label: 'Mettre en place les Beacons', status: 'À faire' }
-    ],
-    internalNotes: 'Client réactif, bon potentiel de croissance sur la visibilité locale.'
-  },
-  {
-    id: 'toast-tea',
-    general: {
-      name: 'Toast’Tea',
-      type: 'Restauration / Lifestyle',
-      city: 'Bordeaux',
-      offer: 'Pack Contenu & Notoriété',
-      startDate: '2026-02-01',
-      mainGoal: 'Améliorer la notoriété et accélérer la production éditoriale.',
-      monthStatus: 'Objectif atteint'
-    },
-    googleBusiness: {
-      rating: 4.5,
-      reviewsCount: 76,
-      newReviews: 6,
-      reviewsAnswered: 6,
-      profileViews: 1680,
-      calls: 40,
-      directions: 88,
-      websiteClicks: 45,
-      bookings: 18,
-      photosPublished: 9,
-      googlePosts: 6
-    },
-    instagram: {
-      followers: 3120,
-      newFollowers: 96,
-      reach: 15200,
-      impressions: 24800,
-      views: 5400,
-      interactions: 980,
-      engagementRate: 5.1,
-      profileVisits: 540,
-      linkClicks: 97,
-      posts: 12,
-      reels: 5,
-      stories: 20
-    },
-    facebook: {
-      followers: 1240,
-      reach: 4100,
-      impressions: 6700,
-      interactions: 305,
-      linkClicks: 38,
-      posts: 7
-    },
-    beacons: {
-      bookingClicks: 52,
-      phoneClicks: 28,
-      directionsClicks: 45
-    },
-    businessResults: {
-      bookingsGenerated: 18,
-      estimatedRevenue: '2 950 €',
-      roi: '2.4x',
-      goalReached: 'Oui',
-      remainingPotential: '900 €'
-    },
-    monthlyObjectives: [
-      { id: 'obj-toast-1', label: 'Publier le calendrier éditorial du mois', done: true },
-      { id: 'obj-toast-2', label: 'Améliorer le taux d’engagement Instagram', done: true },
-      { id: 'obj-toast-3', label: 'Répondre aux nouveaux avis Google', done: false }
-    ],
-    actionPlan: [
-      { id: 'act-toast-1', label: 'Diagnostic de marque', status: 'Terminé' },
-      { id: 'act-toast-2', label: 'Calendrier éditorial', status: 'En cours' },
-      { id: 'act-toast-3', label: 'Optimisation de la présence locale', status: 'En cours' }
-    ],
-    internalNotes: 'Forte dynamique sur Instagram, continuer la régularité de publication.'
-  }
-];
-
 const CLIENT_IDS_KEY = 'anavibe-tools-client-ids';
 const CLIENT_DATA_PREFIX = 'anavibe-tools-client-data-';
 
 const actionStatusOptions = ['À faire', 'En cours', 'Terminé'];
 
-const clientSectionSchema = [
-  {
-    key: 'general',
-    eyebrow: 'Fiche client',
-    title: 'Informations générales',
-    fields: [
-      { key: 'name', label: 'Nom', type: 'text' },
-      { key: 'type', label: 'Type d’établissement', type: 'text' },
-      { key: 'city', label: 'Ville', type: 'text' },
-      { key: 'offer', label: 'Offre AnaVibe', type: 'text' },
-      { key: 'startDate', label: 'Date début collaboration', type: 'date' },
-      { key: 'mainGoal', label: 'Objectif principal', type: 'text' },
-      {
-        key: 'monthStatus',
-        label: 'Statut du mois',
-        type: 'select',
-        options: ['À définir', 'En bonne voie', 'Objectif atteint', 'En retard']
-      }
-    ]
-  },
+const generalFieldsSchema = {
+  key: 'general',
+  eyebrow: 'Fiche client',
+  title: 'Informations générales',
+  fields: [
+    { key: 'name', label: 'Nom', type: 'text' },
+    { key: 'type', label: 'Type d’établissement', type: 'text' },
+    { key: 'city', label: 'Ville', type: 'text' },
+    { key: 'offer', label: 'Offre AnaVibe', type: 'text' },
+    { key: 'startDate', label: 'Date début collaboration', type: 'date' },
+    { key: 'mainGoal', label: 'Objectif principal', type: 'text' },
+    {
+      key: 'monthStatus',
+      label: 'Statut du mois',
+      type: 'select',
+      options: ['À définir', 'En bonne voie', 'Objectif atteint', 'En retard']
+    }
+  ]
+};
+
+const initialSituationSchema = {
+  key: 'initialSituation',
+  eyebrow: 'Point de départ',
+  title: 'Situation initiale',
+  fields: [
+    { key: 'googleRating', label: 'Note Google initiale', type: 'number', step: '0.1' },
+    { key: 'googleReviews', label: 'Avis Google initiaux', type: 'number' },
+    { key: 'googleViews', label: 'Vues Google initiales', type: 'number' },
+    { key: 'googleCalls', label: 'Appels Google initiaux', type: 'number' },
+    { key: 'googleDirections', label: 'Itinéraires initiaux', type: 'number' },
+    { key: 'googleWebsiteClicks', label: 'Clics site initiaux', type: 'number' },
+    { key: 'instagramFollowers', label: 'Abonnés Instagram initiaux', type: 'number' },
+    { key: 'instagramReach', label: 'Portée Instagram initiale', type: 'number' },
+    { key: 'instagramViews', label: 'Vues Instagram initiales', type: 'number' },
+    { key: 'instagramInteractions', label: 'Interactions initiales', type: 'number' },
+    { key: 'instagramProfileVisits', label: 'Visites profil initiales', type: 'number' },
+    { key: 'instagramLinkClicks', label: 'Clics lien initiaux', type: 'number' }
+  ]
+};
+
+// Maps a situation-initiale field to the monthly KPI it should be compared against.
+const baselineFieldMap = {
+  googleRating: { section: 'googleBusiness', field: 'rating' },
+  googleReviews: { section: 'googleBusiness', field: 'reviewsCount' },
+  googleViews: { section: 'googleBusiness', field: 'profileViews' },
+  googleCalls: { section: 'googleBusiness', field: 'calls' },
+  googleDirections: { section: 'googleBusiness', field: 'directions' },
+  googleWebsiteClicks: { section: 'googleBusiness', field: 'websiteClicks' },
+  instagramFollowers: { section: 'instagram', field: 'followers' },
+  instagramReach: { section: 'instagram', field: 'reach' },
+  instagramViews: { section: 'instagram', field: 'views' },
+  instagramInteractions: { section: 'instagram', field: 'interactions' },
+  instagramProfileVisits: { section: 'instagram', field: 'profileVisits' },
+  instagramLinkClicks: { section: 'instagram', field: 'linkClicks' }
+};
+
+const monthlySectionSchema = [
   {
     key: 'googleBusiness',
     eyebrow: 'Réseaux & visibilité',
@@ -195,7 +89,7 @@ const clientSectionSchema = [
       { key: 'impressions', label: 'Impressions', type: 'number' },
       { key: 'views', label: 'Vues', type: 'number' },
       { key: 'interactions', label: 'Interactions', type: 'number' },
-      { key: 'engagementRate', label: 'Taux d’engagement (%)', type: 'number', step: '0.1' },
+      { key: 'engagementRate', label: 'Taux d’engagement', type: 'number', step: '0.1', unit: '%' },
       { key: 'profileVisits', label: 'Visites du profil', type: 'number' },
       { key: 'linkClicks', label: 'Clics sur le lien', type: 'number' },
       { key: 'posts', label: 'Publications', type: 'number' },
@@ -232,50 +126,34 @@ const clientSectionSchema = [
     title: 'Résultats business',
     fields: [
       { key: 'bookingsGenerated', label: 'Réservations générées', type: 'number' },
-      { key: 'estimatedRevenue', label: 'Chiffre d’affaires estimé', type: 'text' },
-      { key: 'roi', label: 'ROI', type: 'text' },
+      { key: 'estimatedRevenue', label: 'Chiffre d’affaires estimé', type: 'number', unit: '€' },
+      { key: 'roi', label: 'ROI', type: 'number', step: '0.1', unit: 'x' },
       { key: 'goalReached', label: 'Objectif atteint', type: 'select', options: ['Non', 'Partiel', 'Oui'] },
-      { key: 'remainingPotential', label: 'Potentiel restant', type: 'text' }
+      { key: 'remainingPotential', label: 'Potentiel restant', type: 'number', unit: '€' }
     ]
   }
 ];
 
-function getCurrentPath() {
-  const path = window.location.pathname;
-  return path.substring(path.lastIndexOf('/') + 1) || 'index.html';
-}
-
-function normalizeId(value) {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-}
-
-function generateId() {
-  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, (char) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]
-  ));
-}
-
-function createEmptyClientData(id, name) {
+function createEmptyInitialSituation() {
   return {
-    id,
-    general: {
-      name,
-      type: '',
-      city: '',
-      offer: '',
-      startDate: '',
-      mainGoal: '',
-      monthStatus: 'À définir'
-    },
+    googleRating: '',
+    googleReviews: '',
+    googleViews: '',
+    googleCalls: '',
+    googleDirections: '',
+    googleWebsiteClicks: '',
+    instagramFollowers: '',
+    instagramReach: '',
+    instagramViews: '',
+    instagramInteractions: '',
+    instagramProfileVisits: '',
+    instagramLinkClicks: ''
+  };
+}
+
+function createEmptyMonthData(label) {
+  return {
+    label,
     googleBusiness: {
       rating: '',
       reviewsCount: '',
@@ -324,8 +202,338 @@ function createEmptyClientData(id, name) {
       remainingPotential: ''
     },
     monthlyObjectives: [],
-    actionPlan: [],
+    actionPlan: []
+  };
+}
+
+function createEmptyClientData(id, name) {
+  return {
+    id,
+    general: {
+      name,
+      type: '',
+      city: '',
+      offer: '',
+      startDate: '',
+      mainGoal: '',
+      monthStatus: 'À définir'
+    },
+    initialSituation: createEmptyInitialSituation(),
+    months: {},
+    monthOrder: [],
+    selectedMonth: null,
     internalNotes: ''
+  };
+}
+
+const clientSeedData = [
+  {
+    id: 'chez-boris',
+    general: {
+      name: 'Chez Boris',
+      type: 'Restaurant',
+      city: 'Lyon',
+      offer: 'Pack Visibilité Locale',
+      startDate: '2026-01-08',
+      mainGoal: 'Booster la visibilité locale et structurer le suivi mensuel.',
+      monthStatus: 'En bonne voie'
+    },
+    initialSituation: {
+      googleRating: 4.3,
+      googleReviews: 96,
+      googleViews: 1800,
+      googleCalls: 55,
+      googleDirections: 102,
+      googleWebsiteClicks: 30,
+      instagramFollowers: 1500,
+      instagramReach: 6000,
+      instagramViews: 2000,
+      instagramInteractions: 400,
+      instagramProfileVisits: 200,
+      instagramLinkClicks: 30
+    },
+    months: {
+      'juin-2026': {
+        label: 'Juin 2026',
+        googleBusiness: {
+          rating: 4.5,
+          reviewsCount: 110,
+          newReviews: 5,
+          reviewsAnswered: 4,
+          profileViews: 2100,
+          calls: 70,
+          directions: 130,
+          websiteClicks: 48,
+          bookings: 24,
+          photosPublished: 4,
+          googlePosts: 3
+        },
+        instagram: {
+          followers: 1700,
+          newFollowers: 30,
+          reach: 7800,
+          impressions: 12800,
+          views: 2600,
+          interactions: 520,
+          engagementRate: 3.8,
+          profileVisits: 260,
+          linkClicks: 45,
+          posts: 6,
+          reels: 2,
+          stories: 10
+        },
+        facebook: { followers: 900, reach: 2800, impressions: 4400, interactions: 180, linkClicks: 18, posts: 4 },
+        beacons: { bookingClicks: 60, phoneClicks: 33, directionsClicks: 50 },
+        businessResults: {
+          bookingsGenerated: 24,
+          estimatedRevenue: 3600,
+          roi: 2.6,
+          goalReached: 'Partiel',
+          remainingPotential: 2200
+        },
+        monthlyObjectives: [
+          { id: 'obj-boris-j1', label: 'Optimiser la fiche Google Business', done: true },
+          { id: 'obj-boris-j2', label: 'Lancer le premier mois de contenu Instagram', done: true }
+        ],
+        actionPlan: [
+          { id: 'act-boris-j1', label: 'Audit initial', status: 'Terminé' },
+          { id: 'act-boris-j2', label: 'Configuration Google Business', status: 'Terminé' }
+        ]
+      },
+      'juillet-2026': {
+        label: 'Juillet 2026',
+        googleBusiness: {
+          rating: 4.7,
+          reviewsCount: 128,
+          newReviews: 9,
+          reviewsAnswered: 7,
+          profileViews: 2450,
+          calls: 86,
+          directions: 154,
+          websiteClicks: 61,
+          bookings: 32,
+          photosPublished: 6,
+          googlePosts: 4
+        },
+        instagram: {
+          followers: 1840,
+          newFollowers: 45,
+          reach: 9200,
+          impressions: 15400,
+          views: 3100,
+          interactions: 620,
+          engagementRate: 4.2,
+          profileVisits: 310,
+          linkClicks: 58,
+          posts: 8,
+          reels: 3,
+          stories: 14
+        },
+        facebook: { followers: 960, reach: 3200, impressions: 5100, interactions: 210, linkClicks: 24, posts: 5 },
+        beacons: { bookingClicks: 74, phoneClicks: 41, directionsClicks: 62 },
+        businessResults: {
+          bookingsGenerated: 32,
+          estimatedRevenue: 4200,
+          roi: 3.1,
+          goalReached: 'Partiel',
+          remainingPotential: 1800
+        },
+        monthlyObjectives: [
+          { id: 'obj-boris-1', label: 'Répondre à tous les avis Google', done: true },
+          { id: 'obj-boris-2', label: 'Publier 8 posts Instagram', done: false },
+          { id: 'obj-boris-3', label: 'Lancer une offre via les Beacons réservation', done: false }
+        ],
+        actionPlan: [
+          { id: 'act-boris-1', label: 'Optimiser la fiche Google Business', status: 'Terminé' },
+          { id: 'act-boris-2', label: 'Créer un calendrier de contenu Instagram', status: 'En cours' },
+          { id: 'act-boris-3', label: 'Mettre en place les Beacons', status: 'À faire' }
+        ]
+      }
+    },
+    monthOrder: ['juin-2026', 'juillet-2026'],
+    selectedMonth: 'juillet-2026',
+    internalNotes: 'Client réactif, bon potentiel de croissance sur la visibilité locale.'
+  },
+  {
+    id: 'toast-tea',
+    general: {
+      name: 'Toast’Tea',
+      type: 'Restauration / Lifestyle',
+      city: 'Bordeaux',
+      offer: 'Pack Contenu & Notoriété',
+      startDate: '2026-02-01',
+      mainGoal: 'Améliorer la notoriété et accélérer la production éditoriale.',
+      monthStatus: 'Objectif atteint'
+    },
+    initialSituation: {
+      googleRating: 4.1,
+      googleReviews: 52,
+      googleViews: 1200,
+      googleCalls: 25,
+      googleDirections: 60,
+      googleWebsiteClicks: 22,
+      instagramFollowers: 2400,
+      instagramReach: 11000,
+      instagramViews: 4000,
+      instagramInteractions: 700,
+      instagramProfileVisits: 380,
+      instagramLinkClicks: 60
+    },
+    months: {
+      'juin-2026': {
+        label: 'Juin 2026',
+        googleBusiness: {
+          rating: 4.3,
+          reviewsCount: 64,
+          newReviews: 4,
+          reviewsAnswered: 4,
+          profileViews: 1450,
+          calls: 33,
+          directions: 74,
+          websiteClicks: 36,
+          bookings: 14,
+          photosPublished: 6,
+          googlePosts: 5
+        },
+        instagram: {
+          followers: 2800,
+          newFollowers: 70,
+          reach: 13200,
+          impressions: 21000,
+          views: 4700,
+          interactions: 850,
+          engagementRate: 4.7,
+          profileVisits: 470,
+          linkClicks: 82,
+          posts: 10,
+          reels: 4,
+          stories: 17
+        },
+        facebook: { followers: 1150, reach: 3700, impressions: 6000, interactions: 270, linkClicks: 32, posts: 6 },
+        beacons: { bookingClicks: 44, phoneClicks: 22, directionsClicks: 38 },
+        businessResults: {
+          bookingsGenerated: 14,
+          estimatedRevenue: 2300,
+          roi: 2.0,
+          goalReached: 'Partiel',
+          remainingPotential: 1200
+        },
+        monthlyObjectives: [
+          { id: 'obj-toast-j1', label: 'Diagnostic de marque', done: true },
+          { id: 'obj-toast-j2', label: 'Lancer le calendrier éditorial', done: true }
+        ],
+        actionPlan: [
+          { id: 'act-toast-j1', label: 'Diagnostic de marque', status: 'Terminé' },
+          { id: 'act-toast-j2', label: 'Premier calendrier éditorial', status: 'Terminé' }
+        ]
+      },
+      'juillet-2026': {
+        label: 'Juillet 2026',
+        googleBusiness: {
+          rating: 4.5,
+          reviewsCount: 76,
+          newReviews: 6,
+          reviewsAnswered: 6,
+          profileViews: 1680,
+          calls: 40,
+          directions: 88,
+          websiteClicks: 45,
+          bookings: 18,
+          photosPublished: 9,
+          googlePosts: 6
+        },
+        instagram: {
+          followers: 3120,
+          newFollowers: 96,
+          reach: 15200,
+          impressions: 24800,
+          views: 5400,
+          interactions: 980,
+          engagementRate: 5.1,
+          profileVisits: 540,
+          linkClicks: 97,
+          posts: 12,
+          reels: 5,
+          stories: 20
+        },
+        facebook: { followers: 1240, reach: 4100, impressions: 6700, interactions: 305, linkClicks: 38, posts: 7 },
+        beacons: { bookingClicks: 52, phoneClicks: 28, directionsClicks: 45 },
+        businessResults: {
+          bookingsGenerated: 18,
+          estimatedRevenue: 2950,
+          roi: 2.4,
+          goalReached: 'Oui',
+          remainingPotential: 900
+        },
+        monthlyObjectives: [
+          { id: 'obj-toast-1', label: 'Publier le calendrier éditorial du mois', done: true },
+          { id: 'obj-toast-2', label: 'Améliorer le taux d’engagement Instagram', done: true },
+          { id: 'obj-toast-3', label: 'Répondre aux nouveaux avis Google', done: false }
+        ],
+        actionPlan: [
+          { id: 'act-toast-1', label: 'Diagnostic de marque', status: 'Terminé' },
+          { id: 'act-toast-2', label: 'Calendrier éditorial', status: 'En cours' },
+          { id: 'act-toast-3', label: 'Optimisation de la présence locale', status: 'En cours' }
+        ]
+      }
+    },
+    monthOrder: ['juin-2026', 'juillet-2026'],
+    selectedMonth: 'juillet-2026',
+    internalNotes: 'Forte dynamique sur Instagram, continuer la régularité de publication.'
+  }
+];
+
+function getCurrentPath() {
+  const path = window.location.pathname;
+  return path.substring(path.lastIndexOf('/') + 1) || 'index.html';
+}
+
+function normalizeId(value) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+function generateId() {
+  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]
+  ));
+}
+
+function isLegacyClientData(data) {
+  return Boolean(data) && !data.months && Boolean(data.googleBusiness || data.instagram);
+}
+
+function migrateLegacyClientData(data) {
+  const monthKey = 'historique-initial';
+  const emptyMonth = createEmptyMonthData('Historique');
+
+  return {
+    id: data.id,
+    general: data.general,
+    initialSituation: createEmptyInitialSituation(),
+    months: {
+      [monthKey]: {
+        label: 'Historique',
+        googleBusiness: data.googleBusiness || emptyMonth.googleBusiness,
+        instagram: data.instagram || emptyMonth.instagram,
+        facebook: data.facebook || emptyMonth.facebook,
+        beacons: data.beacons || emptyMonth.beacons,
+        businessResults: data.businessResults || emptyMonth.businessResults,
+        monthlyObjectives: data.monthlyObjectives || [],
+        actionPlan: data.actionPlan || []
+      }
+    },
+    monthOrder: [monthKey],
+    selectedMonth: monthKey,
+    internalNotes: data.internalNotes || ''
   };
 }
 
@@ -360,7 +568,13 @@ function getClientData(id) {
 
   if (saved) {
     try {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (isLegacyClientData(parsed)) {
+        const migrated = migrateLegacyClientData(parsed);
+        saveClientData(id, migrated);
+        return migrated;
+      }
+      return parsed;
     } catch (error) {
       // fall through to seed/empty
     }
@@ -424,7 +638,7 @@ function highlightCurrentNav() {
   });
 }
 
-function createFieldControl(sectionKey, field) {
+function createFieldControl(sectionKey, field, monthKey) {
   const wrapper = document.createElement('label');
   wrapper.className = 'field-item';
 
@@ -453,11 +667,14 @@ function createFieldControl(sectionKey, field) {
 
   input.dataset.section = sectionKey;
   input.dataset.field = field.key;
+  if (monthKey) {
+    input.dataset.month = monthKey;
+  }
   wrapper.appendChild(input);
   return wrapper;
 }
 
-function renderFieldSection(section) {
+function renderFieldSection(section, monthKey) {
   const block = document.createElement('div');
   block.className = 'section-block';
   block.innerHTML = `
@@ -472,21 +689,152 @@ function renderFieldSection(section) {
 
   const grid = block.querySelector('.field-grid');
   section.fields.forEach((field) => {
-    grid.appendChild(createFieldControl(section.key, field));
+    grid.appendChild(createFieldControl(section.key, field, monthKey));
   });
 
   return block;
 }
 
-function fillFieldValues(article, clientData) {
-  article.querySelectorAll('.field-input[data-section]').forEach((input) => {
+function fillFieldValues(scopeEl, dataScope) {
+  scopeEl.querySelectorAll('.field-input[data-section]').forEach((input) => {
     const { section, field } = input.dataset;
-    const value = clientData[section] ? clientData[section][field] : undefined;
+    const value = dataScope[section] ? dataScope[section][field] : undefined;
     input.value = value === undefined || value === null ? '' : value;
   });
 }
 
-function createObjectiveRow(clientId, objective, onRemove) {
+function formatNumber(value) {
+  return Number(value).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+}
+
+function unitSuffix(unit) {
+  if (unit === '€') {
+    return ' €';
+  }
+  if (unit === 'x') {
+    return 'x';
+  }
+  if (unit === '%') {
+    return '%';
+  }
+  return '';
+}
+
+function formatValue(value, unit) {
+  if (value === '' || value === null || value === undefined || Number.isNaN(Number(value))) {
+    return '—';
+  }
+  return `${formatNumber(value)}${unitSuffix(unit)}`;
+}
+
+function computeEvolution(reference, current) {
+  const refValid = reference !== '' && reference !== null && reference !== undefined && !Number.isNaN(Number(reference));
+  const curValid = current !== '' && current !== null && current !== undefined && !Number.isNaN(Number(current));
+
+  if (!refValid || !curValid) {
+    return { diff: null, percent: null };
+  }
+
+  const refNum = Number(reference);
+  const curNum = Number(current);
+  const diff = curNum - refNum;
+  const percent = refNum !== 0 ? (diff / Math.abs(refNum)) * 100 : null;
+  return { diff, percent };
+}
+
+function formatEvolution(evolution, unit) {
+  if (evolution.diff === null) {
+    return { text: '—', badgeClass: 'neutral' };
+  }
+
+  const diffText = `${evolution.diff > 0 ? '+' : ''}${formatNumber(evolution.diff)}${unitSuffix(unit)}`;
+  const percentText = evolution.percent === null ? '' : ` (${evolution.percent > 0 ? '+' : ''}${evolution.percent.toFixed(1)}%)`;
+  const badgeClass = evolution.diff > 0 ? 'positive' : evolution.diff < 0 ? 'negative' : 'neutral';
+  return { text: `${diffText}${percentText}`, badgeClass };
+}
+
+function getBaselineValue(initialSituation, sectionKey, fieldKey) {
+  const entry = Object.entries(baselineFieldMap).find(
+    ([, ref]) => ref.section === sectionKey && ref.field === fieldKey
+  );
+  return entry ? initialSituation[entry[0]] : '';
+}
+
+function createComparisonRow(field, values) {
+  const row = document.createElement('tr');
+
+  const vsInitial = computeEvolution(values.initial, values.current);
+  const vsPrevious = computeEvolution(values.previous, values.current);
+  const initialFmt = formatEvolution(vsInitial, values.unit);
+  const previousFmt = formatEvolution(vsPrevious, values.unit);
+
+  row.innerHTML = `
+    <td>${escapeHtml(field.label)}</td>
+    <td>${formatValue(values.initial, values.unit)}</td>
+    <td>${formatValue(values.previous, values.unit)}</td>
+    <td class="comparison-current">${formatValue(values.current, values.unit)}</td>
+    <td><span class="evolution-badge ${initialFmt.badgeClass}">${initialFmt.text}</span></td>
+    <td><span class="evolution-badge ${previousFmt.badgeClass}">${previousFmt.text}</span></td>
+  `;
+  return row;
+}
+
+function renderComparisonTable(section, fields, monthData, previousMonthData, initialSituation) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'comparison-scroll';
+
+  const table = document.createElement('table');
+  table.className = 'comparison-table';
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Indicateur</th>
+        <th>Initial</th>
+        <th>Mois précédent</th>
+        <th>Mois sélectionné</th>
+        <th>Évolution vs initial</th>
+        <th>Évolution vs mois précédent</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+
+  const tbody = table.querySelector('tbody');
+  fields.forEach((field) => {
+    const current = monthData[section.key][field.key];
+    const previous = previousMonthData ? previousMonthData[section.key][field.key] : '';
+    const initial = getBaselineValue(initialSituation, section.key, field.key);
+
+    tbody.appendChild(createComparisonRow(field, { initial, previous, current, unit: field.unit }));
+  });
+
+  wrapper.appendChild(table);
+  return wrapper;
+}
+
+function renderMonthlySectionWithComparison(section, monthKey, monthData, previousMonthData, initialSituation) {
+  const block = renderFieldSection(section, monthKey);
+  fillFieldValues(block, monthData);
+
+  const numericFields = section.fields.filter((field) => field.type === 'number');
+  if (numericFields.length) {
+    block.appendChild(renderComparisonTable(section, numericFields, monthData, previousMonthData, initialSituation));
+  }
+
+  return block;
+}
+
+function createNoMonthsState() {
+  const el = document.createElement('div');
+  el.className = 'no-months-state';
+  el.innerHTML = `
+    <p class="eyebrow">Aucun mois enregistré</p>
+    <p>Ajoutez un premier mois ci-dessus pour commencer le suivi mensuel de ce client.</p>
+  `;
+  return el;
+}
+
+function createObjectiveRow(clientId, monthKey, objective, onRemove) {
   const row = document.createElement('div');
   row.className = `checklist-item${objective.done ? ' done' : ''}`;
 
@@ -507,7 +855,8 @@ function createObjectiveRow(clientId, objective, onRemove) {
 
   checkbox.addEventListener('change', () => {
     const data = getClientData(clientId);
-    const target = data.monthlyObjectives.find((item) => item.id === objective.id);
+    const month = data.months[monthKey];
+    const target = month?.monthlyObjectives.find((item) => item.id === objective.id);
     if (target) {
       target.done = checkbox.checked;
       saveClientData(clientId, data);
@@ -517,8 +866,11 @@ function createObjectiveRow(clientId, objective, onRemove) {
 
   removeButton.addEventListener('click', () => {
     const data = getClientData(clientId);
-    data.monthlyObjectives = data.monthlyObjectives.filter((item) => item.id !== objective.id);
-    saveClientData(clientId, data);
+    const month = data.months[monthKey];
+    if (month) {
+      month.monthlyObjectives = month.monthlyObjectives.filter((item) => item.id !== objective.id);
+      saveClientData(clientId, data);
+    }
     onRemove();
   });
 
@@ -527,7 +879,7 @@ function createObjectiveRow(clientId, objective, onRemove) {
   return row;
 }
 
-function renderObjectivesSection(clientId) {
+function renderObjectivesSection(clientId, monthKey) {
   const block = document.createElement('div');
   block.className = 'section-block';
   block.innerHTML = `
@@ -549,9 +901,13 @@ function renderObjectivesSection(clientId) {
 
   const renderList = () => {
     const data = getClientData(clientId);
+    const month = data.months[monthKey];
+    if (!month) {
+      return;
+    }
     list.innerHTML = '';
-    data.monthlyObjectives.forEach((objective) => {
-      list.appendChild(createObjectiveRow(clientId, objective, renderList));
+    month.monthlyObjectives.forEach((objective) => {
+      list.appendChild(createObjectiveRow(clientId, monthKey, objective, renderList));
     });
   };
 
@@ -563,7 +919,11 @@ function renderObjectivesSection(clientId) {
       return;
     }
     const data = getClientData(clientId);
-    data.monthlyObjectives.push({ id: generateId(), label, done: false });
+    const month = data.months[monthKey];
+    if (!month) {
+      return;
+    }
+    month.monthlyObjectives.push({ id: generateId(), label, done: false });
     saveClientData(clientId, data);
     input.value = '';
     renderList();
@@ -573,7 +933,7 @@ function renderObjectivesSection(clientId) {
   return block;
 }
 
-function createActionRow(clientId, action, onRemove) {
+function createActionRow(clientId, monthKey, action, onRemove) {
   const row = document.createElement('div');
   row.className = 'action-item';
 
@@ -599,7 +959,8 @@ function createActionRow(clientId, action, onRemove) {
 
   select.addEventListener('change', () => {
     const data = getClientData(clientId);
-    const target = data.actionPlan.find((item) => item.id === action.id);
+    const month = data.months[monthKey];
+    const target = month?.actionPlan.find((item) => item.id === action.id);
     if (target) {
       target.status = select.value;
       saveClientData(clientId, data);
@@ -608,8 +969,11 @@ function createActionRow(clientId, action, onRemove) {
 
   removeButton.addEventListener('click', () => {
     const data = getClientData(clientId);
-    data.actionPlan = data.actionPlan.filter((item) => item.id !== action.id);
-    saveClientData(clientId, data);
+    const month = data.months[monthKey];
+    if (month) {
+      month.actionPlan = month.actionPlan.filter((item) => item.id !== action.id);
+      saveClientData(clientId, data);
+    }
     onRemove();
   });
 
@@ -619,7 +983,7 @@ function createActionRow(clientId, action, onRemove) {
   return row;
 }
 
-function renderActionPlanSection(clientId) {
+function renderActionPlanSection(clientId, monthKey) {
   const block = document.createElement('div');
   block.className = 'section-block';
   block.innerHTML = `
@@ -641,9 +1005,13 @@ function renderActionPlanSection(clientId) {
 
   const renderList = () => {
     const data = getClientData(clientId);
+    const month = data.months[monthKey];
+    if (!month) {
+      return;
+    }
     list.innerHTML = '';
-    data.actionPlan.forEach((action) => {
-      list.appendChild(createActionRow(clientId, action, renderList));
+    month.actionPlan.forEach((action) => {
+      list.appendChild(createActionRow(clientId, monthKey, action, renderList));
     });
   };
 
@@ -655,7 +1023,11 @@ function renderActionPlanSection(clientId) {
       return;
     }
     const data = getClientData(clientId);
-    data.actionPlan.push({ id: generateId(), label, status: actionStatusOptions[0] });
+    const month = data.months[monthKey];
+    if (!month) {
+      return;
+    }
+    month.actionPlan.push({ id: generateId(), label, status: actionStatusOptions[0] });
     saveClientData(clientId, data);
     input.value = '';
     renderList();
@@ -688,37 +1060,6 @@ function renderNotesSection(clientId, clientData) {
   });
 
   return block;
-}
-
-function handleFieldChange(event, clientId, article) {
-  const target = event.target;
-  if (!target.matches('.field-input')) {
-    return;
-  }
-
-  const { section, field } = target.dataset;
-  if (!section || !field) {
-    return;
-  }
-
-  const data = getClientData(clientId);
-  if (!data[section]) {
-    return;
-  }
-
-  const isNumber = target.type === 'number';
-  data[section][field] = isNumber && target.value !== '' ? Number(target.value) : target.value;
-  saveClientData(clientId, data);
-
-  if (section === 'general' && field === 'name') {
-    article.querySelector('[data-role="name-heading"]').textContent = target.value;
-    updateSidebarRow(clientId, data);
-  }
-
-  if (section === 'general' && field === 'type') {
-    article.querySelector('[data-role="type-chip"]').textContent = target.value || 'Client';
-    updateSidebarRow(clientId, data);
-  }
 }
 
 function updateSidebarRow(clientId, data) {
@@ -755,18 +1096,153 @@ function createDashboardCard(clientId) {
   heading.textContent = data.general.name;
   article.appendChild(heading);
 
-  clientSectionSchema.forEach((section) => {
-    article.appendChild(renderFieldSection(section));
-  });
-
-  article.appendChild(renderObjectivesSection(clientId));
-  article.appendChild(renderActionPlanSection(clientId));
-  article.appendChild(renderNotesSection(clientId, data));
-
+  article.appendChild(renderFieldSection(generalFieldsSchema));
+  article.appendChild(renderFieldSection(initialSituationSchema));
   fillFieldValues(article, data);
 
-  article.addEventListener('input', (event) => handleFieldChange(event, clientId, article));
-  article.addEventListener('change', (event) => handleFieldChange(event, clientId, article));
+  const monthControlBlock = document.createElement('div');
+  monthControlBlock.className = 'section-block';
+  monthControlBlock.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Historique mensuel</p>
+        <h3>Mois affiché</h3>
+      </div>
+    </div>
+    <div class="month-selector-row">
+      <select class="month-select" data-role="month-select"></select>
+    </div>
+    <form class="inline-add-form" data-role="month-add-form">
+      <input type="text" placeholder="Nouveau mois (ex : Août 2026)" required />
+      <button type="submit" class="client-open-btn">Ajouter un mois</button>
+    </form>
+  `;
+  article.appendChild(monthControlBlock);
+
+  const monthContent = document.createElement('div');
+  monthContent.dataset.role = 'month-content';
+  article.appendChild(monthContent);
+
+  const monthSelect = monthControlBlock.querySelector('[data-role="month-select"]');
+  const monthAddForm = monthControlBlock.querySelector('[data-role="month-add-form"]');
+
+  const populateMonthSelect = (freshData) => {
+    monthSelect.innerHTML = '';
+    freshData.monthOrder.forEach((key) => {
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = freshData.months[key].label;
+      monthSelect.appendChild(option);
+    });
+  };
+
+  const refreshMonthContent = () => {
+    const freshData = getClientData(clientId);
+    populateMonthSelect(freshData);
+    monthContent.innerHTML = '';
+
+    if (!freshData.monthOrder.length) {
+      monthContent.appendChild(createNoMonthsState());
+      return;
+    }
+
+    let selectedMonth = freshData.selectedMonth;
+    if (!selectedMonth || !freshData.monthOrder.includes(selectedMonth)) {
+      selectedMonth = freshData.monthOrder[freshData.monthOrder.length - 1];
+      freshData.selectedMonth = selectedMonth;
+      saveClientData(clientId, freshData);
+    }
+    monthSelect.value = selectedMonth;
+
+    const monthIndex = freshData.monthOrder.indexOf(selectedMonth);
+    const previousMonthKey = monthIndex > 0 ? freshData.monthOrder[monthIndex - 1] : null;
+    const monthData = freshData.months[selectedMonth];
+    const previousMonthData = previousMonthKey ? freshData.months[previousMonthKey] : null;
+
+    monthlySectionSchema.forEach((section) => {
+      monthContent.appendChild(
+        renderMonthlySectionWithComparison(section, selectedMonth, monthData, previousMonthData, freshData.initialSituation)
+      );
+    });
+
+    monthContent.appendChild(renderObjectivesSection(clientId, selectedMonth));
+    monthContent.appendChild(renderActionPlanSection(clientId, selectedMonth));
+  };
+
+  monthSelect.addEventListener('change', () => {
+    const freshData = getClientData(clientId);
+    freshData.selectedMonth = monthSelect.value;
+    saveClientData(clientId, freshData);
+    refreshMonthContent();
+  });
+
+  monthAddForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const input = monthAddForm.querySelector('input');
+    const label = input.value.trim();
+    if (!label) {
+      return;
+    }
+
+    const freshData = getClientData(clientId);
+    const key = normalizeId(label);
+    if (!key || freshData.months[key]) {
+      window.alert('Ce mois existe déjà.');
+      return;
+    }
+
+    freshData.months[key] = createEmptyMonthData(label);
+    freshData.monthOrder.push(key);
+    freshData.selectedMonth = key;
+    saveClientData(clientId, freshData);
+    input.value = '';
+    refreshMonthContent();
+  });
+
+  refreshMonthContent();
+
+  article.appendChild(renderNotesSection(clientId, data));
+
+  const handleFieldInput = (event) => {
+    const target = event.target;
+    if (!target.matches('.field-input')) {
+      return;
+    }
+
+    const { section, field, month } = target.dataset;
+    if (!section || !field) {
+      return;
+    }
+
+    const freshData = getClientData(clientId);
+    const scope = month ? freshData.months[month] : freshData;
+    if (!scope || !scope[section]) {
+      return;
+    }
+
+    const isNumber = target.type === 'number';
+    scope[section][field] = isNumber && target.value !== '' ? Number(target.value) : target.value;
+    saveClientData(clientId, freshData);
+
+    if (!month && section === 'general' && field === 'name') {
+      article.querySelector('[data-role="name-heading"]').textContent = target.value;
+      updateSidebarRow(clientId, freshData);
+    }
+
+    if (!month && section === 'general' && field === 'type') {
+      article.querySelector('[data-role="type-chip"]').textContent = target.value || 'Client';
+      updateSidebarRow(clientId, freshData);
+    }
+  };
+
+  article.addEventListener('input', handleFieldInput);
+  article.addEventListener('change', (event) => {
+    handleFieldInput(event);
+    const target = event.target;
+    if (target.matches('.field-input') && target.dataset.month) {
+      refreshMonthContent();
+    }
+  });
 
   return article;
 }
