@@ -1141,6 +1141,743 @@ function renderSynthesisSection(monthData, previousMonthData, initialSituation) 
   return block;
 }
 
+function hasValue(value) {
+  return value !== '' && value !== null && value !== undefined && !Number.isNaN(Number(value));
+}
+
+function monthHasAnyData(monthData) {
+  return ['googleBusiness', 'instagram', 'facebook', 'beacons'].some((section) =>
+    Object.values(monthData[section]).some((value) => hasValue(value))
+  );
+}
+
+function formatSignedPercent(percent) {
+  return `${percent > 0 ? '+' : ''}${percent.toFixed(1)}%`;
+}
+
+function joinWithAnd(parts) {
+  if (parts.length <= 1) {
+    return parts.join('');
+  }
+  return `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}`;
+}
+
+function describeTrend(percent) {
+  if (percent === null || percent === undefined || Number.isNaN(percent)) {
+    return 'sans comparaison disponible pour ce mois';
+  }
+  if (percent >= 20) {
+    return 'en forte progression';
+  }
+  if (percent >= 8) {
+    return 'en bonne progression';
+  }
+  if (percent > 0) {
+    return 'en légère progression';
+  }
+  if (percent === 0) {
+    return 'en stagnation';
+  }
+  if (percent > -8) {
+    return 'en léger recul';
+  }
+  return 'en net recul';
+}
+
+const facebookFieldsForInsights = [
+  ['facebook', 'followers'],
+  ['facebook', 'reach'],
+  ['facebook', 'impressions'],
+  ['facebook', 'interactions'],
+  ['facebook', 'linkClicks'],
+  ['facebook', 'posts']
+];
+
+const allInsightFields = [...googleScoreFields, ...instagramScoreFields, ...facebookFieldsForInsights, ...beaconsScoreFields];
+
+const insightFieldLabels = {
+  'googleBusiness.rating': 'La note Google',
+  'googleBusiness.reviewsCount': 'Le nombre d’avis Google',
+  'googleBusiness.profileViews': 'Les vues de la fiche Google',
+  'googleBusiness.calls': 'Les appels Google',
+  'googleBusiness.directions': 'Les demandes d’itinéraire Google',
+  'googleBusiness.websiteClicks': 'Les clics vers le site',
+  'instagram.followers': 'Les abonnés Instagram',
+  'instagram.reach': 'La portée Instagram',
+  'instagram.interactions': 'Les interactions Instagram',
+  'instagram.profileVisits': 'Les visites de profil Instagram',
+  'instagram.linkClicks': 'Les clics sur le lien Instagram',
+  'facebook.followers': 'Les abonnés Facebook',
+  'facebook.reach': 'La portée Facebook',
+  'facebook.impressions': 'Les impressions Facebook',
+  'facebook.interactions': 'Les interactions Facebook',
+  'facebook.linkClicks': 'Les clics lien Facebook',
+  'facebook.posts': 'Les publications Facebook',
+  'beacons.bookingClicks': 'Les clics réservation Beacons',
+  'beacons.phoneClicks': 'Les clics téléphone Beacons',
+  'beacons.directionsClicks': 'Les clics itinéraire Beacons'
+};
+
+function collectFieldEvolutions(monthData, previousMonthData, fieldPairs) {
+  if (!previousMonthData) {
+    return [];
+  }
+  return fieldPairs
+    .map(([section, field]) => {
+      const evolution = computeEvolution(previousMonthData[section][field], monthData[section][field]);
+      return { section, field, label: insightFieldLabels[`${section}.${field}`] || field, ...evolution };
+    })
+    .filter((item) => item.percent !== null && !Number.isNaN(item.percent));
+}
+
+function generateExecutiveSummary(ctx) {
+  const name = ctx.generalData?.name || 'Ce client';
+  const sentences = [];
+
+  sentences.push(
+    `En ${ctx.monthLabel}, ${name} obtient un score global de ${ctx.score}/100, ce qui correspond à un mois « ${ctx.scoreBadge.label.toLowerCase()} ».`
+  );
+
+  const { best, worst } = ctx.evolutions;
+  if (best) {
+    sentences.push(`Le point fort du mois est : ${best.label}, ${describeTrend(best.percent)} (${formatSignedPercent(best.percent)}).`);
+  }
+  if (worst && worst.percent < 0 && (!best || worst.field !== best.field)) {
+    sentences.push(
+      `À l’inverse, un point de vigilance : ${worst.label}, ${describeTrend(worst.percent)} (${formatSignedPercent(worst.percent)}), qui mérite une attention particulière.`
+    );
+  }
+
+  sentences.push(ctx.objectivesSentence);
+
+  return sentences.join(' ');
+}
+
+function generateGoogleAnalysis(monthData, previousMonthData) {
+  const gb = monthData.googleBusiness;
+  const prevGb = previousMonthData ? previousMonthData.googleBusiness : null;
+  const sentences = [];
+
+  const ratingEvo = prevGb ? computeEvolution(prevGb.rating, gb.rating) : { percent: null };
+  const reviewsEvo = prevGb ? computeEvolution(prevGb.reviewsCount, gb.reviewsCount) : { percent: null };
+  const viewsEvo = prevGb ? computeEvolution(prevGb.profileViews, gb.profileViews) : { percent: null };
+  const callsEvo = prevGb ? computeEvolution(prevGb.calls, gb.calls) : { percent: null };
+  const directionsEvo = prevGb ? computeEvolution(prevGb.directions, gb.directions) : { percent: null };
+  const clicksEvo = prevGb ? computeEvolution(prevGb.websiteClicks, gb.websiteClicks) : { percent: null };
+
+  if (hasValue(gb.rating)) {
+    sentences.push(
+      `La note Google est ${describeTrend(ratingEvo.percent)}${ratingEvo.percent !== null ? ` (${formatSignedPercent(ratingEvo.percent)})` : ''}, actuellement à ${gb.rating}/5.`
+    );
+  }
+
+  if (hasValue(gb.reviewsCount)) {
+    let reviewSentence = `Le volume d’avis est ${describeTrend(reviewsEvo.percent)}${reviewsEvo.percent !== null ? ` (${formatSignedPercent(reviewsEvo.percent)})` : ''}, avec ${gb.reviewsCount} avis au total`;
+    if (hasValue(gb.newReviews)) {
+      reviewSentence += ` dont ${gb.newReviews} nouveaux ce mois-ci`;
+    }
+    sentences.push(`${reviewSentence}.`);
+  }
+
+  if (hasValue(gb.newReviews) && hasValue(gb.reviewsAnswered) && Number(gb.newReviews) > 0) {
+    const responseRate = (Number(gb.reviewsAnswered) / Number(gb.newReviews)) * 100;
+    sentences.push(`Le taux de réponse aux nouveaux avis est de ${Math.round(responseRate)}% (${gb.reviewsAnswered}/${gb.newReviews}).`);
+  }
+
+  const visibilityParts = [];
+  if (viewsEvo.percent !== null) {
+    visibilityParts.push(`les vues de la fiche sont ${describeTrend(viewsEvo.percent)} (${formatSignedPercent(viewsEvo.percent)})`);
+  }
+  if (callsEvo.percent !== null) {
+    visibilityParts.push(`les appels sont ${describeTrend(callsEvo.percent)} (${formatSignedPercent(callsEvo.percent)})`);
+  }
+  if (directionsEvo.percent !== null) {
+    visibilityParts.push(`les demandes d’itinéraire sont ${describeTrend(directionsEvo.percent)} (${formatSignedPercent(directionsEvo.percent)})`);
+  }
+  if (clicksEvo.percent !== null) {
+    visibilityParts.push(`les clics vers le site sont ${describeTrend(clicksEvo.percent)} (${formatSignedPercent(clicksEvo.percent)})`);
+  }
+  if (visibilityParts.length) {
+    sentences.push(`Sur le plan de la visibilité, ${joinWithAnd(visibilityParts)}.`);
+  }
+
+  if (hasValue(gb.bookings)) {
+    const count = Number(gb.bookings);
+    sentences.push(`${count} réservation${count > 1 ? 's ont' : ' a'} été enregistrée${count > 1 ? 's' : ''} via Google Business ce mois-ci.`);
+  }
+
+  if (!sentences.length) {
+    return 'Aucune donnée Google Business n’a encore été saisie pour ce mois.';
+  }
+
+  return sentences.join(' ');
+}
+
+function generateInstagramAnalysis(monthData, previousMonthData) {
+  const ig = monthData.instagram;
+  const prevIg = previousMonthData ? previousMonthData.instagram : null;
+  const sentences = [];
+
+  const followersEvo = prevIg ? computeEvolution(prevIg.followers, ig.followers) : { percent: null };
+  const reachEvo = prevIg ? computeEvolution(prevIg.reach, ig.reach) : { percent: null };
+  const linkClicksEvo = prevIg ? computeEvolution(prevIg.linkClicks, ig.linkClicks) : { percent: null };
+
+  if (hasValue(ig.followers)) {
+    sentences.push(
+      `La communauté Instagram est ${describeTrend(followersEvo.percent)}${followersEvo.percent !== null ? ` (${formatSignedPercent(followersEvo.percent)})` : ''}, avec ${formatNumber(ig.followers)} abonnés${hasValue(ig.newFollowers) ? ` dont ${ig.newFollowers} nouveaux ce mois-ci` : ''}.`
+    );
+  }
+
+  if (hasValue(ig.reach)) {
+    sentences.push(
+      `La portée est ${describeTrend(reachEvo.percent)}${reachEvo.percent !== null ? ` (${formatSignedPercent(reachEvo.percent)})` : ''}, pour ${formatNumber(ig.reach)} comptes touchés.`
+    );
+  }
+
+  const engagementRate = computeEngagementRate(monthData);
+  const prevEngagementRate = previousMonthData ? computeEngagementRate(previousMonthData) : null;
+  if (engagementRate !== null) {
+    const engagementEvo = computeEvolution(prevEngagementRate, engagementRate);
+    sentences.push(
+      `Le taux d’engagement calculé (interactions / portée) est de ${engagementRate.toFixed(1)}%${engagementEvo.percent !== null ? `, ${describeTrend(engagementEvo.percent)} par rapport au mois précédent (${formatSignedPercent(engagementEvo.percent)})` : ''}.`
+    );
+  }
+
+  const volumeParts = [];
+  if (hasValue(ig.posts)) {
+    volumeParts.push(`${ig.posts} publication${Number(ig.posts) > 1 ? 's' : ''}`);
+  }
+  if (hasValue(ig.reels)) {
+    volumeParts.push(`${ig.reels} reel${Number(ig.reels) > 1 ? 's' : ''}`);
+  }
+  if (hasValue(ig.stories)) {
+    volumeParts.push(`${ig.stories} story/stories`);
+  }
+  if (volumeParts.length) {
+    sentences.push(`Le rythme de publication du mois représente ${joinWithAnd(volumeParts)}.`);
+  }
+
+  if (hasValue(ig.linkClicks)) {
+    sentences.push(
+      `Les clics sur le lien de la bio sont ${describeTrend(linkClicksEvo.percent)}${linkClicksEvo.percent !== null ? ` (${formatSignedPercent(linkClicksEvo.percent)})` : ''}, avec ${ig.linkClicks} clics enregistrés.`
+    );
+  }
+
+  if (!sentences.length) {
+    return 'Aucune donnée Instagram n’a encore été saisie pour ce mois.';
+  }
+
+  return sentences.join(' ');
+}
+
+function generateFacebookAnalysis(monthData, previousMonthData) {
+  const fb = monthData.facebook;
+  const prevFb = previousMonthData ? previousMonthData.facebook : null;
+  const sentences = [];
+
+  const followersEvo = prevFb ? computeEvolution(prevFb.followers, fb.followers) : { percent: null };
+  const reachEvo = prevFb ? computeEvolution(prevFb.reach, fb.reach) : { percent: null };
+  const interactionsEvo = prevFb ? computeEvolution(prevFb.interactions, fb.interactions) : { percent: null };
+
+  if (hasValue(fb.followers)) {
+    sentences.push(
+      `La page Facebook compte ${formatNumber(fb.followers)} abonnés, ${describeTrend(followersEvo.percent)}${followersEvo.percent !== null ? ` (${formatSignedPercent(followersEvo.percent)})` : ''}.`
+    );
+  }
+  if (hasValue(fb.reach)) {
+    sentences.push(`La portée est ${describeTrend(reachEvo.percent)}${reachEvo.percent !== null ? ` (${formatSignedPercent(reachEvo.percent)})` : ''}.`);
+  }
+  if (hasValue(fb.interactions)) {
+    sentences.push(
+      `Les interactions sont ${describeTrend(interactionsEvo.percent)}${interactionsEvo.percent !== null ? ` (${formatSignedPercent(interactionsEvo.percent)})` : ''}, pour ${hasValue(fb.posts) ? fb.posts : 0} publication(s) ce mois-ci.`
+    );
+  }
+
+  if (!sentences.length) {
+    return 'Aucune donnée Facebook n’a encore été saisie pour ce mois.';
+  }
+
+  return sentences.join(' ');
+}
+
+function generateBeaconsAnalysis(monthData, previousMonthData) {
+  const bc = monthData.beacons;
+  const prevBc = previousMonthData ? previousMonthData.beacons : null;
+  const sentences = [];
+
+  const bookingEvo = prevBc ? computeEvolution(prevBc.bookingClicks, bc.bookingClicks) : { percent: null };
+  const phoneEvo = prevBc ? computeEvolution(prevBc.phoneClicks, bc.phoneClicks) : { percent: null };
+  const directionsEvo = prevBc ? computeEvolution(prevBc.directionsClicks, bc.directionsClicks) : { percent: null };
+  const total = sumOrNull([bc.bookingClicks, bc.phoneClicks, bc.directionsClicks]);
+
+  if (total !== null) {
+    sentences.push(`Les Beacons ont généré ${formatNumber(total)} clics d’intention ce mois-ci (réservation, téléphone, itinéraire confondus).`);
+  }
+  if (hasValue(bc.bookingClicks)) {
+    sentences.push(`Les clics de réservation sont ${describeTrend(bookingEvo.percent)}${bookingEvo.percent !== null ? ` (${formatSignedPercent(bookingEvo.percent)})` : ''}.`);
+  }
+  if (hasValue(bc.phoneClicks)) {
+    sentences.push(`Les clics téléphone sont ${describeTrend(phoneEvo.percent)}${phoneEvo.percent !== null ? ` (${formatSignedPercent(phoneEvo.percent)})` : ''}.`);
+  }
+  if (hasValue(bc.directionsClicks)) {
+    sentences.push(`Les clics itinéraire sont ${describeTrend(directionsEvo.percent)}${directionsEvo.percent !== null ? ` (${formatSignedPercent(directionsEvo.percent)})` : ''}.`);
+  }
+
+  if (!sentences.length) {
+    return 'Aucune donnée Beacons n’a encore été saisie pour ce mois.';
+  }
+
+  return sentences.join(' ');
+}
+
+function generateObjectivesAnalysis(monthData) {
+  const objectives = monthData.monthlyObjectives;
+  const actions = monthData.actionPlan;
+  const sentences = [];
+
+  if (objectives.length) {
+    const done = objectives.filter((objective) => objective.done).length;
+    sentences.push(
+      `${done} objectif${done > 1 ? 's' : ''} sur ${objectives.length} ${done > 1 ? 'ont été atteints' : 'a été atteint'} ce mois-ci (${Math.round((done / objectives.length) * 100)}%).`
+    );
+    const remaining = objectives.filter((objective) => !objective.done).map((objective) => objective.label);
+    if (remaining.length) {
+      sentences.push(`Reste${remaining.length > 1 ? 'nt' : ''} à finaliser : ${remaining.join(', ')}.`);
+    }
+  } else {
+    sentences.push('Aucun objectif n’a encore été défini pour ce mois.');
+  }
+
+  if (actions.length) {
+    const done = actions.filter((action) => action.status === 'Terminé').length;
+    const inProgress = actions.filter((action) => action.status === 'En cours').length;
+    sentences.push(
+      `Le plan d’action compte ${actions.length} action${actions.length > 1 ? 's' : ''} : ${done} terminée${done > 1 ? 's' : ''}, ${inProgress} en cours.`
+    );
+  }
+
+  return sentences.join(' ');
+}
+
+function generateStrengths(monthData, previousMonthData) {
+  const evolutions = collectFieldEvolutions(monthData, previousMonthData, allInsightFields);
+  const positives = evolutions
+    .filter((item) => item.percent > 5)
+    .sort((a, b) => b.percent - a.percent)
+    .slice(0, 3);
+
+  if (!positives.length) {
+    return ['Pas de progression marquante à isoler ce mois-ci, la situation reste stable.'];
+  }
+
+  return positives.map((item) => `${item.label} : ${formatSignedPercent(item.percent)} vs mois précédent.`);
+}
+
+function generateWeaknesses(monthData, previousMonthData) {
+  const evolutions = collectFieldEvolutions(monthData, previousMonthData, allInsightFields);
+  const negatives = evolutions
+    .filter((item) => item.percent < -5)
+    .sort((a, b) => a.percent - b.percent)
+    .slice(0, 3);
+
+  const items = negatives.map((item) => `${item.label} : ${formatSignedPercent(item.percent)} vs mois précédent.`);
+
+  const objectivesRate = computeObjectivesRate(monthData);
+  if (objectivesRate !== null && objectivesRate < 50) {
+    items.push(`Seulement ${Math.round(objectivesRate)}% des objectifs du mois ont été atteints.`);
+  }
+
+  if (!items.length) {
+    return ['Aucune faiblesse notable identifiée ce mois-ci.'];
+  }
+
+  return items;
+}
+
+function generateOpportunities(monthData, previousMonthData) {
+  const opportunities = [];
+  const ig = monthData.instagram;
+  const gb = monthData.googleBusiness;
+
+  if (hasValue(ig.posts) && hasValue(ig.reels) && Number(ig.posts) > 0 && Number(ig.reels) < Number(ig.posts) / 3) {
+    opportunities.push('Le format Reels est sous-exploité par rapport au volume de publications : c’est un levier de portée disponible.');
+  }
+  if (hasValue(gb.newReviews) && hasValue(gb.reviewsAnswered) && Number(gb.newReviews) > Number(gb.reviewsAnswered)) {
+    opportunities.push('Des avis Google récents restent sans réponse : une opportunité rapide d’améliorer la relation client.');
+  }
+  if (hasValue(gb.googlePosts) && Number(gb.googlePosts) < 2) {
+    opportunities.push('La fréquence de publication sur Google Business est faible : publier plus régulièrement renforcerait la visibilité locale.');
+  }
+  const reachEvo = previousMonthData ? computeEvolution(previousMonthData.instagram.reach, ig.reach) : { percent: null };
+  if (reachEvo.percent !== null && reachEvo.percent < 0) {
+    opportunities.push('La portée Instagram recule : mettre en avant les offres et produits phares dans les prochains contenus peut relancer la dynamique.');
+  }
+
+  if (!opportunities.length) {
+    opportunities.push('Les fondamentaux sont bien en place ; capitaliser sur les canaux les plus performants pour accélérer encore la croissance.');
+  }
+
+  return opportunities;
+}
+
+function generateRecommendations(monthData, previousMonthData) {
+  const recommendations = [];
+  const gb = monthData.googleBusiness;
+  const ig = monthData.instagram;
+  const fb = monthData.facebook;
+  const bc = monthData.beacons;
+
+  if (hasValue(ig.posts) && hasValue(ig.reels) && Number(ig.posts) > 0 && Number(ig.reels) < Number(ig.posts) / 3) {
+    recommendations.push('Publier davantage de Reels pour dynamiser la portée Instagram.');
+  }
+  if (hasValue(gb.newReviews) && hasValue(gb.reviewsAnswered) && Number(gb.newReviews) > Number(gb.reviewsAnswered)) {
+    recommendations.push('Améliorer les réponses aux avis Google : des avis récents restent sans réponse.');
+  }
+
+  const reviewsEvo = previousMonthData ? computeEvolution(previousMonthData.googleBusiness.reviewsCount, gb.reviewsCount) : { percent: null };
+  if (reviewsEvo.percent !== null && reviewsEvo.percent < 8) {
+    recommendations.push('Demander plus d’avis Google auprès des clients satisfaits pour accélérer la collecte.');
+  }
+  if (hasValue(gb.googlePosts) && Number(gb.googlePosts) < 2) {
+    recommendations.push('Publier plus de Google Posts pour dynamiser la fiche Google Business.');
+  }
+  if (hasValue(ig.stories) && hasValue(ig.posts) && Number(ig.stories) < Number(ig.posts)) {
+    recommendations.push('Travailler davantage les Stories pour garder un contact régulier avec la communauté.');
+  }
+
+  const reachEvo = previousMonthData ? computeEvolution(previousMonthData.instagram.reach, ig.reach) : { percent: null };
+  if (reachEvo.percent !== null && reachEvo.percent < 0) {
+    recommendations.push('Mettre en avant vos offres phares (plats signature, promotions) dans les prochains contenus pour relancer la portée.');
+  }
+
+  const ratingEvo = previousMonthData ? computeEvolution(previousMonthData.googleBusiness.rating, gb.rating) : { percent: null };
+  if (ratingEvo.percent !== null && ratingEvo.percent <= 0) {
+    recommendations.push('Améliorer la fiche Google Business (photos récentes, informations à jour) pour soutenir la note.');
+  }
+  if (hasValue(fb.posts) && Number(fb.posts) < 2) {
+    recommendations.push('Maintenir une publication régulière sur Facebook pour ne pas perdre le lien avec cette audience.');
+  }
+
+  const bookingEvo = previousMonthData ? computeEvolution(previousMonthData.beacons.bookingClicks, bc.bookingClicks) : { percent: null };
+  if (bookingEvo.percent !== null && bookingEvo.percent < 0) {
+    recommendations.push('Mettre en avant les options de réservation en ligne (Beacons) pour capter davantage d’intentions clients.');
+  }
+
+  const objectivesRate = computeObjectivesRate(monthData);
+  if (objectivesRate !== null && objectivesRate < 50) {
+    recommendations.push('Prioriser les objectifs du mois en retard pour sécuriser les résultats.');
+  }
+
+  if (!recommendations.length) {
+    recommendations.push('Maintenir le rythme actuel : les indicateurs sont bien orientés ce mois-ci.');
+  }
+
+  return recommendations.slice(0, 6);
+}
+
+function generateAlerts(monthData, previousMonthData) {
+  const alerts = [];
+  if (!previousMonthData) {
+    return alerts;
+  }
+
+  const gb = monthData.googleBusiness;
+  const prevGb = previousMonthData.googleBusiness;
+  const ig = monthData.instagram;
+  const prevIg = previousMonthData.instagram;
+
+  const reviewsEvo = computeEvolution(prevGb.reviewsCount, gb.reviewsCount);
+  if (reviewsEvo.percent !== null && reviewsEvo.percent < 0) {
+    alerts.push({ severity: 'high', message: `Baisse du nombre d’avis Google (${formatSignedPercent(reviewsEvo.percent)} vs mois précédent).` });
+  }
+
+  const ratingEvo = computeEvolution(prevGb.rating, gb.rating);
+  if (ratingEvo.diff !== null && ratingEvo.diff < 0) {
+    alerts.push({ severity: 'medium', message: `La note Google a reculé de ${Math.abs(ratingEvo.diff).toFixed(1)} point(s) ce mois-ci.` });
+  }
+
+  const reachEvo = computeEvolution(prevIg.reach, ig.reach);
+  if (reachEvo.percent !== null && reachEvo.percent < 0) {
+    alerts.push({ severity: 'high', message: `Baisse de la portée Instagram (${formatSignedPercent(reachEvo.percent)} vs mois précédent).` });
+  }
+
+  const callsEvo = computeEvolution(prevGb.calls, gb.calls);
+  if (callsEvo.percent !== null && callsEvo.percent < 0) {
+    alerts.push({ severity: 'high', message: `Baisse des appels générés par la fiche Google (${formatSignedPercent(callsEvo.percent)} vs mois précédent).` });
+  }
+
+  if (monthData.businessResults.goalReached === 'Non' && monthHasAnyData(monthData)) {
+    alerts.push({ severity: 'medium', message: 'L’objectif business du mois n’a pas été atteint.' });
+  }
+
+  const objectivesRate = computeObjectivesRate(monthData);
+  if (objectivesRate !== null && objectivesRate < 50) {
+    alerts.push({ severity: 'medium', message: `Moins de la moitié des objectifs du mois ont été atteints (${Math.round(objectivesRate)}%).` });
+  }
+
+  const googlePercent = averagePercentEvolution(googleScoreFields, monthData, previousMonthData);
+  const instagramPercent = averagePercentEvolution(instagramScoreFields, monthData, previousMonthData);
+  const overallPercents = [googlePercent, instagramPercent].filter((percent) => percent !== null);
+  if (overallPercents.length) {
+    const avgOverall = overallPercents.reduce((total, percent) => total + percent, 0) / overallPercents.length;
+    if (Math.abs(avgOverall) < 2) {
+      alerts.push({ severity: 'medium', message: 'Stagnation générale des indicateurs ce mois-ci : peu de mouvement sur Google Business et Instagram.' });
+    }
+  }
+
+  return alerts;
+}
+
+const recordCheckFields = [
+  { section: 'googleBusiness', field: 'rating', label: 'Note Google' },
+  { section: 'googleBusiness', field: 'reviewsCount', label: 'Nombre d’avis Google' },
+  { section: 'googleBusiness', field: 'profileViews', label: 'Vues de la fiche Google' },
+  { section: 'googleBusiness', field: 'calls', label: 'Appels Google' },
+  { section: 'googleBusiness', field: 'bookings', label: 'Réservations Google' },
+  { section: 'instagram', field: 'followers', label: 'Abonnés Instagram' },
+  { section: 'instagram', field: 'reach', label: 'Portée Instagram' },
+  { section: 'instagram', field: 'interactions', label: 'Interactions Instagram' },
+  { section: 'facebook', field: 'reach', label: 'Portée Facebook' },
+  { section: 'beacons', field: 'bookingClicks', label: 'Clics réservation Beacons' },
+  { section: 'businessResults', field: 'bookingsGenerated', label: 'Réservations générées' }
+];
+
+function findRecords(clientData, monthKey) {
+  const monthOrder = clientData.monthOrder;
+  const monthIndex = monthOrder.indexOf(monthKey);
+  const priorKeys = monthOrder.slice(0, monthIndex);
+  if (!priorKeys.length) {
+    return [];
+  }
+
+  const currentMonth = clientData.months[monthKey];
+  const records = [];
+
+  recordCheckFields.forEach(({ section, field, label }) => {
+    const currentValue = currentMonth[section][field];
+    if (!hasValue(currentValue)) {
+      return;
+    }
+    const priorValues = priorKeys
+      .map((key) => clientData.months[key][section][field])
+      .filter((value) => hasValue(value))
+      .map(Number);
+    if (!priorValues.length) {
+      return;
+    }
+    const maxPrior = Math.max(...priorValues);
+    if (Number(currentValue) > maxPrior) {
+      records.push(`${label} : nouveau record à ${formatNumber(currentValue)} (précédent record : ${formatNumber(maxPrior)}).`);
+    }
+  });
+
+  return records;
+}
+
+function generateWins(clientData, monthKey, monthData, previousMonthData) {
+  const wins = [];
+
+  const evolutions = collectFieldEvolutions(monthData, previousMonthData, allInsightFields);
+  if (evolutions.length) {
+    const best = evolutions.reduce((max, item) => (item.percent > max.percent ? item : max), evolutions[0]);
+    if (best.percent > 0) {
+      wins.push(`Meilleure progression du mois : ${best.label} (${formatSignedPercent(best.percent)} vs mois précédent).`);
+    }
+  }
+
+  wins.push(...findRecords(clientData, monthKey));
+
+  if (monthData.businessResults.goalReached === 'Oui') {
+    wins.push('L’objectif business du mois a été atteint.');
+  }
+
+  const objectivesRate = computeObjectivesRate(monthData);
+  if (objectivesRate === 100) {
+    wins.push('Tous les objectifs du mois ont été atteints.');
+  }
+
+  const actionsRate = computeActionCompletionRate(monthData);
+  if (actionsRate === 100) {
+    wins.push('Toutes les actions du plan ont été menées à terme.');
+  }
+
+  return wins;
+}
+
+function renderAnalysisSection(clientData, monthKey, monthData, previousMonthData, score, scoreBadge) {
+  const block = document.createElement('div');
+  block.className = 'section-block';
+  block.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Analyse automatique</p>
+        <h3>Analyse IA du mois</h3>
+      </div>
+    </div>
+  `;
+
+  const evolutions = collectFieldEvolutions(monthData, previousMonthData, allInsightFields);
+  const best = evolutions.length ? evolutions.reduce((max, item) => (item.percent > max.percent ? item : max), evolutions[0]) : null;
+  const worst = evolutions.length ? evolutions.reduce((min, item) => (item.percent < min.percent ? item : min), evolutions[0]) : null;
+
+  const objectivesRate = computeObjectivesRate(monthData);
+  const objectivesSentence =
+    objectivesRate === null
+      ? 'Aucun objectif n’a encore été défini pour ce mois.'
+      : `${Math.round(objectivesRate)}% des objectifs du mois ont été atteints.`;
+
+  const executiveSummary = generateExecutiveSummary({
+    generalData: clientData.general,
+    monthLabel: monthData.label,
+    score,
+    scoreBadge,
+    evolutions: { best, worst },
+    objectivesSentence
+  });
+
+  const sections = [
+    { title: '1. Résumé exécutif', paragraphs: [executiveSummary] },
+    { title: '2. Analyse Google Business', paragraphs: [generateGoogleAnalysis(monthData, previousMonthData)] },
+    { title: '3. Analyse Instagram', paragraphs: [generateInstagramAnalysis(monthData, previousMonthData)] },
+    { title: '4. Analyse Facebook', paragraphs: [generateFacebookAnalysis(monthData, previousMonthData)] },
+    { title: '5. Analyse Beacons', paragraphs: [generateBeaconsAnalysis(monthData, previousMonthData)] },
+    { title: '6. Analyse des objectifs', paragraphs: [generateObjectivesAnalysis(monthData)] },
+    { title: '7. Forces du mois', list: generateStrengths(monthData, previousMonthData) },
+    { title: '8. Faiblesses', list: generateWeaknesses(monthData, previousMonthData) },
+    { title: '9. Opportunités', list: generateOpportunities(monthData, previousMonthData) },
+    { title: '10. Recommandations concrètes pour le mois suivant', list: generateRecommendations(monthData, previousMonthData) }
+  ];
+
+  sections.forEach((section) => {
+    const subsection = document.createElement('div');
+    subsection.className = 'analysis-subsection';
+
+    const heading = document.createElement('h4');
+    heading.textContent = section.title;
+    subsection.appendChild(heading);
+
+    if (section.list) {
+      const list = document.createElement('ul');
+      list.className = 'analysis-list';
+      section.list.forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        list.appendChild(li);
+      });
+      subsection.appendChild(list);
+    } else {
+      section.paragraphs.forEach((paragraph) => {
+        const p = document.createElement('p');
+        p.textContent = paragraph;
+        subsection.appendChild(p);
+      });
+    }
+
+    block.appendChild(subsection);
+  });
+
+  return block;
+}
+
+function renderRecommendationsSection(monthData, previousMonthData) {
+  const block = document.createElement('div');
+  block.className = 'section-block';
+  block.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Actions suggérées</p>
+        <h3>Recommandations IA</h3>
+      </div>
+    </div>
+  `;
+
+  const list = document.createElement('div');
+  list.className = 'insight-list';
+  generateRecommendations(monthData, previousMonthData).forEach((text) => {
+    const item = document.createElement('div');
+    item.className = 'insight-item tone-neutral';
+    item.innerHTML = `<span class="insight-icon">💡</span><span class="insight-text">${escapeHtml(text)}</span>`;
+    list.appendChild(item);
+  });
+  block.appendChild(list);
+
+  return block;
+}
+
+function renderAlertsSection(monthData, previousMonthData) {
+  const block = document.createElement('div');
+  block.className = 'section-block';
+  block.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Points de vigilance</p>
+        <h3>Alertes</h3>
+      </div>
+    </div>
+  `;
+
+  const alerts = generateAlerts(monthData, previousMonthData);
+
+  if (!alerts.length) {
+    const empty = document.createElement('p');
+    empty.className = 'insight-empty';
+    empty.textContent = previousMonthData
+      ? 'Aucune alerte ce mois-ci : les indicateurs sont sous contrôle.'
+      : 'Pas encore de mois précédent pour détecter des alertes.';
+    block.appendChild(empty);
+    return block;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'insight-list';
+  alerts.forEach((alert) => {
+    const item = document.createElement('div');
+    item.className = `insight-item tone-${alert.severity === 'high' ? 'high' : 'medium'}`;
+    item.innerHTML = `<span class="insight-icon">⚠️</span><span class="insight-text">${escapeHtml(alert.message)}</span>`;
+    list.appendChild(item);
+  });
+  block.appendChild(list);
+
+  return block;
+}
+
+function renderWinsSection(clientData, monthKey, monthData, previousMonthData) {
+  const block = document.createElement('div');
+  block.className = 'section-block';
+  block.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Mise en avant</p>
+        <h3>Victoires du mois</h3>
+      </div>
+    </div>
+  `;
+
+  const wins = generateWins(clientData, monthKey, monthData, previousMonthData);
+
+  if (!wins.length) {
+    const empty = document.createElement('p');
+    empty.className = 'insight-empty';
+    empty.textContent = previousMonthData
+      ? 'Pas de victoire marquante identifiée ce mois-ci : cap sur les prochains résultats.'
+      : 'Premier mois enregistré : cette fiche servira de référence pour mesurer les prochaines victoires.';
+    block.appendChild(empty);
+    return block;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'insight-list';
+  wins.forEach((text) => {
+    const item = document.createElement('div');
+    item.className = 'insight-item tone-positive';
+    item.innerHTML = `<span class="insight-icon">🏆</span><span class="insight-text">${escapeHtml(text)}</span>`;
+    list.appendChild(item);
+  });
+  block.appendChild(list);
+
+  return block;
+}
+
 function createNoMonthsState() {
   const el = document.createElement('div');
   el.className = 'no-months-state';
@@ -1478,6 +2215,13 @@ function createDashboardCard(clientId) {
 
     monthContent.appendChild(renderSummaryCards(monthData, previousMonthData, freshData.initialSituation));
     monthContent.appendChild(renderSynthesisSection(monthData, previousMonthData, freshData.initialSituation));
+
+    const monthlyScore = computeGlobalScore(monthData, previousMonthData);
+    const monthlyScoreBadge = getScoreBadge(monthlyScore);
+    monthContent.appendChild(renderAlertsSection(monthData, previousMonthData));
+    monthContent.appendChild(renderWinsSection(freshData, selectedMonth, monthData, previousMonthData));
+    monthContent.appendChild(renderAnalysisSection(freshData, selectedMonth, monthData, previousMonthData, monthlyScore, monthlyScoreBadge));
+    monthContent.appendChild(renderRecommendationsSection(monthData, previousMonthData));
 
     monthlySectionSchema.forEach((section) => {
       monthContent.appendChild(
