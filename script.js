@@ -704,7 +704,13 @@ function fillFieldValues(scopeEl, dataScope) {
 }
 
 function formatNumber(value) {
-  return Number(value).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+  // Uses a plain space rather than toLocaleString's narrow no-break space (U+202F),
+  // which the PDF export's core font cannot render.
+  const rounded = Math.round(Number(value) * 100) / 100;
+  const [integerPart, decimalPart] = Math.abs(rounded).toString().split('.');
+  const groupedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const sign = rounded < 0 ? '-' : '';
+  return decimalPart ? `${sign}${groupedInteger},${decimalPart}` : `${sign}${groupedInteger}`;
 }
 
 function unitSuffix(unit) {
@@ -2173,6 +2179,19 @@ function createDashboardCard(clientId) {
   `;
   article.appendChild(monthControlBlock);
 
+  const reportButton = document.createElement('button');
+  reportButton.type = 'button';
+  reportButton.className = 'btn btn-primary report-export-btn';
+  reportButton.textContent = '📄 Télécharger le rapport mensuel';
+  reportButton.addEventListener('click', () => {
+    generateClientReportPdf(clientId);
+  });
+
+  const reportBlock = document.createElement('div');
+  reportBlock.className = 'report-export-block';
+  reportBlock.appendChild(reportButton);
+  article.appendChild(reportBlock);
+
   const monthContent = document.createElement('div');
   monthContent.dataset.role = 'month-content';
   article.appendChild(monthContent);
@@ -2309,6 +2328,543 @@ function createDashboardCard(clientId) {
   });
 
   return article;
+}
+
+const CONSULTANT_NAME_KEY = 'anavibe-tools-consultant-name';
+
+const PDF_COLORS = {
+  primary: [110, 31, 50],
+  primaryDark: [81, 21, 36],
+  background: [244, 237, 227],
+  surface: [255, 253, 249],
+  muted: [246, 238, 228],
+  text: [22, 22, 22],
+  textSoft: [94, 85, 79],
+  positive: [46, 125, 50],
+  negative: [198, 40, 40],
+  white: [255, 255, 255]
+};
+
+function formatDateFr(date) {
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function promptConsultantName() {
+  const saved = localStorage.getItem(CONSULTANT_NAME_KEY) || '';
+  const input = window.prompt('Nom du consultant AnaVibe (affiché sur le rapport) :', saved);
+  if (input === null) {
+    return saved || 'Équipe AnaVibe';
+  }
+  const trimmed = input.trim();
+  const finalName = trimmed || 'Équipe AnaVibe';
+  localStorage.setItem(CONSULTANT_NAME_KEY, finalName);
+  return finalName;
+}
+
+function createPdfState(doc) {
+  return {
+    doc,
+    marginLeft: 18,
+    marginRight: 18,
+    marginTop: 18,
+    marginBottom: 20,
+    pageWidth: 210,
+    pageHeight: 297,
+    cursorY: 18
+  };
+}
+
+function ensurePdfSpace(state, needed) {
+  const maxY = state.pageHeight - state.marginBottom;
+  if (state.cursorY + needed > maxY) {
+    state.doc.addPage();
+    state.cursorY = state.marginTop;
+  }
+}
+
+function addPdfSectionTitle(state, text) {
+  ensurePdfSpace(state, 16);
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(15);
+  state.doc.setTextColor(...PDF_COLORS.primary);
+  state.doc.text(text, state.marginLeft, state.cursorY);
+  state.cursorY += 3;
+  state.doc.setDrawColor(...PDF_COLORS.primary);
+  state.doc.setLineWidth(0.6);
+  state.doc.line(state.marginLeft, state.cursorY, state.pageWidth - state.marginRight, state.cursorY);
+  state.cursorY += 8;
+}
+
+function addPdfSubTitle(state, text) {
+  ensurePdfSpace(state, 10);
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(11.5);
+  state.doc.setTextColor(...PDF_COLORS.primaryDark);
+  state.doc.text(text, state.marginLeft, state.cursorY);
+  state.cursorY += 6;
+}
+
+function addPdfParagraph(state, text) {
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(10);
+  state.doc.setTextColor(...PDF_COLORS.text);
+  const usableWidth = state.pageWidth - state.marginLeft - state.marginRight;
+  const lines = state.doc.splitTextToSize(text, usableWidth);
+  lines.forEach((line) => {
+    ensurePdfSpace(state, 6);
+    state.doc.text(line, state.marginLeft, state.cursorY);
+    state.cursorY += 5.6;
+  });
+  state.cursorY += 3;
+}
+
+function addPdfBulletList(state, items) {
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(10);
+  const usableWidth = state.pageWidth - state.marginLeft - state.marginRight - 6;
+  items.forEach((item) => {
+    const lines = state.doc.splitTextToSize(item, usableWidth);
+    ensurePdfSpace(state, 5.6 * lines.length);
+    state.doc.setTextColor(...PDF_COLORS.primary);
+    state.doc.text('•', state.marginLeft, state.cursorY);
+    state.doc.setTextColor(...PDF_COLORS.text);
+    lines.forEach((line) => {
+      state.doc.text(line, state.marginLeft + 5, state.cursorY);
+      state.cursorY += 5.6;
+    });
+  });
+  state.cursorY += 3;
+}
+
+function addPdfChecklist(state, items) {
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(10);
+  const usableWidth = state.pageWidth - state.marginLeft - state.marginRight - 7;
+  items.forEach((item) => {
+    const lines = state.doc.splitTextToSize(item.label, usableWidth);
+    ensurePdfSpace(state, 5.6 * lines.length);
+    const markerY = state.cursorY - 1.3;
+    if (item.done) {
+      state.doc.setDrawColor(...PDF_COLORS.positive);
+      state.doc.setFillColor(...PDF_COLORS.positive);
+      state.doc.circle(state.marginLeft + 1.3, markerY, 1.3, 'F');
+    } else {
+      state.doc.setDrawColor(...PDF_COLORS.textSoft);
+      state.doc.setLineWidth(0.3);
+      state.doc.circle(state.marginLeft + 1.3, markerY, 1.3, 'S');
+    }
+    state.doc.setTextColor(...PDF_COLORS.text);
+    lines.forEach((line) => {
+      state.doc.text(line, state.marginLeft + 7, state.cursorY);
+      state.cursorY += 5.6;
+    });
+  });
+  state.cursorY += 3;
+}
+
+function addPdfTable(state, columns, rows) {
+  const totalWidth = columns.reduce((sum, col) => sum + col.width, 0);
+  const rowHeight = 7;
+  const headerHeight = 8;
+
+  ensurePdfSpace(state, headerHeight + rowHeight);
+
+  state.doc.setFillColor(...PDF_COLORS.primary);
+  state.doc.rect(state.marginLeft, state.cursorY, totalWidth, headerHeight, 'F');
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(8);
+  state.doc.setTextColor(...PDF_COLORS.white);
+  let headerX = state.marginLeft;
+  columns.forEach((col) => {
+    state.doc.text(col.header, headerX + 2, state.cursorY + headerHeight - 2.6);
+    headerX += col.width;
+  });
+  state.cursorY += headerHeight;
+
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(9);
+
+  rows.forEach((row, rowIndex) => {
+    ensurePdfSpace(state, rowHeight);
+    if (rowIndex % 2 === 1) {
+      state.doc.setFillColor(...PDF_COLORS.muted);
+      state.doc.rect(state.marginLeft, state.cursorY, totalWidth, rowHeight, 'F');
+    }
+    let cellX = state.marginLeft;
+    row.forEach((cell, colIndex) => {
+      const col = columns[colIndex];
+      const color = cell.color || PDF_COLORS.text;
+      state.doc.setTextColor(...color);
+      state.doc.text(String(cell.text ?? ''), cellX + 2, state.cursorY + rowHeight - 2.4);
+      cellX += col.width;
+    });
+    state.cursorY += rowHeight;
+  });
+
+  state.cursorY += 6;
+}
+
+function buildKpiTableRows(section, monthData, previousMonthData) {
+  return section.fields.map((field) => {
+    const current = monthData[section.key][field.key];
+    if (field.type !== 'number') {
+      return [{ text: field.label }, { text: current || '—' }, { text: '—' }];
+    }
+    const evolution = previousMonthData
+      ? computeEvolution(previousMonthData[section.key][field.key], current)
+      : { diff: null, percent: null };
+    const evoFmt = formatEvolution(evolution, field.unit);
+    const color =
+      evoFmt.badgeClass === 'positive' ? PDF_COLORS.positive : evoFmt.badgeClass === 'negative' ? PDF_COLORS.negative : PDF_COLORS.textSoft;
+    return [{ text: field.label }, { text: formatValue(current, field.unit) }, { text: evoFmt.text, color }];
+  });
+}
+
+function createLineChartImage(title, labels, values) {
+  const canvas = document.createElement('canvas');
+  const width = 900;
+  const height = 380;
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#fffdf8';
+  ctx.fillRect(0, 0, width, height);
+
+  const paddingLeft = 70;
+  const paddingRight = 60;
+  const paddingTop = 56;
+  const paddingBottom = 50;
+  const chartWidth = width - paddingLeft - paddingRight;
+  const chartHeight = height - paddingTop - paddingBottom;
+
+  ctx.fillStyle = '#161616';
+  ctx.font = 'bold 24px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText(title, paddingLeft, 36);
+
+  const numericValues = values.filter((value) => value !== null && value !== undefined && !Number.isNaN(value));
+  const maxValue = numericValues.length ? Math.max(...numericValues, 1) : 1;
+
+  ctx.strokeStyle = 'rgba(61, 31, 38, 0.12)';
+  ctx.lineWidth = 1;
+  ctx.font = '15px Arial';
+  ctx.fillStyle = '#5e554f';
+  const gridSteps = 4;
+  for (let i = 0; i <= gridSteps; i += 1) {
+    const y = paddingTop + chartHeight - (chartHeight * i) / gridSteps;
+    ctx.beginPath();
+    ctx.moveTo(paddingLeft, y);
+    ctx.lineTo(width - paddingRight, y);
+    ctx.stroke();
+    const value = (maxValue * i) / gridSteps;
+    ctx.fillText(Math.round(value).toLocaleString('fr-FR'), 8, y + 5);
+  }
+
+  ctx.strokeStyle = 'rgba(61, 31, 38, 0.3)';
+  ctx.beginPath();
+  ctx.moveTo(paddingLeft, paddingTop);
+  ctx.lineTo(paddingLeft, paddingTop + chartHeight);
+  ctx.lineTo(width - paddingRight, paddingTop + chartHeight);
+  ctx.stroke();
+
+  const stepX = labels.length > 1 ? chartWidth / (labels.length - 1) : 0;
+  const points = values.map((value, index) => {
+    const x = paddingLeft + stepX * index;
+    const ratio = maxValue > 0 && value !== null ? value / maxValue : 0;
+    const y = paddingTop + chartHeight - chartHeight * ratio;
+    return { x, y, value };
+  });
+
+  ctx.strokeStyle = '#6e1f32';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  });
+  ctx.stroke();
+
+  points.forEach((point, index) => {
+    ctx.fillStyle = '#6e1f32';
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    const edgeAlign = index === 0 ? 'left' : index === points.length - 1 ? 'right' : 'center';
+
+    ctx.fillStyle = '#161616';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = edgeAlign;
+    const valueText = point.value === null || point.value === undefined ? '—' : Number(point.value).toLocaleString('fr-FR');
+    ctx.fillText(valueText, point.x, point.y - 12);
+
+    ctx.font = '13px Arial';
+    ctx.fillStyle = '#5e554f';
+    ctx.fillText(labels[index], point.x, height - 22);
+  });
+  ctx.textAlign = 'left';
+
+  return canvas.toDataURL('image/png');
+}
+
+function getMonthlySeries(clientData, section, field) {
+  return clientData.monthOrder.map((key) => {
+    const value = clientData.months[key][section][field];
+    return hasValue(value) ? Number(value) : null;
+  });
+}
+
+function getMonthlyIntentionsSeries(clientData) {
+  return clientData.monthOrder.map((key) => computeIntentionsFromMonth(clientData.months[key]));
+}
+
+function drawPdfCoverPage(doc, data, monthData, consultantName) {
+  const pageWidth = 210;
+  const pageHeight = 297;
+
+  doc.setFillColor(...PDF_COLORS.background);
+  doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+  doc.setFillColor(...PDF_COLORS.primary);
+  doc.rect(0, 0, pageWidth, 8, 'F');
+  doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
+
+  doc.setFillColor(...PDF_COLORS.primary);
+  doc.circle(38, 46, 12, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(...PDF_COLORS.white);
+  doc.text('A', 38, 50.5, { align: 'center' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...PDF_COLORS.textSoft);
+  doc.text('PLATEFORME PREMIUM', 56, 42);
+  doc.setFontSize(19);
+  doc.setTextColor(...PDF_COLORS.text);
+  doc.text('AnaVibe Tools', 56, 51);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(28);
+  doc.setTextColor(...PDF_COLORS.primary);
+  doc.text('Rapport mensuel', 18, 130);
+  doc.setTextColor(...PDF_COLORS.text);
+  doc.setFontSize(22);
+  doc.text(data.general.name || 'Client', 18, 144);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.setTextColor(...PDF_COLORS.textSoft);
+  let infoY = 163;
+  const infoLines = [`Période analysée : ${monthData.label}`, `Date de génération : ${formatDateFr(new Date())}`, `Consultant AnaVibe : ${consultantName}`];
+  if (data.general.type) {
+    infoLines.push(`Type d’établissement : ${data.general.type}`);
+  }
+  if (data.general.city) {
+    infoLines.push(`Ville : ${data.general.city}`);
+  }
+  infoLines.forEach((line) => {
+    doc.text(line, 18, infoY);
+    infoY += 9;
+  });
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(10);
+  doc.setTextColor(...PDF_COLORS.primary);
+  doc.text('Document confidentiel préparé exclusivement pour ce client.', 18, pageHeight - 20);
+}
+
+function generateConclusion(clientData, score, scoreBadge) {
+  const name = clientData.general.name || 'ce client';
+  let tone;
+  if (score >= 85) {
+    tone = `Ce mois marque une dynamique très positive pour ${name}. La stratégie mise en place porte ses fruits et mérite d’être poursuivie sans changement majeur.`;
+  } else if (score >= 70) {
+    tone = `${name} affiche un bon mois, avec des indicateurs globalement bien orientés. Quelques ajustements ciblés permettront de passer un cap supplémentaire.`;
+  } else if (score >= 50) {
+    tone = `${name} progresse ce mois-ci, avec des résultats encourageants sur certains canaux. Un focus sur les recommandations ci-dessus permettra d’accélérer la dynamique le mois prochain.`;
+  } else {
+    tone = `Ce mois demande une vigilance particulière pour ${name}. Les actions prioritaires identifiées dans ce rapport doivent être mises en œuvre rapidement pour relancer la dynamique.`;
+  }
+  return `${tone} Score global du mois : ${score}/100 (${scoreBadge.label}). L’équipe AnaVibe reste à disposition pour accompagner la mise en œuvre du plan d’action du mois prochain.`;
+}
+
+function buildNextMonthActionPlan(monthData, previousMonthData) {
+  const carriedOver = monthData.actionPlan
+    .filter((action) => action.status !== 'Terminé')
+    .map((action) => `${action.label} (statut actuel : ${action.status})`);
+
+  const recommendations = generateRecommendations(monthData, previousMonthData);
+
+  const seen = new Set();
+  return [...carriedOver, ...recommendations].filter((item) => {
+    if (seen.has(item)) {
+      return false;
+    }
+    seen.add(item);
+    return true;
+  });
+}
+
+function addPdfFootersAndPageNumbers(doc, clientName) {
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let pageNumber = 2; pageNumber <= pageCount; pageNumber += 1) {
+    doc.setPage(pageNumber);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...PDF_COLORS.textSoft);
+    doc.text(`AnaVibe Tools — Rapport confidentiel préparé pour ${clientName}`, 18, 291);
+    doc.text(`Page ${pageNumber - 1} / ${pageCount - 1}`, 210 - 18, 291, { align: 'right' });
+  }
+}
+
+function generateClientReportPdf(clientId) {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    window.alert('Le module de génération PDF n’a pas pu se charger. Rechargez la page et réessayez.');
+    return;
+  }
+
+  const data = getClientData(clientId);
+  const monthOrder = data.monthOrder;
+  if (!monthOrder.length) {
+    window.alert('Ajoutez au moins un mois de données avant de générer un rapport.');
+    return;
+  }
+
+  const selectedMonth = monthOrder.includes(data.selectedMonth) ? data.selectedMonth : monthOrder[monthOrder.length - 1];
+  const monthIndex = monthOrder.indexOf(selectedMonth);
+  const previousMonthKey = monthIndex > 0 ? monthOrder[monthIndex - 1] : null;
+  const monthData = data.months[selectedMonth];
+  const previousMonthData = previousMonthKey ? data.months[previousMonthKey] : null;
+
+  const score = computeGlobalScore(monthData, previousMonthData);
+  const scoreBadge = getScoreBadge(score);
+  const consultantName = promptConsultantName();
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const state = createPdfState(doc);
+
+  drawPdfCoverPage(doc, data, monthData, consultantName);
+  doc.addPage();
+  state.cursorY = state.marginTop;
+
+  addPdfSectionTitle(state, '1. Résumé exécutif');
+  const evolutionsForSummary = collectFieldEvolutions(monthData, previousMonthData, allInsightFields);
+  const bestForSummary = evolutionsForSummary.length
+    ? evolutionsForSummary.reduce((max, item) => (item.percent > max.percent ? item : max), evolutionsForSummary[0])
+    : null;
+  const worstForSummary = evolutionsForSummary.length
+    ? evolutionsForSummary.reduce((min, item) => (item.percent < min.percent ? item : min), evolutionsForSummary[0])
+    : null;
+  const objectivesRateForSummary = computeObjectivesRate(monthData);
+  const objectivesSentenceForSummary =
+    objectivesRateForSummary === null
+      ? 'Aucun objectif n’a encore été défini pour ce mois.'
+      : `${Math.round(objectivesRateForSummary)}% des objectifs du mois ont été atteints.`;
+  addPdfParagraph(
+    state,
+    generateExecutiveSummary({
+      generalData: data.general,
+      monthLabel: monthData.label,
+      score,
+      scoreBadge,
+      evolutions: { best: bestForSummary, worst: worstForSummary },
+      objectivesSentence: objectivesSentenceForSummary
+    })
+  );
+
+  addPdfSectionTitle(state, '2. Tableau des KPI');
+  monthlySectionSchema.forEach((section) => {
+    addPdfSubTitle(state, section.title);
+    addPdfTable(
+      state,
+      [
+        { header: 'Indicateur', width: 76 },
+        { header: 'Valeur du mois', width: 34 },
+        { header: 'Évolution vs mois précédent', width: 64 }
+      ],
+      buildKpiTableRows(section, monthData, previousMonthData)
+    );
+  });
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addPdfSectionTitle(state, '3. Évolution dans le temps');
+  const chartDefinitions = [
+    { key: 'googleBusiness.profileViews', title: 'Google Business — Vues de la fiche', section: 'googleBusiness', field: 'profileViews' },
+    { key: 'instagram.reach', title: 'Instagram — Portée', section: 'instagram', field: 'reach' },
+    { key: 'facebook.reach', title: 'Facebook — Portée', section: 'facebook', field: 'reach' }
+  ];
+  const monthLabels = monthOrder.map((key) => data.months[key].label);
+
+  chartDefinitions.forEach((chartDef) => {
+    const series = getMonthlySeries(data, chartDef.section, chartDef.field);
+    const imageData = createLineChartImage(chartDef.title, monthLabels, series);
+    ensurePdfSpace(state, 78);
+    doc.addImage(imageData, 'PNG', state.marginLeft, state.cursorY, 174, 74);
+    state.cursorY += 80;
+  });
+
+  const intentionsSeries = getMonthlyIntentionsSeries(data);
+  const intentionsImage = createLineChartImage('Intentions clients (Google + Beacons)', monthLabels, intentionsSeries);
+  ensurePdfSpace(state, 78);
+  doc.addImage(intentionsImage, 'PNG', state.marginLeft, state.cursorY, 174, 74);
+  state.cursorY += 80;
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addPdfSectionTitle(state, '4. Analyse IA du mois');
+  const analysisSections = [
+    { title: 'Analyse Google Business', text: generateGoogleAnalysis(monthData, previousMonthData) },
+    { title: 'Analyse Instagram', text: generateInstagramAnalysis(monthData, previousMonthData) },
+    { title: 'Analyse Facebook', text: generateFacebookAnalysis(monthData, previousMonthData) },
+    { title: 'Analyse Beacons', text: generateBeaconsAnalysis(monthData, previousMonthData) },
+    { title: 'Analyse des objectifs', text: generateObjectivesAnalysis(monthData) }
+  ];
+  analysisSections.forEach((section) => {
+    addPdfSubTitle(state, section.title);
+    addPdfParagraph(state, section.text);
+  });
+
+  addPdfSubTitle(state, 'Forces du mois');
+  addPdfBulletList(state, generateStrengths(monthData, previousMonthData));
+  addPdfSubTitle(state, 'Faiblesses');
+  addPdfBulletList(state, generateWeaknesses(monthData, previousMonthData));
+  addPdfSubTitle(state, 'Opportunités');
+  addPdfBulletList(state, generateOpportunities(monthData, previousMonthData));
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addPdfSectionTitle(state, '5. Recommandations IA');
+  addPdfBulletList(state, generateRecommendations(monthData, previousMonthData));
+
+  addPdfSectionTitle(state, '6. Objectifs du mois');
+  if (monthData.monthlyObjectives.length) {
+    addPdfChecklist(state, monthData.monthlyObjectives);
+  } else {
+    addPdfParagraph(state, 'Aucun objectif n’a été défini pour ce mois.');
+  }
+
+  addPdfSectionTitle(state, '7. Plan d’action du mois suivant');
+  const nextMonthPlan = buildNextMonthActionPlan(monthData, previousMonthData);
+  if (nextMonthPlan.length) {
+    addPdfBulletList(state, nextMonthPlan);
+  } else {
+    addPdfParagraph(state, 'Aucune action prioritaire identifiée : maintenir le cap actuel.');
+  }
+
+  addPdfSectionTitle(state, '8. Conclusion');
+  addPdfParagraph(state, generateConclusion(data, score, scoreBadge));
+
+  addPdfFootersAndPageNumbers(doc, data.general.name || 'ce client');
+
+  const fileName = `Rapport-AnaVibe-${normalizeId(data.general.name || clientId)}-${selectedMonth}.pdf`;
+  doc.save(fileName);
 }
 
 function createNoSelectionCard() {

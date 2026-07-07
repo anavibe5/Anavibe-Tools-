@@ -908,3 +908,13 @@ a {
   color: #2e7d32;
   font-weight: 600;
 }
+
+.report-export-block {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.report-export-btn {
+  cursor: pointer;
+}
