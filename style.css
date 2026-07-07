@@ -588,3 +588,131 @@ a {
     padding: 16px;
   }
 }
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.field-input,
+.inline-add-form input {
+  font: inherit;
+  font-weight: 500;
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(61, 31, 38, 0.14);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.field-input:focus,
+.inline-add-form input:focus,
+.notes-textarea:focus,
+.status-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(110, 31, 50, 0.12);
+}
+
+.checklist,
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.checklist-item,
+.action-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(61, 31, 38, 0.08);
+}
+
+.checklist-item label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+}
+
+.checklist-item.done span {
+  text-decoration: line-through;
+  color: var(--text-soft);
+}
+
+.action-item .action-label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.status-select {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(61, 31, 38, 0.14);
+  background: rgba(110, 31, 50, 0.08);
+  color: var(--primary);
+}
+
+.remove-item-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 4px;
+}
+
+.remove-item-btn:hover {
+  color: var(--primary);
+}
+
+.inline-add-form {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.inline-add-form input {
+  flex: 1;
+  min-width: 180px;
+}
+
+.notes-textarea {
+  width: 100%;
+  min-height: 140px;
+  margin-top: 8px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(61, 31, 38, 0.14);
+  background: rgba(255, 255, 255, 0.85);
+  font: inherit;
+  color: var(--text);
+  resize: vertical;
+}
+
+.notes-hint {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
