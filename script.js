@@ -239,123 +239,12 @@ const clientSeedData = [
       mainGoal: 'Booster la visibilité locale et structurer le suivi mensuel.',
       monthStatus: 'En bonne voie'
     },
-    initialSituation: {
-      googleRating: 4.3,
-      googleReviews: 96,
-      googleViews: 1800,
-      googleCalls: 55,
-      googleDirections: 102,
-      googleWebsiteClicks: 30,
-      instagramFollowers: 1500,
-      instagramReach: 6000,
-      instagramViews: 2000,
-      instagramInteractions: 400,
-      instagramProfileVisits: 200,
-      instagramLinkClicks: 30
-    },
-    months: {
-      'juin-2026': {
-        label: 'Juin 2026',
-        googleBusiness: {
-          rating: 4.5,
-          reviewsCount: 110,
-          newReviews: 5,
-          reviewsAnswered: 4,
-          profileViews: 2100,
-          calls: 70,
-          directions: 130,
-          websiteClicks: 48,
-          bookings: 24,
-          photosPublished: 4,
-          googlePosts: 3
-        },
-        instagram: {
-          followers: 1700,
-          newFollowers: 30,
-          reach: 7800,
-          impressions: 12800,
-          views: 2600,
-          interactions: 520,
-          engagementRate: 3.8,
-          profileVisits: 260,
-          linkClicks: 45,
-          posts: 6,
-          reels: 2,
-          stories: 10
-        },
-        facebook: { followers: 900, reach: 2800, impressions: 4400, interactions: 180, linkClicks: 18, posts: 4 },
-        beacons: { bookingClicks: 60, phoneClicks: 33, directionsClicks: 50 },
-        businessResults: {
-          bookingsGenerated: 24,
-          estimatedRevenue: 3600,
-          roi: 2.6,
-          goalReached: 'Partiel',
-          remainingPotential: 2200
-        },
-        monthlyObjectives: [
-          { id: 'obj-boris-j1', label: 'Optimiser la fiche Google Business', done: true },
-          { id: 'obj-boris-j2', label: 'Lancer le premier mois de contenu Instagram', done: true }
-        ],
-        actionPlan: [
-          { id: 'act-boris-j1', label: 'Audit initial', status: 'Terminé' },
-          { id: 'act-boris-j2', label: 'Configuration Google Business', status: 'Terminé' }
-        ]
-      },
-      'juillet-2026': {
-        label: 'Juillet 2026',
-        googleBusiness: {
-          rating: 4.7,
-          reviewsCount: 128,
-          newReviews: 9,
-          reviewsAnswered: 7,
-          profileViews: 2450,
-          calls: 86,
-          directions: 154,
-          websiteClicks: 61,
-          bookings: 32,
-          photosPublished: 6,
-          googlePosts: 4
-        },
-        instagram: {
-          followers: 1840,
-          newFollowers: 45,
-          reach: 9200,
-          impressions: 15400,
-          views: 3100,
-          interactions: 620,
-          engagementRate: 4.2,
-          profileVisits: 310,
-          linkClicks: 58,
-          posts: 8,
-          reels: 3,
-          stories: 14
-        },
-        facebook: { followers: 960, reach: 3200, impressions: 5100, interactions: 210, linkClicks: 24, posts: 5 },
-        beacons: { bookingClicks: 74, phoneClicks: 41, directionsClicks: 62 },
-        businessResults: {
-          bookingsGenerated: 32,
-          estimatedRevenue: 4200,
-          roi: 3.1,
-          goalReached: 'Partiel',
-          remainingPotential: 1800
-        },
-        monthlyObjectives: [
-          { id: 'obj-boris-1', label: 'Répondre à tous les avis Google', done: true },
-          { id: 'obj-boris-2', label: 'Publier 8 posts Instagram', done: false },
-          { id: 'obj-boris-3', label: 'Lancer une offre via les Beacons réservation', done: false }
-        ],
-        actionPlan: [
-          { id: 'act-boris-1', label: 'Optimiser la fiche Google Business', status: 'Terminé' },
-          { id: 'act-boris-2', label: 'Créer un calendrier de contenu Instagram', status: 'En cours' },
-          { id: 'act-boris-3', label: 'Mettre en place les Beacons', status: 'À faire' }
-        ]
-      }
-    },
-    monthOrder: ['juin-2026', 'juillet-2026'],
-    selectedMonth: 'juillet-2026',
-    internalNotes: 'Client réactif, bon potentiel de croissance sur la visibilité locale.',
-    caseStudyTestimonial:
-      'Depuis qu’AnaVibe accompagne Chez Boris, notre visibilité sur Google a vraiment décollé et on reçoit beaucoup plus d’appels et de réservations chaque mois.'
+    initialSituation: createEmptyInitialSituation(),
+    months: {},
+    monthOrder: [],
+    selectedMonth: null,
+    internalNotes: '',
+    caseStudyTestimonial: ''
   },
   {
     id: 'toast-tea',
@@ -368,123 +257,12 @@ const clientSeedData = [
       mainGoal: 'Améliorer la notoriété et accélérer la production éditoriale.',
       monthStatus: 'Objectif atteint'
     },
-    initialSituation: {
-      googleRating: 4.1,
-      googleReviews: 52,
-      googleViews: 1200,
-      googleCalls: 25,
-      googleDirections: 60,
-      googleWebsiteClicks: 22,
-      instagramFollowers: 2400,
-      instagramReach: 11000,
-      instagramViews: 4000,
-      instagramInteractions: 700,
-      instagramProfileVisits: 380,
-      instagramLinkClicks: 60
-    },
-    months: {
-      'juin-2026': {
-        label: 'Juin 2026',
-        googleBusiness: {
-          rating: 4.3,
-          reviewsCount: 64,
-          newReviews: 4,
-          reviewsAnswered: 4,
-          profileViews: 1450,
-          calls: 33,
-          directions: 74,
-          websiteClicks: 36,
-          bookings: 14,
-          photosPublished: 6,
-          googlePosts: 5
-        },
-        instagram: {
-          followers: 2800,
-          newFollowers: 70,
-          reach: 13200,
-          impressions: 21000,
-          views: 4700,
-          interactions: 850,
-          engagementRate: 4.7,
-          profileVisits: 470,
-          linkClicks: 82,
-          posts: 10,
-          reels: 4,
-          stories: 17
-        },
-        facebook: { followers: 1150, reach: 3700, impressions: 6000, interactions: 270, linkClicks: 32, posts: 6 },
-        beacons: { bookingClicks: 44, phoneClicks: 22, directionsClicks: 38 },
-        businessResults: {
-          bookingsGenerated: 14,
-          estimatedRevenue: 2300,
-          roi: 2.0,
-          goalReached: 'Partiel',
-          remainingPotential: 1200
-        },
-        monthlyObjectives: [
-          { id: 'obj-toast-j1', label: 'Diagnostic de marque', done: true },
-          { id: 'obj-toast-j2', label: 'Lancer le calendrier éditorial', done: true }
-        ],
-        actionPlan: [
-          { id: 'act-toast-j1', label: 'Diagnostic de marque', status: 'Terminé' },
-          { id: 'act-toast-j2', label: 'Premier calendrier éditorial', status: 'Terminé' }
-        ]
-      },
-      'juillet-2026': {
-        label: 'Juillet 2026',
-        googleBusiness: {
-          rating: 4.5,
-          reviewsCount: 76,
-          newReviews: 6,
-          reviewsAnswered: 6,
-          profileViews: 1680,
-          calls: 40,
-          directions: 88,
-          websiteClicks: 45,
-          bookings: 18,
-          photosPublished: 9,
-          googlePosts: 6
-        },
-        instagram: {
-          followers: 3120,
-          newFollowers: 96,
-          reach: 15200,
-          impressions: 24800,
-          views: 5400,
-          interactions: 980,
-          engagementRate: 5.1,
-          profileVisits: 540,
-          linkClicks: 97,
-          posts: 12,
-          reels: 5,
-          stories: 20
-        },
-        facebook: { followers: 1240, reach: 4100, impressions: 6700, interactions: 305, linkClicks: 38, posts: 7 },
-        beacons: { bookingClicks: 52, phoneClicks: 28, directionsClicks: 45 },
-        businessResults: {
-          bookingsGenerated: 18,
-          estimatedRevenue: 2950,
-          roi: 2.4,
-          goalReached: 'Oui',
-          remainingPotential: 900
-        },
-        monthlyObjectives: [
-          { id: 'obj-toast-1', label: 'Publier le calendrier éditorial du mois', done: true },
-          { id: 'obj-toast-2', label: 'Améliorer le taux d’engagement Instagram', done: true },
-          { id: 'obj-toast-3', label: 'Répondre aux nouveaux avis Google', done: false }
-        ],
-        actionPlan: [
-          { id: 'act-toast-1', label: 'Diagnostic de marque', status: 'Terminé' },
-          { id: 'act-toast-2', label: 'Calendrier éditorial', status: 'En cours' },
-          { id: 'act-toast-3', label: 'Optimisation de la présence locale', status: 'En cours' }
-        ]
-      }
-    },
-    monthOrder: ['juin-2026', 'juillet-2026'],
-    selectedMonth: 'juillet-2026',
-    internalNotes: 'Forte dynamique sur Instagram, continuer la régularité de publication.',
-    caseStudyTestimonial:
-      'L’équipe AnaVibe a structuré notre présence sur Instagram : on publie plus régulièrement et l’engagement de notre communauté a nettement progressé.'
+    initialSituation: createEmptyInitialSituation(),
+    months: {},
+    monthOrder: [],
+    selectedMonth: null,
+    internalNotes: '',
+    caseStudyTestimonial: ''
   }
 ];
 
@@ -568,6 +346,35 @@ function saveClientIds(ids) {
   localStorage.setItem(CLIENT_IDS_KEY, JSON.stringify(ids));
 }
 
+// Fingerprints of the original (now removed) demo numbers, used to detect
+// browsers that already cached them so they can be reset to blank once,
+// without touching any real data a user may have since entered.
+const PRISTINE_DEMO_FINGERPRINTS = {
+  'chez-boris': { month: 'juillet-2026', rating: 4.7, reviewsCount: 128 },
+  'toast-tea': { month: 'juillet-2026', rating: 4.5, reviewsCount: 76 }
+};
+
+function isPristineDemoData(id, data) {
+  const fingerprint = PRISTINE_DEMO_FINGERPRINTS[id];
+  if (!fingerprint || !data.months || !data.months[fingerprint.month]) {
+    return false;
+  }
+  const gb = data.months[fingerprint.month].googleBusiness;
+  return Boolean(gb) && Number(gb.rating) === fingerprint.rating && Number(gb.reviewsCount) === fingerprint.reviewsCount;
+}
+
+function resetDemoNumbers(data) {
+  return {
+    ...data,
+    initialSituation: createEmptyInitialSituation(),
+    months: {},
+    monthOrder: [],
+    selectedMonth: null,
+    internalNotes: '',
+    caseStudyTestimonial: ''
+  };
+}
+
 function getClientData(id) {
   const saved = localStorage.getItem(CLIENT_DATA_PREFIX + id);
 
@@ -578,6 +385,11 @@ function getClientData(id) {
         const migrated = migrateLegacyClientData(parsed);
         saveClientData(id, migrated);
         return migrated;
+      }
+      if (isPristineDemoData(id, parsed)) {
+        const reset = resetDemoNumbers(parsed);
+        saveClientData(id, reset);
+        return reset;
       }
       if (parsed.caseStudyTestimonial === undefined) {
         parsed.caseStudyTestimonial = '';
@@ -793,48 +605,9 @@ function createComparisonRow(field, values) {
   return row;
 }
 
-function renderComparisonTable(section, fields, monthData, previousMonthData, initialSituation) {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'comparison-scroll';
-
-  const table = document.createElement('table');
-  table.className = 'comparison-table';
-  table.innerHTML = `
-    <thead>
-      <tr>
-        <th>Indicateur</th>
-        <th>Initial</th>
-        <th>Mois précédent</th>
-        <th>Mois sélectionné</th>
-        <th>Évolution vs initial</th>
-        <th>Évolution vs mois précédent</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  `;
-
-  const tbody = table.querySelector('tbody');
-  fields.forEach((field) => {
-    const current = monthData[section.key][field.key];
-    const previous = previousMonthData ? previousMonthData[section.key][field.key] : '';
-    const initial = getBaselineValue(initialSituation, section.key, field.key);
-
-    tbody.appendChild(createComparisonRow(field, { initial, previous, current, unit: field.unit }));
-  });
-
-  wrapper.appendChild(table);
-  return wrapper;
-}
-
-function renderMonthlySectionWithComparison(section, monthKey, monthData, previousMonthData, initialSituation) {
+function renderMonthlyFieldSection(section, monthKey, monthData) {
   const block = renderFieldSection(section, monthKey);
   fillFieldValues(block, monthData);
-
-  const numericFields = section.fields.filter((field) => field.type === 'number');
-  if (numericFields.length) {
-    block.appendChild(renderComparisonTable(section, numericFields, monthData, previousMonthData, initialSituation));
-  }
-
   return block;
 }
 
@@ -1725,7 +1498,7 @@ function renderAnalysisSection(clientData, monthKey, monthData, previousMonthDat
     <div class="section-heading">
       <div>
         <p class="eyebrow">Analyse automatique</p>
-        <h3>Analyse IA du mois</h3>
+        <h3>Analyse du mois</h3>
       </div>
     </div>
   `;
@@ -1800,7 +1573,7 @@ function renderRecommendationsSection(monthData, previousMonthData) {
     <div class="section-heading">
       <div>
         <p class="eyebrow">Actions suggérées</p>
-        <h3>Recommandations IA</h3>
+        <h3>Recommandations</h3>
       </div>
     </div>
   `;
@@ -2562,19 +2335,6 @@ function createDashboardCard(clientId) {
   `;
   article.appendChild(monthControlBlock);
 
-  const reportButton = document.createElement('button');
-  reportButton.type = 'button';
-  reportButton.className = 'btn btn-primary report-export-btn';
-  reportButton.textContent = '📄 Télécharger le rapport mensuel';
-  reportButton.addEventListener('click', () => {
-    generateClientReportPdf(clientId);
-  });
-
-  const reportBlock = document.createElement('div');
-  reportBlock.className = 'report-export-block';
-  reportBlock.appendChild(reportButton);
-  article.appendChild(reportBlock);
-
   const monthContent = document.createElement('div');
   monthContent.dataset.role = 'month-content';
   article.appendChild(monthContent);
@@ -2626,9 +2386,7 @@ function createDashboardCard(clientId) {
     monthContent.appendChild(renderRecommendationsSection(monthData, previousMonthData));
 
     monthlySectionSchema.forEach((section) => {
-      monthContent.appendChild(
-        renderMonthlySectionWithComparison(section, selectedMonth, monthData, previousMonthData, freshData.initialSituation)
-      );
+      monthContent.appendChild(renderMonthlyFieldSection(section, selectedMonth, monthData));
     });
 
     monthContent.appendChild(renderObjectivesSection(clientId, selectedMonth));
@@ -2669,6 +2427,19 @@ function createDashboardCard(clientId) {
 
   article.appendChild(renderNotesSection(clientId, data));
   article.appendChild(renderCaseStudySection(clientId));
+
+  const reportButton = document.createElement('button');
+  reportButton.type = 'button';
+  reportButton.className = 'btn btn-primary report-export-btn';
+  reportButton.textContent = '📄 Télécharger le rapport mensuel';
+  reportButton.addEventListener('click', () => {
+    generateClientReportPdf(clientId);
+  });
+
+  const reportBlock = document.createElement('div');
+  reportBlock.className = 'report-export-block';
+  reportBlock.appendChild(reportButton);
+  article.appendChild(reportBlock);
 
   const handleFieldInput = (event) => {
     const target = event.target;
@@ -3297,7 +3068,7 @@ function generateClientReportPdf(clientId) {
 
   doc.addPage();
   state.cursorY = state.marginTop;
-  addPdfSectionTitle(state, '4. Analyse IA du mois');
+  addPdfSectionTitle(state, '4. Analyse du mois');
   const analysisSections = [
     { title: 'Analyse Google Business', text: generateGoogleAnalysis(monthData, previousMonthData) },
     { title: 'Analyse Instagram', text: generateInstagramAnalysis(monthData, previousMonthData) },
@@ -3319,7 +3090,7 @@ function generateClientReportPdf(clientId) {
 
   doc.addPage();
   state.cursorY = state.marginTop;
-  addPdfSectionTitle(state, '5. Recommandations IA');
+  addPdfSectionTitle(state, '5. Recommandations');
   addPdfBulletList(state, generateRecommendations(monthData, previousMonthData));
 
   addPdfSectionTitle(state, '6. Objectifs du mois');
