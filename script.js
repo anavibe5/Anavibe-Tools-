@@ -222,7 +222,8 @@ function createEmptyClientData(id, name) {
     months: {},
     monthOrder: [],
     selectedMonth: null,
-    internalNotes: ''
+    internalNotes: '',
+    caseStudyTestimonial: ''
   };
 }
 
@@ -352,7 +353,9 @@ const clientSeedData = [
     },
     monthOrder: ['juin-2026', 'juillet-2026'],
     selectedMonth: 'juillet-2026',
-    internalNotes: 'Client réactif, bon potentiel de croissance sur la visibilité locale.'
+    internalNotes: 'Client réactif, bon potentiel de croissance sur la visibilité locale.',
+    caseStudyTestimonial:
+      'Depuis qu’AnaVibe accompagne Chez Boris, notre visibilité sur Google a vraiment décollé et on reçoit beaucoup plus d’appels et de réservations chaque mois.'
   },
   {
     id: 'toast-tea',
@@ -479,7 +482,9 @@ const clientSeedData = [
     },
     monthOrder: ['juin-2026', 'juillet-2026'],
     selectedMonth: 'juillet-2026',
-    internalNotes: 'Forte dynamique sur Instagram, continuer la régularité de publication.'
+    internalNotes: 'Forte dynamique sur Instagram, continuer la régularité de publication.',
+    caseStudyTestimonial:
+      'L’équipe AnaVibe a structuré notre présence sur Instagram : on publie plus régulièrement et l’engagement de notre communauté a nettement progressé.'
   }
 ];
 
@@ -573,6 +578,9 @@ function getClientData(id) {
         const migrated = migrateLegacyClientData(parsed);
         saveClientData(id, migrated);
         return migrated;
+      }
+      if (parsed.caseStudyTestimonial === undefined) {
+        parsed.caseStudyTestimonial = '';
       }
       return parsed;
     } catch (error) {
@@ -2131,6 +2139,381 @@ function updateSidebarRow(clientId, data) {
   row.querySelector('p').textContent = data.general.type || 'Client';
 }
 
+const caseStudyMetricLabels = {
+  googleRating: 'Note Google',
+  googleReviews: 'Avis Google',
+  googleViews: 'Vues de la fiche Google',
+  googleCalls: 'Appels Google',
+  googleDirections: 'Itinéraires Google',
+  googleWebsiteClicks: 'Clics vers le site (Google)',
+  instagramFollowers: 'Abonnés Instagram',
+  instagramReach: 'Portée Instagram',
+  instagramViews: 'Vues Instagram',
+  instagramInteractions: 'Interactions Instagram',
+  instagramProfileVisits: 'Visites de profil Instagram',
+  instagramLinkClicks: 'Clics sur le lien (Instagram)'
+};
+
+const caseStudyActionCategories = [
+  { key: 'reviews', title: 'Gestion des avis', keywords: ['avis', 'review'] },
+  { key: 'instagram', title: 'Instagram', keywords: ['instagram', 'reel', 'stories', 'story'] },
+  { key: 'facebook', title: 'Facebook', keywords: ['facebook'] },
+  { key: 'googleBusiness', title: 'Google Business', keywords: ['google', 'gbp', 'fiche'] },
+  { key: 'content', title: 'Création de contenu', keywords: ['contenu', 'calendrier', 'édito', 'editorial'] },
+  { key: 'optimization', title: 'Optimisations réalisées', keywords: [] }
+];
+
+function categorizeCaseStudyAction(label) {
+  const normalized = label.toLowerCase();
+  const match = caseStudyActionCategories.find(
+    (category) => category.keywords.length && category.keywords.some((keyword) => normalized.includes(keyword))
+  );
+  return match ? match.key : 'optimization';
+}
+
+function buildCaseStudyActionsByCategory(clientData) {
+  const buckets = {};
+  caseStudyActionCategories.forEach((category) => {
+    buckets[category.key] = [];
+  });
+
+  clientData.monthOrder.forEach((monthKey) => {
+    clientData.months[monthKey].actionPlan
+      .filter((action) => action.status === 'Terminé')
+      .forEach((action) => {
+        const categoryKey = categorizeCaseStudyAction(action.label);
+        if (!buckets[categoryKey].includes(action.label)) {
+          buckets[categoryKey].push(action.label);
+        }
+      });
+  });
+
+  return buckets;
+}
+
+function generateCaseStudyProblems(initialSituation) {
+  const problems = [];
+  if (hasValue(initialSituation.googleReviews) && Number(initialSituation.googleReviews) < 80) {
+    problems.push(
+      `Un volume d’avis Google encore limité (${formatNumber(initialSituation.googleReviews)} avis), freinant la confiance des nouveaux clients.`
+    );
+  }
+  if (hasValue(initialSituation.googleRating) && Number(initialSituation.googleRating) < 4.5) {
+    problems.push(`Une note Google perfectible (${initialSituation.googleRating}/5), à consolider pour renforcer la réputation en ligne.`);
+  }
+  if (hasValue(initialSituation.instagramFollowers) && Number(initialSituation.instagramFollowers) < 2000) {
+    problems.push(
+      `Une audience Instagram encore naissante (${formatNumber(initialSituation.instagramFollowers)} abonnés), avec un fort potentiel de développement.`
+    );
+  }
+  if (hasValue(initialSituation.googleViews) && Number(initialSituation.googleViews) < 2000) {
+    problems.push(
+      `Une visibilité locale limitée sur Google (${formatNumber(initialSituation.googleViews)} vues de fiche), réduisant les opportunités de contact.`
+    );
+  }
+  if (!problems.length) {
+    problems.push('Une base déjà correcte, avec un besoin d’accélérer la croissance sur l’ensemble des canaux.');
+  }
+  return problems;
+}
+
+function generateCaseStudyDifficulties(initialSituation) {
+  const difficulties = [
+    'Absence de suivi mensuel structuré des indicateurs de performance.',
+    'Manque de régularité dans la publication de contenu sur les réseaux sociaux.',
+    'Pas de stratégie formalisée de sollicitation et de réponse aux avis clients.'
+  ];
+  if (
+    hasValue(initialSituation.instagramInteractions) &&
+    hasValue(initialSituation.instagramReach) &&
+    Number(initialSituation.instagramReach) > 0
+  ) {
+    const rate = (Number(initialSituation.instagramInteractions) / Number(initialSituation.instagramReach)) * 100;
+    if (rate < 6) {
+      difficulties.push(`Un taux d’engagement Instagram initial faible (environ ${rate.toFixed(1)}%).`);
+    }
+  }
+  return difficulties;
+}
+
+function buildCaseStudyBeforeAfterRows(initialSituation, latestMonthData) {
+  return Object.entries(baselineFieldMap).map(([baselineKey, ref]) => ({
+    key: baselineKey,
+    label: caseStudyMetricLabels[baselineKey] || baselineKey,
+    unit: undefined,
+    initial: initialSituation[baselineKey],
+    current: latestMonthData[ref.section][ref.field]
+  }));
+}
+
+function generateCaseStudyConclusion(clientData, beforeAfterRows) {
+  const name = clientData.general.name || 'Ce client';
+  const improved = beforeAfterRows.filter((row) => {
+    const evolution = computeEvolution(row.initial, row.current);
+    return evolution.percent !== null && evolution.percent > 0;
+  });
+
+  let bestRow = null;
+  let bestPercent = -Infinity;
+  improved.forEach((row) => {
+    const evolution = computeEvolution(row.initial, row.current);
+    if (evolution.percent > bestPercent) {
+      bestPercent = evolution.percent;
+      bestRow = row;
+    }
+  });
+
+  const highlight = bestRow ? ` À titre d’exemple : ${bestRow.label} a progressé de ${formatSignedPercent(bestPercent)}.` : '';
+
+  return (
+    `Depuis le début de sa collaboration avec AnaVibe, ${name} a transformé sa présence digitale : ` +
+    `${improved.length || 'plusieurs'} indicateur${improved.length > 1 ? 's ont' : ' a'} progressé sur l’ensemble des canaux suivis ` +
+    `(Google Business, Instagram, Facebook, Beacons).${highlight} Cette dynamique illustre la valeur d’un accompagnement mensuel structuré, ` +
+    `avec des actions concrètes et mesurables mois après mois. AnaVibe continue d’accompagner ${name} pour transformer chaque mois en nouvelle ` +
+    `opportunité de croissance.`
+  );
+}
+
+function buildCaseStudyPresentationText(clientData) {
+  const general = clientData.general;
+  const parts = [`${general.name || 'Ce client'} est ${general.type ? `un établissement de type ${general.type}` : 'un établissement partenaire AnaVibe'}`];
+  if (general.city) {
+    parts.push(`basé à ${general.city}`);
+  }
+  if (general.startDate) {
+    parts.push(`accompagné par AnaVibe depuis ${formatDateFr(new Date(general.startDate))}`);
+  }
+  const base = `${parts.join(', ')}.`;
+  const mainGoal = general.mainGoal ? general.mainGoal.trim().replace(/[.!]+$/, '') : '';
+  return mainGoal ? `${base} Objectif principal de la collaboration : ${mainGoal}.` : base;
+}
+
+function buildCaseStudyContext(clientId) {
+  const data = getClientData(clientId);
+  if (!data.monthOrder.length) {
+    return null;
+  }
+
+  const latestMonthKey = data.monthOrder[data.monthOrder.length - 1];
+  const latestMonthData = data.months[latestMonthKey];
+  const beforeAfterRows = buildCaseStudyBeforeAfterRows(data.initialSituation, latestMonthData);
+  const objectivesDone = latestMonthData.monthlyObjectives.filter((objective) => objective.done).length;
+  const objectivesTotal = latestMonthData.monthlyObjectives.length;
+
+  return {
+    clientId,
+    client: data,
+    latestMonthKey,
+    latestMonthData,
+    latestMonthLabel: latestMonthData.label,
+    beforeAfterRows,
+    problems: generateCaseStudyProblems(data.initialSituation),
+    difficulties: generateCaseStudyDifficulties(data.initialSituation),
+    actionsByCategory: buildCaseStudyActionsByCategory(data),
+    objectivesSummary: {
+      done: objectivesDone,
+      total: objectivesTotal,
+      rate: objectivesTotal ? (objectivesDone / objectivesTotal) * 100 : null
+    },
+    conclusion: generateCaseStudyConclusion(data, beforeAfterRows),
+    testimonial: data.caseStudyTestimonial || ''
+  };
+}
+
+function createBeforeAfterCard(row) {
+  const evolution = computeEvolution(row.initial, row.current);
+  const fmt = formatEvolution(evolution, row.unit);
+  const card = document.createElement('div');
+  card.className = 'kpi-card card summary-card';
+  card.innerHTML = `
+    <span class="kpi-label">${escapeHtml(row.label)}</span>
+    <strong>${formatValue(row.initial, row.unit)} → ${formatValue(row.current, row.unit)}</strong>
+    <span class="evolution-badge ${fmt.badgeClass}">${fmt.text}</span>
+  `;
+  return card;
+}
+
+function renderCaseStudyPreview(context) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'case-study-preview';
+
+  const presentationBlock = document.createElement('div');
+  presentationBlock.className = 'analysis-subsection';
+  presentationBlock.innerHTML = `<h4>1. Présentation du client</h4>`;
+  const presentationText = document.createElement('p');
+  presentationText.textContent = buildCaseStudyPresentationText(context.client);
+  presentationBlock.appendChild(presentationText);
+  wrapper.appendChild(presentationBlock);
+
+  const beforeBlock = document.createElement('div');
+  beforeBlock.className = 'analysis-subsection';
+  beforeBlock.innerHTML = '<h4>2. Situation avant AnaVibe</h4><p><strong>Problématiques</strong></p>';
+  const problemsList = document.createElement('ul');
+  problemsList.className = 'analysis-list';
+  context.problems.forEach((item) => {
+    const li = document.createElement('li');
+    li.textContent = item;
+    problemsList.appendChild(li);
+  });
+  beforeBlock.appendChild(problemsList);
+  const difficultiesTitle = document.createElement('p');
+  difficultiesTitle.innerHTML = '<strong>Difficultés</strong>';
+  beforeBlock.appendChild(difficultiesTitle);
+  const difficultiesList = document.createElement('ul');
+  difficultiesList.className = 'analysis-list';
+  context.difficulties.forEach((item) => {
+    const li = document.createElement('li');
+    li.textContent = item;
+    difficultiesList.appendChild(li);
+  });
+  beforeBlock.appendChild(difficultiesList);
+  wrapper.appendChild(beforeBlock);
+
+  const actionsBlock = document.createElement('div');
+  actionsBlock.className = 'analysis-subsection';
+  actionsBlock.innerHTML = '<h4>3. Actions mises en place</h4>';
+  caseStudyActionCategories.forEach((category) => {
+    const categoryTitle = document.createElement('p');
+    categoryTitle.innerHTML = `<strong>${escapeHtml(category.title)}</strong>`;
+    actionsBlock.appendChild(categoryTitle);
+    const items = context.actionsByCategory[category.key];
+    if (items.length) {
+      const ul = document.createElement('ul');
+      ul.className = 'analysis-list';
+      items.forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        ul.appendChild(li);
+      });
+      actionsBlock.appendChild(ul);
+    } else {
+      const p = document.createElement('p');
+      p.textContent = 'Optimisations en cours sur ce levier.';
+      actionsBlock.appendChild(p);
+    }
+  });
+  wrapper.appendChild(actionsBlock);
+
+  const resultsBlock = document.createElement('div');
+  resultsBlock.className = 'analysis-subsection';
+  resultsBlock.innerHTML = '<h4>4. Résultats obtenus</h4>';
+  const table = document.createElement('table');
+  table.className = 'comparison-table';
+  table.innerHTML = `
+    <thead><tr><th>Indicateur</th><th>Avant AnaVibe</th><th>Aujourd’hui</th><th>Évolution</th></tr></thead>
+    <tbody></tbody>
+  `;
+  const tbody = table.querySelector('tbody');
+  context.beforeAfterRows.forEach((row) => {
+    const evolution = computeEvolution(row.initial, row.current);
+    const fmt = formatEvolution(evolution, row.unit);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(row.label)}</td>
+      <td>${formatValue(row.initial, row.unit)}</td>
+      <td class="comparison-current">${formatValue(row.current, row.unit)}</td>
+      <td><span class="evolution-badge ${fmt.badgeClass}">${fmt.text}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  const scrollWrap = document.createElement('div');
+  scrollWrap.className = 'comparison-scroll';
+  scrollWrap.appendChild(table);
+  resultsBlock.appendChild(scrollWrap);
+  const objText = document.createElement('p');
+  objText.textContent = context.objectivesSummary.total
+    ? `Objectifs du mois en cours (${context.latestMonthLabel}) : ${context.objectivesSummary.done}/${context.objectivesSummary.total} atteints (${Math.round(context.objectivesSummary.rate)}%).`
+    : `Aucun objectif enregistré pour le mois en cours (${context.latestMonthLabel}).`;
+  resultsBlock.appendChild(objText);
+  wrapper.appendChild(resultsBlock);
+
+  const kpiBlock = document.createElement('div');
+  kpiBlock.className = 'analysis-subsection';
+  kpiBlock.innerHTML = '<h4>5. Chiffres clés</h4>';
+  const grid = document.createElement('div');
+  grid.className = 'kpi-grid summary-grid';
+  const topRows = [...context.beforeAfterRows]
+    .filter((row) => computeEvolution(row.initial, row.current).percent !== null)
+    .sort((a, b) => computeEvolution(b.initial, b.current).percent - computeEvolution(a.initial, a.current).percent)
+    .slice(0, 6);
+  (topRows.length ? topRows : context.beforeAfterRows.slice(0, 6)).forEach((row) => {
+    grid.appendChild(createBeforeAfterCard(row));
+  });
+  kpiBlock.appendChild(grid);
+  wrapper.appendChild(kpiBlock);
+
+  const conclusionBlock = document.createElement('div');
+  conclusionBlock.className = 'analysis-subsection';
+  conclusionBlock.innerHTML = '<h4>6. Conclusion</h4>';
+  const conclusionText = document.createElement('p');
+  conclusionText.textContent = context.conclusion;
+  conclusionBlock.appendChild(conclusionText);
+  wrapper.appendChild(conclusionBlock);
+
+  if (context.testimonial) {
+    const testimonialBlock = document.createElement('div');
+    testimonialBlock.className = 'analysis-subsection';
+    testimonialBlock.innerHTML = `<h4>Témoignage</h4><p>« ${escapeHtml(context.testimonial)} »</p>`;
+    wrapper.appendChild(testimonialBlock);
+  }
+
+  return wrapper;
+}
+
+function renderCaseStudySection(clientId) {
+  const block = document.createElement('div');
+  block.className = 'section-block';
+  block.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Marketing & preuve sociale</p>
+        <h3>Étude de cas client</h3>
+      </div>
+    </div>
+    <p>Générez automatiquement une étude de cas prête à être utilisée sur le site AnaVibe ou lors d’un rendez-vous commercial.</p>
+    <label class="field-item" style="margin-top: 12px;">
+      <span>Témoignage client (optionnel)</span>
+      <textarea class="notes-textarea" data-role="testimonial-input" placeholder="Ex : « Grâce à AnaVibe, notre visibilité a explosé... »"></textarea>
+    </label>
+    <div class="report-export-block" style="justify-content: flex-start; gap: 12px; flex-wrap: wrap;">
+      <button type="button" class="btn btn-primary" data-role="generate-case-study-btn">⭐ Générer une étude de cas</button>
+      <button type="button" class="btn btn-secondary" data-role="download-case-study-btn">📄 Télécharger l’étude de cas</button>
+    </div>
+    <div data-role="case-study-preview"></div>
+  `;
+
+  const textarea = block.querySelector('[data-role="testimonial-input"]');
+  textarea.value = getClientData(clientId).caseStudyTestimonial || '';
+  textarea.addEventListener('input', () => {
+    const freshData = getClientData(clientId);
+    freshData.caseStudyTestimonial = textarea.value;
+    saveClientData(clientId, freshData);
+  });
+
+  const previewContainer = block.querySelector('[data-role="case-study-preview"]');
+  const generateButton = block.querySelector('[data-role="generate-case-study-btn"]');
+  const downloadButton = block.querySelector('[data-role="download-case-study-btn"]');
+
+  generateButton.addEventListener('click', () => {
+    const context = buildCaseStudyContext(clientId);
+    previewContainer.innerHTML = '';
+    if (!context) {
+      const empty = document.createElement('p');
+      empty.className = 'insight-empty';
+      empty.textContent = 'Ajoutez au moins un mois de données pour générer une étude de cas.';
+      previewContainer.appendChild(empty);
+      return;
+    }
+    previewContainer.appendChild(renderCaseStudyPreview(context));
+  });
+
+  downloadButton.addEventListener('click', () => {
+    generateCaseStudyPdf(clientId);
+  });
+
+  return block;
+}
+
 function createDashboardCard(clientId) {
   const data = getClientData(clientId);
   const article = document.createElement('article');
@@ -2285,6 +2668,7 @@ function createDashboardCard(clientId) {
   refreshMonthContent();
 
   article.appendChild(renderNotesSection(clientId, data));
+  article.appendChild(renderCaseStudySection(clientId));
 
   const handleFieldInput = (event) => {
     const target = event.target;
@@ -2801,14 +3185,14 @@ function buildNextMonthActionPlan(monthData, previousMonthData) {
   });
 }
 
-function addPdfFootersAndPageNumbers(doc, clientName) {
+function addPdfFootersAndPageNumbers(doc, clientName, documentLabel = 'Rapport confidentiel') {
   const pageCount = doc.internal.getNumberOfPages();
   for (let pageNumber = 2; pageNumber <= pageCount; pageNumber += 1) {
     doc.setPage(pageNumber);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(...PDF_COLORS.textSoft);
-    doc.text(`AnaVibe Tools — Rapport confidentiel préparé pour ${clientName}`, 18, 291);
+    doc.text(`AnaVibe Tools — ${documentLabel} préparé pour ${clientName}`, 18, 291);
     doc.text(`Page ${pageNumber - 1} / ${pageCount - 1}`, 210 - 18, 291, { align: 'right' });
   }
 }
@@ -2959,6 +3343,312 @@ function generateClientReportPdf(clientId) {
   addPdfFootersAndPageNumbers(doc, data.general.name || 'ce client');
 
   const fileName = `Rapport-AnaVibe-${normalizeId(data.general.name || clientId)}-${selectedMonth}.pdf`;
+  doc.save(fileName);
+}
+
+function createBeforeAfterBarChartImage(title, beforeValue, afterValue) {
+  const canvas = document.createElement('canvas');
+  const width = 760;
+  const height = 480;
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#fffdf8';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = '#161616';
+  ctx.font = 'bold 20px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText(title, 30, 34);
+
+  const paddingBottom = 60;
+  const chartTop = 60;
+  const chartBottom = height - paddingBottom;
+  const chartHeight = chartBottom - chartTop;
+
+  const values = [beforeValue, afterValue].map((value) => (hasValue(value) ? Number(value) : 0));
+  const maxValue = Math.max(...values, 1);
+
+  const barWidth = 160;
+  const gap = 100;
+  const totalBarsWidth = barWidth * 2 + gap;
+  const startX = (width - totalBarsWidth) / 2;
+
+  const bars = [
+    { label: 'Avant', value: values[0], rawValue: beforeValue, color: '#c9b8a8', x: startX },
+    { label: 'Aujourd’hui', value: values[1], rawValue: afterValue, color: '#6e1f32', x: startX + barWidth + gap }
+  ];
+
+  bars.forEach((bar) => {
+    const barHeight = maxValue > 0 ? (bar.value / maxValue) * chartHeight : 0;
+    const y = chartBottom - barHeight;
+    ctx.fillStyle = bar.color;
+    ctx.fillRect(bar.x, y, barWidth, barHeight);
+
+    ctx.fillStyle = '#161616';
+    ctx.font = 'bold 22px Arial';
+    ctx.textAlign = 'center';
+    const valueText = hasValue(bar.rawValue) ? Number(bar.rawValue).toLocaleString('fr-FR') : '—';
+    ctx.fillText(valueText, bar.x + barWidth / 2, y - 12);
+
+    ctx.font = '14px Arial';
+    ctx.fillStyle = '#5e554f';
+    ctx.fillText(bar.label, bar.x + barWidth / 2, chartBottom + 26);
+  });
+
+  ctx.strokeStyle = 'rgba(61, 31, 38, 0.3)';
+  ctx.beginPath();
+  ctx.moveTo(30, chartBottom);
+  ctx.lineTo(width - 30, chartBottom);
+  ctx.stroke();
+  ctx.textAlign = 'left';
+
+  return canvas.toDataURL('image/png');
+}
+
+function addPdfKpiCardGrid(state, rows) {
+  const cardWidth = 56;
+  const cardHeight = 34;
+  const gap = 3;
+  const columns = 3;
+
+  rows.forEach((row, index) => {
+    const column = index % columns;
+    if (column === 0) {
+      ensurePdfSpace(state, cardHeight + gap);
+    }
+    const x = state.marginLeft + column * (cardWidth + gap);
+    const y = state.cursorY;
+
+    state.doc.setFillColor(...PDF_COLORS.surface);
+    state.doc.setDrawColor(...PDF_COLORS.primary);
+    state.doc.setLineWidth(0.3);
+    state.doc.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'FD');
+
+    state.doc.setFont('helvetica', 'bold');
+    state.doc.setFontSize(7.5);
+    state.doc.setTextColor(...PDF_COLORS.primary);
+    const labelLines = state.doc.splitTextToSize(row.label, cardWidth - 6);
+    state.doc.text(labelLines.slice(0, 2), x + 3, y + 7);
+
+    const evolution = computeEvolution(row.initial, row.current);
+    const fmt = formatEvolution(evolution, row.unit);
+    const color =
+      fmt.badgeClass === 'positive' ? PDF_COLORS.positive : fmt.badgeClass === 'negative' ? PDF_COLORS.negative : PDF_COLORS.textSoft;
+
+    state.doc.setFont('helvetica', 'bold');
+    state.doc.setFontSize(10.5);
+    state.doc.setTextColor(...PDF_COLORS.text);
+    state.doc.text(`${formatValue(row.initial, row.unit)} -> ${formatValue(row.current, row.unit)}`, x + 3, y + 21);
+
+    state.doc.setFont('helvetica', 'bold');
+    state.doc.setFontSize(9);
+    state.doc.setTextColor(...color);
+    state.doc.text(fmt.text, x + 3, y + 29);
+
+    if (column === columns - 1 || index === rows.length - 1) {
+      state.cursorY += cardHeight + gap;
+    }
+  });
+  state.cursorY += 4;
+}
+
+function addPdfTestimonial(state, testimonial, clientName) {
+  const usableWidth = state.pageWidth - state.marginLeft - state.marginRight - 16;
+  state.doc.setFont('helvetica', 'italic');
+  state.doc.setFontSize(12);
+  const lines = state.doc.splitTextToSize(`« ${testimonial} »`, usableWidth);
+  const boxHeight = lines.length * 7 + 20;
+
+  ensurePdfSpace(state, boxHeight);
+  state.doc.setFillColor(...PDF_COLORS.muted);
+  state.doc.setDrawColor(...PDF_COLORS.primary);
+  state.doc.setLineWidth(0.4);
+  state.doc.roundedRect(state.marginLeft, state.cursorY, state.pageWidth - state.marginLeft - state.marginRight, boxHeight, 3, 3, 'FD');
+
+  state.doc.setTextColor(...PDF_COLORS.primaryDark);
+  let textY = state.cursorY + 12;
+  lines.forEach((line) => {
+    state.doc.text(line, state.marginLeft + 8, textY);
+    textY += 7;
+  });
+
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(10);
+  state.doc.setTextColor(...PDF_COLORS.primary);
+  state.doc.text(`— ${clientName || 'Client AnaVibe'}`, state.marginLeft + 8, textY + 4);
+
+  state.cursorY += boxHeight + 8;
+}
+
+function drawCaseStudyCoverPage(doc, context) {
+  const pageWidth = 210;
+  const pageHeight = 297;
+
+  doc.setFillColor(...PDF_COLORS.background);
+  doc.rect(0, 0, pageWidth, pageHeight, 'F');
+  doc.setFillColor(...PDF_COLORS.primary);
+  doc.rect(0, 0, pageWidth, 8, 'F');
+  doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
+
+  doc.setFillColor(...PDF_COLORS.primary);
+  doc.circle(38, 46, 12, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(...PDF_COLORS.white);
+  doc.text('A', 38, 50.5, { align: 'center' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...PDF_COLORS.textSoft);
+  doc.text('PLATEFORME PREMIUM', 56, 42);
+  doc.setFontSize(19);
+  doc.setTextColor(...PDF_COLORS.text);
+  doc.text('AnaVibe Tools', 56, 51);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...PDF_COLORS.primary);
+  doc.text('ÉTUDE DE CAS', 18, 110);
+  doc.setFontSize(26);
+  doc.setTextColor(...PDF_COLORS.text);
+  doc.text(context.client.general.name || 'Client', 18, 124);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(13);
+  doc.setTextColor(...PDF_COLORS.primaryDark);
+  doc.text('De la situation initiale à aujourd’hui', 18, 136);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.setTextColor(...PDF_COLORS.textSoft);
+  let infoY = 155;
+  const infoLines = [`Date de génération : ${formatDateFr(new Date())}`];
+  if (context.client.general.type) {
+    infoLines.push(`Type d’établissement : ${context.client.general.type}`);
+  }
+  if (context.client.general.city) {
+    infoLines.push(`Ville : ${context.client.general.city}`);
+  }
+  infoLines.push(`Période couverte : situation initiale -> ${context.latestMonthLabel}`);
+  infoLines.forEach((line) => {
+    doc.text(line, 18, infoY);
+    infoY += 9;
+  });
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(10);
+  doc.setTextColor(...PDF_COLORS.primary);
+  doc.text('Document réalisé par AnaVibe Tools — utilisable comme référence commerciale.', 18, pageHeight - 20);
+}
+
+function generateCaseStudyPdf(clientId) {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    window.alert('Le module de génération PDF n’a pas pu se charger. Rechargez la page et réessayez.');
+    return;
+  }
+
+  const context = buildCaseStudyContext(clientId);
+  if (!context) {
+    window.alert('Ajoutez au moins un mois de données avant de générer une étude de cas.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const state = createPdfState(doc);
+
+  drawCaseStudyCoverPage(doc, context);
+  doc.addPage();
+  state.cursorY = state.marginTop;
+
+  addPdfSectionTitle(state, '1. Présentation du client');
+  addPdfParagraph(state, buildCaseStudyPresentationText(context.client));
+
+  addPdfSectionTitle(state, '2. Situation avant AnaVibe');
+  addPdfSubTitle(state, 'Problématiques');
+  addPdfBulletList(state, context.problems);
+  addPdfSubTitle(state, 'Difficultés');
+  addPdfBulletList(state, context.difficulties);
+
+  addPdfSectionTitle(state, '3. Actions mises en place');
+  caseStudyActionCategories.forEach((category) => {
+    addPdfSubTitle(state, category.title);
+    const items = context.actionsByCategory[category.key];
+    if (items.length) {
+      addPdfBulletList(state, items);
+    } else {
+      addPdfParagraph(state, 'Optimisations en cours sur ce levier.');
+    }
+  });
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addPdfSectionTitle(state, '4. Résultats obtenus');
+  addPdfTable(
+    state,
+    [
+      { header: 'Indicateur', width: 70 },
+      { header: 'Avant AnaVibe', width: 40 },
+      { header: 'Aujourd’hui', width: 34 },
+      { header: 'Évolution', width: 30 }
+    ],
+    context.beforeAfterRows.map((row) => {
+      const evolution = computeEvolution(row.initial, row.current);
+      const fmt = formatEvolution(evolution, row.unit);
+      const color =
+        fmt.badgeClass === 'positive' ? PDF_COLORS.positive : fmt.badgeClass === 'negative' ? PDF_COLORS.negative : PDF_COLORS.textSoft;
+      return [{ text: row.label }, { text: formatValue(row.initial, row.unit) }, { text: formatValue(row.current, row.unit) }, { text: fmt.text, color }];
+    })
+  );
+  const objText = context.objectivesSummary.total
+    ? `Objectifs du mois en cours (${context.latestMonthLabel}) : ${context.objectivesSummary.done}/${context.objectivesSummary.total} atteints (${Math.round(context.objectivesSummary.rate)}%).`
+    : `Aucun objectif enregistré pour le mois en cours (${context.latestMonthLabel}).`;
+  addPdfParagraph(state, objText);
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addPdfSectionTitle(state, '5. Graphiques — avant / après');
+  const chartRows = [...context.beforeAfterRows]
+    .filter((row) => computeEvolution(row.initial, row.current).percent !== null)
+    .sort((a, b) => computeEvolution(b.initial, b.current).percent - computeEvolution(a.initial, a.current).percent)
+    .slice(0, 4);
+
+  const chartColumnWidth = 84;
+  const chartRowHeight = 58;
+  const chartGap = 6;
+  chartRows.forEach((row, index) => {
+    const imageData = createBeforeAfterBarChartImage(row.label, row.initial, row.current);
+    const column = index % 2;
+    if (column === 0) {
+      ensurePdfSpace(state, chartRowHeight + 6);
+    }
+    const x = state.marginLeft + column * (chartColumnWidth + chartGap);
+    doc.addImage(imageData, 'PNG', x, state.cursorY, chartColumnWidth, chartRowHeight);
+    if (column === 1 || index === chartRows.length - 1) {
+      state.cursorY += chartRowHeight + 6;
+    }
+  });
+
+  addPdfSectionTitle(state, '6. Chiffres clés');
+  addPdfKpiCardGrid(state, chartRows.length ? chartRows : context.beforeAfterRows.slice(0, 6));
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addPdfSectionTitle(state, '7. Témoignage client');
+  if (context.testimonial) {
+    addPdfTestimonial(state, context.testimonial, context.client.general.name);
+  } else {
+    addPdfParagraph(state, 'Aucun témoignage n’a encore été renseigné pour ce client.');
+  }
+
+  addPdfSectionTitle(state, '8. Conclusion');
+  addPdfParagraph(state, context.conclusion);
+
+  addPdfFootersAndPageNumbers(doc, context.client.general.name || 'ce client', 'Étude de cas');
+
+  const fileName = `Etude-de-cas-AnaVibe-${normalizeId(context.client.general.name || clientId)}.pdf`;
   doc.save(fileName);
 }
 
