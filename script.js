@@ -134,6 +134,17 @@ function renderDashboard() {
   const hash = window.location.hash.replace('#', '');
   let activeClientId = hash || clients[0]?.id;
 
+  const createNoSelectionCard = () => {
+    const card = document.createElement('div');
+    card.className = 'client-dashboard-card card no-selection-card';
+    card.innerHTML = `
+      <p class="eyebrow">Aucune fiche ouverte</p>
+      <h3>Sélectionnez un client</h3>
+      <p>Cliquez sur « Ouvrir » dans la liste des clients pour afficher sa fiche dédiée.</p>
+    `;
+    return card;
+  };
+
   const createDashboardCard = (client) => {
     const article = document.createElement('article');
     article.className = 'client-dashboard-card card';
@@ -141,6 +152,7 @@ function renderDashboard() {
     article.dataset.clientId = client.id;
 
     article.innerHTML = `
+      <button class="client-open-btn back-to-list-btn" type="button" style="margin-bottom: 18px;">&larr; Retour à la liste des clients</button>
       <span class="client-chip">${client.industry}</span>
       <h3>${client.name}</h3>
       <p>${client.description}</p>
@@ -213,7 +225,17 @@ function renderDashboard() {
         dashboardCard.classList.add('hidden');
       }
       container.appendChild(dashboardCard);
+
+      dashboardCard.querySelector('.back-to-list-btn')?.addEventListener('click', () => {
+        activeClientId = null;
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+        render();
+      });
     });
+
+    if (!activeClientId) {
+      container.appendChild(createNoSelectionCard());
+    }
 
     list.querySelectorAll('.client-open-btn').forEach((button) => {
       button.addEventListener('click', () => {
