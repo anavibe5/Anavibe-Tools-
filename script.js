@@ -346,33 +346,41 @@ function saveClientIds(ids) {
   localStorage.setItem(CLIENT_IDS_KEY, JSON.stringify(ids));
 }
 
-// Fingerprints of the original (now removed) demo numbers, used to detect
-// browsers that already cached them so they can be reset to blank once,
-// without touching any real data a user may have since entered.
-const PRISTINE_DEMO_FINGERPRINTS = {
-  'chez-boris': { month: 'juillet-2026', rating: 4.7, reviewsCount: 128 },
-  'toast-tea': { month: 'juillet-2026', rating: 4.5, reviewsCount: 76 }
-};
+const DEMO_DATA_RESET_FLAG_KEY = 'anavibe-tools-demo-reset-v1-done';
+const DEMO_CLIENT_IDS = ['chez-boris', 'toast-tea'];
 
-function isPristineDemoData(id, data) {
-  const fingerprint = PRISTINE_DEMO_FINGERPRINTS[id];
-  if (!fingerprint || !data.months || !data.months[fingerprint.month]) {
-    return false;
+// One-time, unconditional purge of the old demo numbers (situation initiale,
+// months, notes, testimonial) for the two pre-loaded clients. Runs once per
+// browser regardless of the exact values currently stored, then flags itself
+// done so it never runs again and never touches real data entered afterwards.
+function resetDemoDataOnce() {
+  if (localStorage.getItem(DEMO_DATA_RESET_FLAG_KEY)) {
+    return;
   }
-  const gb = data.months[fingerprint.month].googleBusiness;
-  return Boolean(gb) && Number(gb.rating) === fingerprint.rating && Number(gb.reviewsCount) === fingerprint.reviewsCount;
-}
 
-function resetDemoNumbers(data) {
-  return {
-    ...data,
-    initialSituation: createEmptyInitialSituation(),
-    months: {},
-    monthOrder: [],
-    selectedMonth: null,
-    internalNotes: '',
-    caseStudyTestimonial: ''
-  };
+  DEMO_CLIENT_IDS.forEach((id) => {
+    const saved = localStorage.getItem(CLIENT_DATA_PREFIX + id);
+    if (!saved) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(saved);
+      const reset = {
+        ...parsed,
+        initialSituation: createEmptyInitialSituation(),
+        months: {},
+        monthOrder: [],
+        selectedMonth: null,
+        internalNotes: '',
+        caseStudyTestimonial: ''
+      };
+      localStorage.setItem(CLIENT_DATA_PREFIX + id, JSON.stringify(reset));
+    } catch (error) {
+      // malformed data: nothing to reset, leave it for the legacy-migration path
+    }
+  });
+
+  localStorage.setItem(DEMO_DATA_RESET_FLAG_KEY, '1');
 }
 
 function getClientData(id) {
@@ -385,11 +393,6 @@ function getClientData(id) {
         const migrated = migrateLegacyClientData(parsed);
         saveClientData(id, migrated);
         return migrated;
-      }
-      if (isPristineDemoData(id, parsed)) {
-        const reset = resetDemoNumbers(parsed);
-        saveClientData(id, reset);
-        return reset;
       }
       if (parsed.caseStudyTestimonial === undefined) {
         parsed.caseStudyTestimonial = '';
@@ -3443,6 +3446,8 @@ function renderDashboard() {
   if (!list || !container) {
     return;
   }
+
+  resetDemoDataOnce();
 
   let activeClientId = window.location.hash.replace('#', '') || null;
 
