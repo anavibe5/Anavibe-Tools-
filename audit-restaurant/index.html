@@ -48,34 +48,30 @@
 
       <main class="main-content module-page">
         <header class="module-header card surface-glow">
-          <p class="eyebrow">Module</p>
-          <h2>Audit Restaurant</h2>
+          <p class="eyebrow">Audit Restaurant PRO</p>
+          <h2>Configuration de l’entreprise</h2>
           <p>
-            Analyse complete d’un restaurant avant accompagnement. Cette base permet d’ajouter ensuite des formulaires,
-            checklists, scores et recommandations structurees.
+            Première étape de l’audit : indiquez le type d’activité et les canaux réellement utilisés par
+            l’établissement. L’audit s’adaptera ensuite automatiquement pour n’analyser que ces canaux.
           </p>
-          <div class="header-actions">
-            <a class="btn btn-primary" href="../dashboard/index.html">Associer a un client</a>
-            <a class="btn btn-secondary" href="../index.html">Retour a l’accueil</a>
-          </div>
         </header>
 
-        <section class="module-cards">
-          <article class="module-card card">
-            <span class="badge">Analyse</span>
-            <h3>Pre-audit</h3>
-            <p>Zone prevue pour l’analyse de presence locale, positionnement, image de marque et coherence digitale.</p>
-          </article>
-          <article class="module-card card">
-            <span class="badge">Structure</span>
-            <h3>Recommandations</h3>
-            <p>Bloc reserve a l’ajout de recommandations prioritaires, opportunites et actions a lancer.</p>
-          </article>
-          <article class="module-card card">
-            <span class="badge">Evolution</span>
-            <h3>Score global</h3>
-            <p>Carte prete pour un futur systeme de notation premium afin de standardiser les audits restaurants.</p>
-          </article>
+        <section class="card audit-config-card">
+          <p class="eyebrow">Étape 1</p>
+          <h3>Configuration de l’entreprise</h3>
+
+          <div class="analysis-subsection">
+            <h4>Type d’activité</h4>
+            <div class="activity-type-grid" id="activityTypeGrid"></div>
+          </div>
+
+          <div class="analysis-subsection">
+            <h4>Plateformes utilisées</h4>
+            <p>Seules les plateformes cochées seront analysées : les autres n’apparaîtront pas dans l’audit et n’auront aucun impact sur le score.</p>
+            <div class="platform-checklist" id="platformChecklist"></div>
+          </div>
+
+          <p class="notes-hint" id="configSavedHint">Configuration enregistrée automatiquement.</p>
         </section>
 
         <footer class="footer">
@@ -86,5 +82,6 @@
 
     <div class="overlay" id="overlay"></div>
     <script src="../script.js"></script>
+    <script src="audit-restaurant.js"></script>
   </body>
 </html>

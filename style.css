@@ -918,3 +918,81 @@ a {
 .report-export-btn {
   cursor: pointer;
 }
+
+.audit-config-card {
+  padding: 34px;
+  margin-top: 24px;
+}
+
+.activity-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.activity-type-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(61, 31, 38, 0.14);
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  text-align: center;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.activity-type-option .activity-icon {
+  font-size: 1.6rem;
+}
+
+.activity-type-option:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.activity-type-option.selected {
+  border-color: var(--primary);
+  background: rgba(110, 31, 50, 0.08);
+  color: var(--primary);
+  box-shadow: 0 10px 20px rgba(110, 31, 50, 0.12);
+}
+
+.platform-checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.platform-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(61, 31, 38, 0.08);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.platform-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
+.platform-option .platform-icon {
+  font-size: 1.1rem;
+}
+
+.platform-option.checked {
+  border-color: var(--primary);
+  background: rgba(110, 31, 50, 0.05);
+}
