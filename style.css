@@ -1078,6 +1078,11 @@ a {
   color: #c62828;
 }
 
+.gauge-status-badge.tone-opportunity {
+  background: rgba(124, 58, 237, 0.12);
+  color: #7c3aed;
+}
+
 .audit-criteria-grid {
   margin-top: 24px;
 }
@@ -1089,4 +1094,48 @@ a {
 
 .audit-global-score-card .eyebrow {
   color: var(--primary);
+}
+
+.audit-potential-section {
+  background: linear-gradient(180deg, rgba(255, 253, 249, 0.95), rgba(237, 227, 246, 0.55));
+  border: 1px solid rgba(124, 58, 237, 0.16);
+}
+
+.audit-potential-section .eyebrow {
+  color: #7c3aed;
+}
+
+.potential-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.potential-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+}
+
+.potential-card strong {
+  font-size: 1.5rem;
+}
+
+.potential-card p {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  margin: 0;
+}
+
+.potential-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.potential-card-commercial {
+  border: 1px solid rgba(124, 58, 237, 0.25);
 }
