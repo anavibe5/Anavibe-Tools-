@@ -5,7 +5,7 @@ Plateforme premium AnaVibe regroupant les outils professionnels de gestion, d’
 ## Modules inclus
 
 - Accueil
-- Audit Restaurant
+- Audit Pro
 - Audit LinkedIn
 - Dashboard Clients
 - Google Business Optimizer PRO
