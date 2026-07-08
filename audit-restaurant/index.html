@@ -54,6 +54,9 @@
             Première étape de l’audit : indiquez le type d’activité et les canaux réellement utilisés par
             l’établissement. L’audit s’adaptera ensuite automatiquement pour n’analyser que ces canaux.
           </p>
+          <div class="header-actions">
+            <button class="btn btn-primary" id="downloadAuditPdfBtn" type="button">Télécharger le rapport PDF</button>
+          </div>
         </header>
 
         <section class="card audit-config-card">
@@ -83,6 +86,7 @@
     </div>
 
     <div class="overlay" id="overlay"></div>
+    <script src="../vendor/jspdf/jspdf.umd.min.js"></script>
     <script src="../script.js"></script>
     <script src="audit-restaurant.js"></script>
   </body>

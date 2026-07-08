@@ -854,25 +854,31 @@ function createRoadmapEmptyState() {
   return empty;
 }
 
-function populateRoadmapSection(section, platformKeys) {
+function computeRoadmapBuckets(platformKeys) {
   const allItems = getAllCheckedCriteriaRatings(platformKeys)
     .filter((item) => item.rating < 75)
     .sort((a, b) => a.rating - b.rating);
 
   const chunkSize = Math.ceil(allItems.length / roadmapPhaseConfig.length);
-  const buckets = roadmapPhaseConfig.map((phase, index) => allItems.slice(index * chunkSize, (index + 1) * chunkSize));
+  return roadmapPhaseConfig.map((phase, index) => ({
+    phase,
+    items: allItems.slice(index * chunkSize, (index + 1) * chunkSize)
+  }));
+}
 
-  roadmapPhaseConfig.forEach((phase, index) => {
+function populateRoadmapSection(section, platformKeys) {
+  const buckets = computeRoadmapBuckets(platformKeys);
+
+  buckets.forEach(({ phase, items }) => {
     const columnList = section.querySelector(`[data-role="roadmap-list-${phase.days}"]`);
     columnList.innerHTML = '';
-    const phaseItems = buckets[index];
 
-    if (!phaseItems.length) {
+    if (!items.length) {
       columnList.appendChild(createRoadmapEmptyState());
       return;
     }
 
-    phaseItems.forEach((item) => {
+    items.forEach((item) => {
       columnList.appendChild(createRoadmapItem(item, phase));
     });
   });
@@ -1121,8 +1127,558 @@ function renderPlatformAudits() {
   });
 }
 
+const AUDIT_PDF_COLORS = {
+  primary: [110, 31, 50],
+  primaryDark: [81, 21, 36],
+  background: [244, 237, 227],
+  muted: [246, 238, 228],
+  text: [22, 22, 22],
+  textSoft: [94, 85, 79],
+  positive: [46, 125, 50],
+  mediumTone: [224, 142, 45],
+  negative: [198, 40, 40],
+  opportunity: [124, 58, 237],
+  white: [255, 255, 255]
+};
+
+const AUDIT_CONSULTANT_NAME_KEY = 'anavibe-tools-consultant-name';
+
+function getAuditScoreColorRgb(score) {
+  if (score >= 70) {
+    return AUDIT_PDF_COLORS.positive;
+  }
+  if (score >= 40) {
+    return AUDIT_PDF_COLORS.mediumTone;
+  }
+  return AUDIT_PDF_COLORS.negative;
+}
+
+function getAuditPotentialColorRgb(tone) {
+  if (tone === 'opportunity') {
+    return AUDIT_PDF_COLORS.opportunity;
+  }
+  if (tone === 'medium') {
+    return AUDIT_PDF_COLORS.mediumTone;
+  }
+  return AUDIT_PDF_COLORS.positive;
+}
+
+function formatAuditPdfDate(date) {
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function promptAuditConsultantName() {
+  const saved = localStorage.getItem(AUDIT_CONSULTANT_NAME_KEY) || '';
+  const input = window.prompt('Nom du consultant AnaVibe (affiché sur le rapport) :', saved);
+  if (input === null) {
+    return saved || 'Équipe AnaVibe';
+  }
+  const trimmed = input.trim();
+  const finalName = trimmed || 'Équipe AnaVibe';
+  localStorage.setItem(AUDIT_CONSULTANT_NAME_KEY, finalName);
+  return finalName;
+}
+
+function promptAuditProspectName() {
+  const input = window.prompt('Nom de l’entreprise ou du prospect audité (affiché sur le rapport) :', '');
+  if (input === null) {
+    return 'Prospect';
+  }
+  const trimmed = input.trim();
+  return trimmed || 'Prospect';
+}
+
+function slugifyAuditFilename(text) {
+  const slug = String(text || 'audit')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-+|-+$)/g, '');
+  return slug || 'audit';
+}
+
+function createAuditPdfState(doc) {
+  return {
+    doc,
+    marginLeft: 18,
+    marginRight: 18,
+    marginTop: 18,
+    marginBottom: 20,
+    pageWidth: 210,
+    pageHeight: 297,
+    cursorY: 18
+  };
+}
+
+function ensureAuditPdfSpace(state, needed) {
+  const maxY = state.pageHeight - state.marginBottom;
+  if (state.cursorY + needed > maxY) {
+    state.doc.addPage();
+    state.cursorY = state.marginTop;
+  }
+}
+
+function addAuditPdfSectionTitle(state, text) {
+  ensureAuditPdfSpace(state, 16);
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(15);
+  state.doc.setTextColor(...AUDIT_PDF_COLORS.primary);
+  state.doc.text(text, state.marginLeft, state.cursorY);
+  state.cursorY += 3;
+  state.doc.setDrawColor(...AUDIT_PDF_COLORS.primary);
+  state.doc.setLineWidth(0.6);
+  state.doc.line(state.marginLeft, state.cursorY, state.pageWidth - state.marginRight, state.cursorY);
+  state.cursorY += 8;
+}
+
+function addAuditPdfSubTitle(state, text) {
+  ensureAuditPdfSpace(state, 10);
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(11.5);
+  state.doc.setTextColor(...AUDIT_PDF_COLORS.primaryDark);
+  state.doc.text(text, state.marginLeft, state.cursorY);
+  state.cursorY += 6;
+}
+
+function addAuditPdfParagraph(state, text) {
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(10);
+  state.doc.setTextColor(...AUDIT_PDF_COLORS.text);
+  const usableWidth = state.pageWidth - state.marginLeft - state.marginRight;
+  const lines = state.doc.splitTextToSize(text, usableWidth);
+  lines.forEach((line) => {
+    ensureAuditPdfSpace(state, 6);
+    state.doc.text(line, state.marginLeft, state.cursorY);
+    state.cursorY += 5.6;
+  });
+  state.cursorY += 3;
+}
+
+function addAuditPdfBulletList(state, items) {
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(10);
+  const usableWidth = state.pageWidth - state.marginLeft - state.marginRight - 6;
+  items.forEach((item) => {
+    const lines = state.doc.splitTextToSize(item, usableWidth);
+    ensureAuditPdfSpace(state, 5.6 * lines.length);
+    state.doc.setTextColor(...AUDIT_PDF_COLORS.primary);
+    state.doc.text('-', state.marginLeft, state.cursorY);
+    state.doc.setTextColor(...AUDIT_PDF_COLORS.text);
+    lines.forEach((line) => {
+      state.doc.text(line, state.marginLeft + 5, state.cursorY);
+      state.cursorY += 5.6;
+    });
+  });
+  state.cursorY += 3;
+}
+
+function addAuditPdfTable(state, columns, rows) {
+  const totalWidth = columns.reduce((sum, col) => sum + col.width, 0);
+  const rowHeight = 7;
+  const headerHeight = 8;
+
+  ensureAuditPdfSpace(state, headerHeight + rowHeight);
+
+  state.doc.setFillColor(...AUDIT_PDF_COLORS.primary);
+  state.doc.rect(state.marginLeft, state.cursorY, totalWidth, headerHeight, 'F');
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(8);
+  state.doc.setTextColor(...AUDIT_PDF_COLORS.white);
+  let headerX = state.marginLeft;
+  columns.forEach((col) => {
+    state.doc.text(col.header, headerX + 2, state.cursorY + headerHeight - 2.6);
+    headerX += col.width;
+  });
+  state.cursorY += headerHeight;
+
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(9);
+
+  rows.forEach((row, rowIndex) => {
+    ensureAuditPdfSpace(state, rowHeight);
+    if (rowIndex % 2 === 1) {
+      state.doc.setFillColor(...AUDIT_PDF_COLORS.muted);
+      state.doc.rect(state.marginLeft, state.cursorY, totalWidth, rowHeight, 'F');
+    }
+    let cellX = state.marginLeft;
+    row.forEach((cell, colIndex) => {
+      const col = columns[colIndex];
+      const color = cell.color || AUDIT_PDF_COLORS.text;
+      state.doc.setTextColor(...color);
+      state.doc.text(String(cell.text ?? ''), cellX + 2, state.cursorY + rowHeight - 2.4);
+      cellX += col.width;
+    });
+    state.cursorY += rowHeight;
+  });
+
+  state.cursorY += 6;
+}
+
+function addAuditPdfFootersAndPageNumbers(doc, subjectLabel) {
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let pageNumber = 2; pageNumber <= pageCount; pageNumber += 1) {
+    doc.setPage(pageNumber);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...AUDIT_PDF_COLORS.textSoft);
+    doc.text(`AnaVibe Tools — Audit Pro préparé pour ${subjectLabel}`, 18, 291);
+    doc.text(`Page ${pageNumber - 1} / ${pageCount - 1}`, 210 - 18, 291, { align: 'right' });
+  }
+}
+
+function createAuditGaugeRingImage(value, colorRgb) {
+  const size = 440;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = size / 2 - 32;
+  const lineWidth = 32;
+
+  ctx.lineCap = 'round';
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(61, 31, 38, 0.12)';
+  ctx.lineWidth = lineWidth;
+  ctx.stroke();
+
+  const clamped = Math.max(0, Math.min(100, value));
+  if (clamped > 0) {
+    const startAngle = -Math.PI / 2;
+    const endAngle = startAngle + (clamped / 100) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, startAngle, endAngle, false);
+    ctx.strokeStyle = `rgb(${colorRgb[0]}, ${colorRgb[1]}, ${colorRgb[2]})`;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
+
+  return canvas.toDataURL('image/png');
+}
+
+function addAuditPdfGauge(state, x, yTop, diameterMm, value, colorRgb, label) {
+  const dataUrl = createAuditGaugeRingImage(value, colorRgb);
+  state.doc.addImage(dataUrl, 'PNG', x, yTop, diameterMm, diameterMm);
+
+  const centerX = x + diameterMm / 2;
+  const centerY = yTop + diameterMm / 2;
+
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(diameterMm * 0.85);
+  state.doc.setTextColor(...AUDIT_PDF_COLORS.text);
+  state.doc.text(`${Math.round(value)}`, centerX, centerY + diameterMm * 0.06, { align: 'center' });
+
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(Math.max(7, diameterMm * 0.2));
+  state.doc.setTextColor(...AUDIT_PDF_COLORS.textSoft);
+  state.doc.text('/ 100', centerX, centerY + diameterMm * 0.26, { align: 'center' });
+
+  if (label) {
+    state.doc.setFont('helvetica', 'bold');
+    state.doc.setFontSize(9.5);
+    state.doc.setTextColor(...AUDIT_PDF_COLORS.primaryDark);
+    state.doc.text(label, centerX, yTop + diameterMm + 7, { align: 'center', maxWidth: diameterMm + 24 });
+  }
+}
+
+function createAuditPlatformBarChartImage(items) {
+  const width = 900;
+  const rowHeight = 70;
+  const paddingTop = 20;
+  const paddingBottom = 20;
+  const height = paddingTop + paddingBottom + rowHeight * items.length;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#fffdf8';
+  ctx.fillRect(0, 0, width, height);
+
+  const labelWidth = 210;
+  const valueWidth = 120;
+  const barMaxWidth = width - labelWidth - valueWidth;
+  const barHeight = 32;
+
+  items.forEach((item, index) => {
+    const y = paddingTop + index * rowHeight + (rowHeight - barHeight) / 2;
+
+    ctx.fillStyle = '#161616';
+    ctx.font = 'bold 22px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(item.label, 0, y + barHeight / 2);
+
+    ctx.fillStyle = 'rgba(61, 31, 38, 0.1)';
+    ctx.fillRect(labelWidth, y, barMaxWidth, barHeight);
+
+    const clamped = Math.max(0, Math.min(100, item.score));
+    const filledWidth = (clamped / 100) * barMaxWidth;
+    const color = getAuditScoreColorRgb(clamped);
+    ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    ctx.fillRect(labelWidth, y, filledWidth, barHeight);
+
+    ctx.fillStyle = '#161616';
+    ctx.font = 'bold 22px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${Math.round(item.score)}/100`, labelWidth + barMaxWidth + 14, y + barHeight / 2);
+  });
+  ctx.textBaseline = 'alphabetic';
+
+  return { dataUrl: canvas.toDataURL('image/png'), width, height };
+}
+
+function drawAuditPdfCoverPage(doc, config, platformKeys, prospectName, consultantName) {
+  const pageWidth = 210;
+  const pageHeight = 297;
+
+  doc.setFillColor(...AUDIT_PDF_COLORS.background);
+  doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+  doc.setFillColor(...AUDIT_PDF_COLORS.primary);
+  doc.rect(0, 0, pageWidth, 8, 'F');
+  doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
+
+  doc.setFillColor(...AUDIT_PDF_COLORS.primary);
+  doc.circle(38, 46, 12, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(...AUDIT_PDF_COLORS.white);
+  doc.text('A', 38, 50.5, { align: 'center' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...AUDIT_PDF_COLORS.textSoft);
+  doc.text('PLATEFORME PREMIUM', 56, 42);
+  doc.setFontSize(19);
+  doc.setTextColor(...AUDIT_PDF_COLORS.text);
+  doc.text('AnaVibe Tools', 56, 51);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(28);
+  doc.setTextColor(...AUDIT_PDF_COLORS.primary);
+  doc.text('Audit Pro', 18, 130);
+  doc.setTextColor(...AUDIT_PDF_COLORS.text);
+  doc.setFontSize(22);
+  doc.text(prospectName, 18, 144);
+
+  const activityLabel = (activityTypes.find((type) => type.key === config.activityType) || {}).label || config.activityType;
+  const platformNames = platformKeys.map((key) => platformAuditDefinitions[key].title).join(', ');
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.setTextColor(...AUDIT_PDF_COLORS.textSoft);
+  let infoY = 163;
+  const infoLines = [
+    `Type d’activité : ${activityLabel}`,
+    `Plateformes analysées : ${platformNames}`,
+    `Date de génération : ${formatAuditPdfDate(new Date())}`,
+    `Consultant AnaVibe : ${consultantName}`
+  ];
+  infoLines.forEach((line) => {
+    const wrapped = doc.splitTextToSize(line, pageWidth - 36);
+    wrapped.forEach((wrappedLine) => {
+      doc.text(wrappedLine, 18, infoY);
+      infoY += 9;
+    });
+  });
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(10);
+  doc.setTextColor(...AUDIT_PDF_COLORS.primary);
+  doc.text('Document préparé par AnaVibe en vue d’une présentation commerciale.', 18, pageHeight - 20);
+}
+
+function generateAuditPdf() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    window.alert('Le module de génération PDF n’a pas pu se charger. Rechargez la page et réessayez.');
+    return;
+  }
+
+  const config = getAuditConfig();
+  const platformKeys = getCheckedPlatformKeys(config);
+
+  if (!platformKeys.length) {
+    window.alert('Cochez au moins une plateforme avant de générer le rapport PDF.');
+    return;
+  }
+
+  const prospectName = promptAuditProspectName();
+  const consultantName = promptAuditConsultantName();
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  drawAuditPdfCoverPage(doc, config, platformKeys, prospectName, consultantName);
+
+  doc.addPage();
+  const state = createAuditPdfState(doc);
+
+  const activityLabel = (activityTypes.find((type) => type.key === config.activityType) || {}).label || config.activityType;
+  const platformNames = platformKeys.map((key) => platformAuditDefinitions[key].title).join(', ');
+  const globalScore = computeGlobalScore(platformKeys);
+  const globalLevel = getScoreLevel(globalScore);
+
+  addAuditPdfSectionTitle(state, 'Informations de l’entreprise');
+  addAuditPdfBulletList(state, [
+    `Type d’activité : ${activityLabel}`,
+    `Plateformes analysées : ${platformNames}`
+  ]);
+
+  addAuditPdfSectionTitle(state, 'Score global');
+  addAuditPdfParagraph(state, `Calculé uniquement sur les plateformes sélectionnées : ${platformNames}. Les plateformes non cochées n’ont aucun impact sur ce score.`);
+  ensureAuditPdfSpace(state, 60);
+  addAuditPdfGauge(state, state.marginLeft, state.cursorY, 42, globalScore, getAuditScoreColorRgb(globalScore), globalLevel.label);
+  state.cursorY += 58;
+
+  addAuditPdfSectionTitle(state, 'Scores par plateforme');
+  const platformScoreItems = platformKeys.map((key) => ({
+    label: platformAuditDefinitions[key].title,
+    score: computePlatformScore(key)
+  }));
+  const chart = createAuditPlatformBarChartImage(platformScoreItems);
+  const chartWidthMm = state.pageWidth - state.marginLeft - state.marginRight;
+  const chartHeightMm = (chart.height / chart.width) * chartWidthMm;
+  ensureAuditPdfSpace(state, chartHeightMm + 6);
+  state.doc.addImage(chart.dataUrl, 'PNG', state.marginLeft, state.cursorY, chartWidthMm, chartHeightMm);
+  state.cursorY += chartHeightMm + 8;
+
+  addAuditPdfTable(
+    state,
+    [
+      { header: 'PLATEFORME', width: 90 },
+      { header: 'SCORE', width: 42 },
+      { header: 'NIVEAU', width: 42 }
+    ],
+    platformScoreItems.map((item) => {
+      const level = getScoreLevel(item.score);
+      return [
+        { text: item.label },
+        { text: `${Math.round(item.score)}/100` },
+        { text: level.label, color: getAuditScoreColorRgb(item.score) }
+      ];
+    })
+  );
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addAuditPdfSectionTitle(state, 'Recommandations par plateforme');
+  platformKeys.forEach((platformKey) => {
+    const definition = platformAuditDefinitions[platformKey];
+    const recommendations = getPlatformRecommendations(platformKey);
+    addAuditPdfSubTitle(state, definition.title);
+    if (!recommendations.length) {
+      addAuditPdfParagraph(state, 'Aucune recommandation : tous les critères sont bien maîtrisés.');
+    } else {
+      addAuditPdfBulletList(state, recommendations);
+    }
+  });
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addAuditPdfSectionTitle(state, 'Potentiel commercial');
+  const { dimensionScores, commercialPotential, estimates } = computeCommercialPotentialData(platformKeys, config.activityType);
+  addAuditPdfParagraph(state, 'Ces potentiels sont estimés à partir des scores obtenus sur les plateformes sélectionnées : plus le score actuel est faible sur une dimension, plus la marge de progression estimée est importante.');
+
+  ensureAuditPdfSpace(state, 62);
+  const gaugeDiameter = 34;
+  const gaugeGap = (state.pageWidth - state.marginLeft - state.marginRight - gaugeDiameter * 4) / 3;
+  const potentialLabels = { visibilite: 'Visibilité', acquisition: 'Acquisition', fidelisation: 'Fidélisation' };
+  dimensionScores.forEach((item, index) => {
+    const x = state.marginLeft + index * (gaugeDiameter + gaugeGap);
+    const level = getPotentialLevel(item.score);
+    addAuditPdfGauge(state, x, state.cursorY, gaugeDiameter, item.score, getAuditPotentialColorRgb(level.tone), potentialLabels[item.dimension]);
+  });
+  const commercialLevel = getPotentialLevel(commercialPotential);
+  const lastX = state.marginLeft + 3 * (gaugeDiameter + gaugeGap);
+  addAuditPdfGauge(state, lastX, state.cursorY, gaugeDiameter, commercialPotential, getAuditPotentialColorRgb(commercialLevel.tone), 'Commercial global');
+  state.cursorY += gaugeDiameter + 16;
+
+  addAuditPdfSubTitle(state, 'Estimation des gains potentiels');
+  addAuditPdfParagraph(state, 'Ces chiffres sont des estimations indicatives basées sur le potentiel calculé, elles ne constituent pas une prévision garantie.');
+  addAuditPdfBulletList(state, [
+    `Nouveaux clients potentiels / mois : ${estimates.newClientsLow} à ${estimates.newClientsHigh}`,
+    `Visibilité supplémentaire estimée : +${estimates.visibilityGain} %`,
+    `Chiffre d’affaires potentiel / mois : ${estimates.revenueLow} € à ${estimates.revenueHigh} €`
+  ]);
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addAuditPdfSectionTitle(state, 'Priorités');
+  const priorities = getPriorityActions(platformKeys);
+  if (!priorities.length) {
+    addAuditPdfParagraph(state, 'Aucune priorité corrective : tous les critères analysés sont déjà bien maîtrisés (Bon ou Excellent).');
+  } else {
+    priorities.forEach((item, index) => {
+      addAuditPdfSubTitle(state, `Priorité ${index + 1} — ${item.platformTitle} : ${item.criterionLabel} (${item.rating}/100)`);
+      addAuditPdfParagraph(state, `Action : ${item.recommendation}`);
+      addAuditPdfParagraph(state, buildPriorityExplanation(index + 1, item));
+    });
+  }
+
+  addAuditPdfSectionTitle(state, 'Roadmap 30 / 60 / 90 jours');
+  const roadmapBuckets = computeRoadmapBuckets(platformKeys);
+  const maxItemsPerPhase = 6;
+  roadmapBuckets.forEach(({ phase, items }) => {
+    addAuditPdfSubTitle(state, `${phase.title} — ${phase.subtitle}`);
+    if (!items.length) {
+      addAuditPdfParagraph(state, 'Aucune action nécessaire à cette échéance.');
+      return;
+    }
+    const visibleItems = items.slice(0, maxItemsPerPhase);
+    addAuditPdfBulletList(state, visibleItems.map((item) => `${item.platformTitle} — ${item.criterionLabel} : ${item.recommendation}`));
+    if (items.length > maxItemsPerPhase) {
+      addAuditPdfParagraph(state, `+ ${items.length - maxItemsPerPhase} autre(s) action(s) sur cette échéance.`);
+    }
+  });
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addAuditPdfSectionTitle(state, 'Résumé de l’audit');
+  addAuditPdfParagraph(state, buildSummaryIntro(platformKeys));
+
+  const strengths = buildStrengthsSummary(platformKeys);
+  addAuditPdfSubTitle(state, 'Points forts');
+  addAuditPdfParagraph(state, strengths.text);
+  if (strengths.items.length) {
+    addAuditPdfBulletList(state, strengths.items);
+  }
+
+  const weaknesses = buildWeaknessesSummary(platformKeys);
+  addAuditPdfSubTitle(state, 'Points faibles');
+  addAuditPdfParagraph(state, weaknesses.text);
+  if (weaknesses.items.length) {
+    addAuditPdfBulletList(state, weaknesses.items);
+  }
+
+  addAuditPdfSubTitle(state, 'Opportunités');
+  addAuditPdfParagraph(state, buildOpportunitiesSummary(platformKeys, config.activityType));
+
+  const recommendations = buildRecommendationsSummary(platformKeys);
+  addAuditPdfSubTitle(state, 'Recommandations principales');
+  addAuditPdfParagraph(state, recommendations.text);
+  if (recommendations.items.length) {
+    addAuditPdfBulletList(state, recommendations.items);
+  }
+
+  addAuditPdfFootersAndPageNumbers(doc, prospectName);
+
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  doc.save(`audit-pro-${slugifyAuditFilename(prospectName)}-${dateStamp}.pdf`);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   renderActivityTypeGrid();
   renderPlatformChecklist();
   renderPlatformAudits();
+
+  const pdfButton = document.getElementById('downloadAuditPdfBtn');
+  if (pdfButton) {
+    pdfButton.addEventListener('click', generateAuditPdf);
+  }
 });
