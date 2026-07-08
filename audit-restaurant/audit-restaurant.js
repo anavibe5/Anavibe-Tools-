@@ -591,6 +591,7 @@ function renderPlatformAuditSection(platformKey) {
       refreshCommercialPotentialSection();
       refreshPrioritySection();
       refreshRoadmapSection();
+      refreshAuditSummarySection();
     });
     wrapper.appendChild(select);
 
@@ -647,7 +648,7 @@ function createGainCard(icon, label, valueText) {
   return card;
 }
 
-function populateCommercialPotentialSection(section, platformKeys, activityType) {
+function computeCommercialPotentialData(platformKeys, activityType) {
   const dimensions = ['visibilite', 'acquisition', 'fidelisation'];
   const dimensionScores = dimensions.map((dimension) => {
     const score = computeDimensionScore(dimension, platformKeys);
@@ -660,12 +661,16 @@ function populateCommercialPotentialSection(section, platformKeys, activityType)
 
   const estimates = computeCommercialEstimates(commercialPotential, platformKeys.length, activityType);
 
+  return { dimensionScores, commercialPotential, estimates };
+}
+
+function populateCommercialPotentialSection(section, platformKeys, activityType) {
+  const { dimensionScores, commercialPotential, estimates } = computeCommercialPotentialData(platformKeys, activityType);
+
   const potentialGrid = section.querySelector('[data-role="potential-grid"]');
   potentialGrid.innerHTML = '';
-  dimensions.forEach((dimension) => {
-    const dimensionScore = computeDimensionScore(dimension, platformKeys);
-    const potentialScore = dimensionScore === null ? 0 : 100 - dimensionScore;
-    potentialGrid.appendChild(createPotentialCard(dimension, potentialScore, platformKeys));
+  dimensionScores.forEach(({ dimension, score }) => {
+    potentialGrid.appendChild(createPotentialCard(dimension, score, platformKeys));
   });
   potentialGrid.appendChild(createCommercialPotentialCard(commercialPotential, dimensionScores));
 
@@ -908,6 +913,172 @@ function refreshRoadmapSection() {
   populateRoadmapSection(section, platformKeys);
 }
 
+function getStrengths(platformKeys, limit) {
+  return getAllCheckedCriteriaRatings(platformKeys)
+    .filter((item) => item.rating >= 75)
+    .sort((a, b) => b.rating - a.rating)
+    .slice(0, limit);
+}
+
+function getWeaknesses(platformKeys, limit) {
+  return getAllCheckedCriteriaRatings(platformKeys)
+    .filter((item) => item.rating < 50)
+    .sort((a, b) => a.rating - b.rating)
+    .slice(0, limit);
+}
+
+const scoreLevelFeminine = {
+  Excellent: 'excellente',
+  Bon: 'bonne',
+  Moyen: 'moyenne',
+  Faible: 'faible'
+};
+
+function buildSummaryIntro(platformKeys) {
+  const score = computeGlobalScore(platformKeys);
+  if (score === null) {
+    return '';
+  }
+  const level = getScoreLevel(score);
+  const levelFeminine = scoreLevelFeminine[level.label] || level.label.toLowerCase();
+  const platformNames = platformKeys.map((key) => platformAuditDefinitions[key].title).join(', ');
+  return `Sur la base des plateformes analysées (${platformNames}), la performance globale de l’entreprise est jugée ${levelFeminine} (${Math.round(score)}/100).`;
+}
+
+function buildStrengthsSummary(platformKeys) {
+  const strengths = getStrengths(platformKeys, 4);
+  if (!strengths.length) {
+    return {
+      text: 'Aucun point fort majeur ne se dégage encore : la majorité des critères analysés nécessite des améliorations.',
+      items: []
+    };
+  }
+  const text = strengths.length > 1
+    ? 'Plusieurs éléments sont déjà bien maîtrisés et constituent une bonne base :'
+    : 'Un élément est déjà bien maîtrisé et constitue une bonne base :';
+  return {
+    text,
+    items: strengths.map((item) => `${item.platformTitle} — ${item.criterionLabel} (${item.rating}/100)`)
+  };
+}
+
+function buildWeaknessesSummary(platformKeys) {
+  const weaknesses = getWeaknesses(platformKeys, 4);
+  if (!weaknesses.length) {
+    return {
+      text: 'Aucun point faible majeur n’a été détecté : l’ensemble des critères analysés est au moins correct.',
+      items: []
+    };
+  }
+  const text = weaknesses.length > 1
+    ? 'Plusieurs éléments freinent actuellement la performance globale :'
+    : 'Un élément freine actuellement la performance globale :';
+  return {
+    text,
+    items: weaknesses.map((item) => `${item.platformTitle} — ${item.criterionLabel} (${item.rating}/100)`)
+  };
+}
+
+function buildOpportunitiesSummary(platformKeys, activityType) {
+  const { dimensionScores, estimates } = computeCommercialPotentialData(platformKeys, activityType);
+  const validDimensions = dimensionScores.filter((item) => item.score > 0);
+
+  if (!validDimensions.length) {
+    return 'Aucune opportunité de croissance majeure n’a été identifiée : les indicateurs analysés sont déjà proches de l’optimum.';
+  }
+
+  const top = validDimensions.reduce((max, item) => (item.score > max.score ? item : max), validDimensions[0]);
+  const level = getPotentialLevel(top.score);
+  const labelWithArticle = dimensionLabelsWithArticle[top.dimension];
+
+  return `Le principal levier de croissance se situe au niveau du potentiel ${labelWithArticle}, actuellement ${level.label.toLowerCase()} (${Math.round(top.score)}/100). En travaillant les points identifiés dans l’audit, l’entreprise peut espérer entre ${estimates.newClientsLow} et ${estimates.newClientsHigh} nouveaux clients potentiels par mois, pour un chiffre d’affaires supplémentaire estimé entre ${estimates.revenueLow} € et ${estimates.revenueHigh} € par mois (estimation indicative).`;
+}
+
+function buildRecommendationsSummary(platformKeys) {
+  const priorities = getPriorityActions(platformKeys);
+  if (!priorities.length) {
+    return {
+      text: 'Aucune recommandation prioritaire : l’ensemble des critères analysés est déjà bien maîtrisé.',
+      items: []
+    };
+  }
+  return {
+    text: 'Les actions suivantes sont recommandées en priorité pour améliorer la performance globale :',
+    items: priorities.map((item) => `${item.recommendation} (${item.platformTitle})`)
+  };
+}
+
+function fillSummaryBlock(section, role, summary) {
+  const block = section.querySelector(`[data-role="${role}"]`);
+  block.querySelector('[data-role="text"]').textContent = summary.text;
+  const list = block.querySelector('[data-role="list"]');
+  list.innerHTML = '';
+  summary.items.forEach((item) => {
+    const li = document.createElement('li');
+    li.textContent = item;
+    list.appendChild(li);
+  });
+  list.style.display = summary.items.length ? '' : 'none';
+}
+
+function populateAuditSummarySection(section, platformKeys, activityType) {
+  section.querySelector('[data-role="summary-intro"]').textContent = buildSummaryIntro(platformKeys);
+  fillSummaryBlock(section, 'summary-strengths', buildStrengthsSummary(platformKeys));
+  fillSummaryBlock(section, 'summary-weaknesses', buildWeaknessesSummary(platformKeys));
+  section.querySelector('[data-role="summary-opportunities"] [data-role="text"]').textContent =
+    buildOpportunitiesSummary(platformKeys, activityType);
+  fillSummaryBlock(section, 'summary-recommendations', buildRecommendationsSummary(platformKeys));
+}
+
+function renderAuditSummarySection(platformKeys, activityType) {
+  const section = document.createElement('section');
+  section.className = 'card audit-platform-card audit-summary-section';
+  section.dataset.role = 'summary-section';
+  section.innerHTML = `
+    <p class="eyebrow">Synthèse</p>
+    <h3>📝 Résumé de l’audit</h3>
+    <p data-role="summary-intro"></p>
+
+    <div class="analysis-subsection" data-role="summary-strengths">
+      <h4>✅ Points forts</h4>
+      <p data-role="text"></p>
+      <ul class="analysis-list" data-role="list"></ul>
+    </div>
+
+    <div class="analysis-subsection" data-role="summary-weaknesses">
+      <h4>⚠️ Points faibles</h4>
+      <p data-role="text"></p>
+      <ul class="analysis-list" data-role="list"></ul>
+    </div>
+
+    <div class="analysis-subsection" data-role="summary-opportunities">
+      <h4>📈 Opportunités</h4>
+      <p data-role="text"></p>
+    </div>
+
+    <div class="analysis-subsection" data-role="summary-recommendations">
+      <h4>🎯 Recommandations principales</h4>
+      <p data-role="text"></p>
+      <ul class="analysis-list" data-role="list"></ul>
+    </div>
+  `;
+  populateAuditSummarySection(section, platformKeys, activityType);
+  return section;
+}
+
+function refreshAuditSummarySection() {
+  const section = document.querySelector('[data-role="summary-section"]');
+  if (!section) {
+    return;
+  }
+  const config = getAuditConfig();
+  const platformKeys = getCheckedPlatformKeys(config);
+  if (!platformKeys.length) {
+    return;
+  }
+  populateAuditSummarySection(section, platformKeys, config.activityType);
+}
+
 function createNoPlatformsState() {
   const card = document.createElement('div');
   card.className = 'card audit-config-card';
@@ -943,6 +1114,7 @@ function renderPlatformAudits() {
   container.appendChild(renderCommercialPotentialSection(checkedKeys, config.activityType));
   container.appendChild(renderPrioritySection(checkedKeys));
   container.appendChild(renderRoadmapSection(checkedKeys));
+  container.appendChild(renderAuditSummarySection(checkedKeys, config.activityType));
 
   checkedPlatforms.forEach((platform) => {
     container.appendChild(renderPlatformAuditSection(platform.key));
