@@ -996,3 +996,88 @@ a {
   border-color: var(--primary);
   background: rgba(110, 31, 50, 0.05);
 }
+
+.audit-platform-card {
+  padding: 34px;
+  margin-top: 24px;
+}
+
+.audit-platform-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.audit-platform-header h3 {
+  margin: 6px 0 0;
+}
+
+.score-gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.score-gauge-svg {
+  width: 128px;
+  height: 128px;
+}
+
+.gauge-track {
+  fill: none;
+  stroke: rgba(61, 31, 38, 0.1);
+  stroke-width: 12;
+}
+
+.gauge-progress {
+  fill: none;
+  stroke-width: 12;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 70px 70px;
+  transition: stroke-dashoffset 500ms ease, stroke 500ms ease;
+}
+
+.gauge-score-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 30px;
+  font-weight: 800;
+  fill: var(--text);
+}
+
+.gauge-score-suffix {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  fill: var(--text-soft);
+}
+
+.gauge-status-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
+.gauge-status-badge.tone-positive {
+  background: rgba(46, 125, 50, 0.12);
+  color: #2e7d32;
+}
+
+.gauge-status-badge.tone-medium {
+  background: rgba(224, 142, 45, 0.12);
+  color: #e08e2d;
+}
+
+.gauge-status-badge.tone-high {
+  background: rgba(198, 40, 40, 0.1);
+  color: #c62828;
+}
+
+.audit-criteria-grid {
+  margin-top: 24px;
+}

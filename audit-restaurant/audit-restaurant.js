@@ -1,4 +1,5 @@
 const AUDIT_CONFIG_KEY = 'anavibe-tools-audit-restaurant-config';
+const AUDIT_RATINGS_KEY = 'anavibe-tools-audit-restaurant-ratings';
 
 const activityTypes = [
   { key: 'restaurant', label: 'Restaurant', icon: '🍽' },
@@ -17,6 +18,130 @@ const platformOptions = [
   { key: 'tiktok', label: 'TikTok', icon: '🎵' },
   { key: 'linkedin', label: 'LinkedIn', icon: '💼' }
 ];
+
+const ratingLevels = [
+  { value: 0, label: 'Absent' },
+  { value: 25, label: 'Faible' },
+  { value: 50, label: 'Moyen' },
+  { value: 75, label: 'Bon' },
+  { value: 100, label: 'Excellent' }
+];
+
+const platformAuditDefinitions = {
+  googleBusiness: {
+    title: 'Google Business',
+    icon: '📍',
+    criteria: [
+      { key: 'rating', label: 'Note Google', recommendation: 'Travailler l’expérience client pour faire remonter la note Google au-dessus de 4,5/5.' },
+      { key: 'reviewsCount', label: 'Nombre d’avis', recommendation: 'Mettre en place une stratégie active de collecte d’avis (QR code, relance après visite, etc.).' },
+      { key: 'reviewsFrequency', label: 'Fréquence des avis', recommendation: 'Solliciter régulièrement de nouveaux avis pour maintenir un flux constant et rassurer les prospects.' },
+      { key: 'reviewsResponse', label: 'Réponses aux avis', recommendation: 'Répondre systématiquement à tous les avis, positifs comme négatifs.' },
+      { key: 'reviewsResponseQuality', label: 'Qualité des réponses', recommendation: 'Personnaliser les réponses aux avis plutôt que d’utiliser des réponses génériques.' },
+      { key: 'description', label: 'Description', recommendation: 'Rédiger une description complète et optimisée mettant en avant l’activité et ses points forts.' },
+      { key: 'categories', label: 'Catégories', recommendation: 'Ajouter toutes les catégories pertinentes pour améliorer la visibilité sur les recherches associées.' },
+      { key: 'services', label: 'Services', recommendation: 'Renseigner l’ensemble des services proposés dans la fiche.' },
+      { key: 'phone', label: 'Téléphone', recommendation: 'Vérifier que le numéro de téléphone est correct, visible et cliquable.' },
+      { key: 'hours', label: 'Horaires', recommendation: 'Mettre à jour les horaires d’ouverture, y compris les jours fériés et exceptions.' },
+      { key: 'website', label: 'Site internet', recommendation: 'Ajouter le lien vers le site internet sur la fiche Google Business.' },
+      { key: 'menu', label: 'Menu', recommendation: 'Ajouter ou mettre à jour le menu directement sur la fiche.' },
+      { key: 'booking', label: 'Réservation', recommendation: 'Activer un lien de réservation en ligne directement accessible depuis la fiche.' },
+      { key: 'posts', label: 'Publications', recommendation: 'Publier régulièrement des actualités, offres ou événements via Google Posts.' },
+      { key: 'photos', label: 'Photos', recommendation: 'Ajouter davantage de photos récentes et de qualité (extérieur, intérieur, produits, équipe).' },
+      { key: 'videos', label: 'Vidéos', recommendation: 'Ajouter des vidéos courtes pour dynamiser la fiche et renforcer l’engagement.' },
+      { key: 'faq', label: 'FAQ', recommendation: 'Compléter la section Questions & Réponses avec les questions les plus fréquentes.' },
+      { key: 'attributes', label: 'Attributs', recommendation: 'Renseigner tous les attributs pertinents (accessibilité, terrasse, options, etc.).' }
+    ]
+  },
+  website: {
+    title: 'Site internet',
+    icon: '🌐',
+    criteria: [
+      { key: 'responsive', label: 'Responsive', recommendation: 'Adapter le site pour un affichage parfait sur mobile et tablette.' },
+      { key: 'speed', label: 'Vitesse', recommendation: 'Optimiser la vitesse de chargement (images, hébergement, code).' },
+      { key: 'design', label: 'Design', recommendation: 'Moderniser le design pour refléter une image premium et professionnelle.' },
+      { key: 'booking', label: 'Réservation', recommendation: 'Ajouter un système de réservation ou de contact rapide directement sur le site.' },
+      { key: 'menu', label: 'Menu', recommendation: 'Rendre le menu facilement accessible et à jour.' },
+      { key: 'seo', label: 'SEO', recommendation: 'Optimiser le référencement naturel (titres, balises, contenu local).' },
+      { key: 'contactInfo', label: 'Coordonnées', recommendation: 'Afficher clairement adresse, téléphone et horaires sur toutes les pages.' },
+      { key: 'cta', label: 'CTA', recommendation: 'Ajouter des appels à l’action clairs (réserver, appeler, découvrir).' },
+      { key: 'photos', label: 'Photos', recommendation: 'Utiliser des photos professionnelles et représentatives de l’activité.' },
+      { key: 'consistency', label: 'Cohérence', recommendation: 'Harmoniser le site avec l’identité visuelle utilisée sur les réseaux sociaux.' }
+    ]
+  },
+  instagram: {
+    title: 'Instagram',
+    icon: '📸',
+    criteria: [
+      { key: 'profilePhoto', label: 'Photo de profil', recommendation: 'Utiliser une photo de profil professionnelle et reconnaissable (logo ou photo de l’établissement).' },
+      { key: 'bio', label: 'Bio', recommendation: 'Rédiger une bio claire présentant l’activité, la localisation et une proposition de valeur.' },
+      { key: 'link', label: 'Lien', recommendation: 'Ajouter un lien cliquable (site, menu, réservation) dans la bio.' },
+      { key: 'visualIdentity', label: 'Identité visuelle', recommendation: 'Harmoniser couleurs, filtres et styles visuels pour une identité cohérente.' },
+      { key: 'feed', label: 'Feed', recommendation: 'Structurer le feed pour qu’il soit esthétique et cohérent dans son ensemble.' },
+      { key: 'stories', label: 'Stories', recommendation: 'Publier des stories régulièrement pour maintenir le contact quotidien avec la communauté.' },
+      { key: 'storiesHighlights', label: 'Stories à la une', recommendation: 'Organiser des stories à la une thématiques (menu, avis, coulisses, événements).' },
+      { key: 'reels', label: 'Reels', recommendation: 'Produire des Reels réguliers, format le plus performant pour la portée organique.' },
+      { key: 'photoQuality', label: 'Qualité des photos', recommendation: 'Améliorer la qualité des photos (lumière, cadrage, mise en scène).' },
+      { key: 'videoQuality', label: 'Qualité des vidéos', recommendation: 'Soigner la qualité des vidéos (stabilité, montage, son).' },
+      { key: 'frequency', label: 'Fréquence', recommendation: 'Publier plus régulièrement pour rester visible dans l’algorithme.' },
+      { key: 'cta', label: 'CTA', recommendation: 'Ajouter des appels à l’action clairs dans les publications (réserver, venir, découvrir).' },
+      { key: 'hashtags', label: 'Hashtags', recommendation: 'Utiliser des hashtags pertinents et variés pour élargir la portée.' },
+      { key: 'geolocation', label: 'Géolocalisation', recommendation: 'Géolocaliser systématiquement les publications et stories.' },
+      { key: 'engagement', label: 'Engagement', recommendation: 'Interagir davantage avec la communauté (réponses aux commentaires et messages).' }
+    ]
+  },
+  facebook: {
+    title: 'Facebook',
+    icon: '📘',
+    criteria: [
+      { key: 'profilePhoto', label: 'Photo de profil', recommendation: 'Utiliser une photo de profil professionnelle et reconnaissable.' },
+      { key: 'description', label: 'Description', recommendation: 'Rédiger une description complète présentant l’activité et ses points forts.' },
+      { key: 'link', label: 'Lien', recommendation: 'Ajouter un lien vers le site ou la réservation dans les informations de la page.' },
+      { key: 'visualIdentity', label: 'Identité visuelle', recommendation: 'Harmoniser couleurs et visuels avec les autres canaux de communication.' },
+      { key: 'feed', label: 'Fil d’actualité', recommendation: 'Structurer les publications pour qu’elles soient cohérentes et attractives.' },
+      { key: 'stories', label: 'Stories', recommendation: 'Publier des stories régulièrement pour dynamiser la présence sur la page.' },
+      { key: 'videos', label: 'Vidéos', recommendation: 'Ajouter davantage de contenus vidéo, très favorisés par l’algorithme.' },
+      { key: 'photoQuality', label: 'Qualité des photos', recommendation: 'Améliorer la qualité des photos publiées.' },
+      { key: 'videoQuality', label: 'Qualité des vidéos', recommendation: 'Soigner la qualité des vidéos (stabilité, montage, son).' },
+      { key: 'frequency', label: 'Fréquence', recommendation: 'Publier plus régulièrement pour maintenir la visibilité de la page.' },
+      { key: 'cta', label: 'CTA', recommendation: 'Ajouter des appels à l’action clairs dans les publications.' },
+      { key: 'reviews', label: 'Avis Facebook', recommendation: 'Activer et solliciter les avis/recommandations Facebook.' },
+      { key: 'geolocation', label: 'Géolocalisation', recommendation: 'Géolocaliser systématiquement les publications.' },
+      { key: 'engagement', label: 'Engagement', recommendation: 'Interagir davantage avec la communauté (commentaires, messages).' }
+    ]
+  },
+  tiktok: {
+    title: 'TikTok',
+    icon: '🎵',
+    criteria: [
+      { key: 'profilePhoto', label: 'Photo de profil', recommendation: 'Utiliser une photo de profil professionnelle et reconnaissable.' },
+      { key: 'bio', label: 'Bio', recommendation: 'Rédiger une bio claire présentant l’activité et sa localisation.' },
+      { key: 'link', label: 'Lien', recommendation: 'Ajouter un lien cliquable vers le site ou la réservation.' },
+      { key: 'visualIdentity', label: 'Identité visuelle', recommendation: 'Harmoniser le style visuel des vidéos avec l’identité de marque.' },
+      { key: 'videos', label: 'Vidéos', recommendation: 'Publier davantage de contenus vidéo courts et engageants.' },
+      { key: 'videoQuality', label: 'Qualité des vidéos', recommendation: 'Améliorer la qualité de production (cadrage, lumière, montage, son).' },
+      { key: 'frequency', label: 'Fréquence', recommendation: 'Publier plus régulièrement pour bénéficier de l’algorithme de découverte.' },
+      { key: 'hashtags', label: 'Hashtags', recommendation: 'Utiliser des hashtags pertinents et tendance pour élargir la portée.' },
+      { key: 'trends', label: 'Tendances', recommendation: 'S’appuyer sur les tendances et sons populaires du moment.' },
+      { key: 'engagement', label: 'Engagement', recommendation: 'Répondre aux commentaires et interagir avec la communauté.' }
+    ]
+  },
+  linkedin: {
+    title: 'LinkedIn',
+    icon: '💼',
+    criteria: [
+      { key: 'logo', label: 'Logo / Photo de profil', recommendation: 'Utiliser un logo net et à jour comme photo de profil de la page.' },
+      { key: 'banner', label: 'Bannière', recommendation: 'Ajouter une bannière professionnelle représentant l’activité.' },
+      { key: 'description', label: 'Description de l’entreprise', recommendation: 'Rédiger une description claire de l’activité, des valeurs et de l’offre.' },
+      { key: 'industry', label: 'Secteur d’activité', recommendation: 'Renseigner précisément le secteur d’activité et les informations de l’entreprise.' },
+      { key: 'contactInfo', label: 'Coordonnées / site web', recommendation: 'Ajouter le site web et les coordonnées de contact sur la page.' },
+      { key: 'frequency', label: 'Fréquence de publication', recommendation: 'Publier plus régulièrement pour rester visible auprès du réseau professionnel.' },
+      { key: 'contentQuality', label: 'Qualité du contenu', recommendation: 'Publier des contenus à valeur ajoutée (expertise, coulisses, actualités).' },
+      { key: 'team', label: 'Mise en avant de l’équipe', recommendation: 'Mettre en avant l’équipe pour humaniser la marque et renforcer la confiance.' },
+      { key: 'cta', label: 'CTA', recommendation: 'Ajouter des appels à l’action clairs dans les publications.' },
+      { key: 'engagement', label: 'Engagement', recommendation: 'Interagir avec les commentaires et développer le réseau professionnel.' }
+    ]
+  }
+};
 
 function createDefaultAuditConfig() {
   return {
@@ -53,6 +178,102 @@ function getAuditConfig() {
 
 function saveAuditConfig(config) {
   localStorage.setItem(AUDIT_CONFIG_KEY, JSON.stringify(config));
+}
+
+function getAuditRatings() {
+  const saved = localStorage.getItem(AUDIT_RATINGS_KEY);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+    } catch (error) {
+      // fall through to empty
+    }
+  }
+  return {};
+}
+
+function saveAuditRatings(ratings) {
+  localStorage.setItem(AUDIT_RATINGS_KEY, JSON.stringify(ratings));
+}
+
+function getPlatformRatings(platformKey) {
+  const ratings = getAuditRatings();
+  const definition = platformAuditDefinitions[platformKey];
+  if (!ratings[platformKey]) {
+    ratings[platformKey] = {};
+  }
+  definition.criteria.forEach((criterion) => {
+    if (ratings[platformKey][criterion.key] === undefined) {
+      ratings[platformKey][criterion.key] = 50;
+    }
+  });
+  saveAuditRatings(ratings);
+  return ratings[platformKey];
+}
+
+function setCriterionRating(platformKey, criterionKey, value) {
+  const ratings = getAuditRatings();
+  if (!ratings[platformKey]) {
+    ratings[platformKey] = {};
+  }
+  ratings[platformKey][criterionKey] = value;
+  saveAuditRatings(ratings);
+}
+
+function computePlatformScore(platformKey) {
+  const definition = platformAuditDefinitions[platformKey];
+  const ratings = getPlatformRatings(platformKey);
+  const values = definition.criteria.map((criterion) => ratings[criterion.key] ?? 50);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
+
+function getPlatformRecommendations(platformKey) {
+  const definition = platformAuditDefinitions[platformKey];
+  const ratings = getPlatformRatings(platformKey);
+  return definition.criteria
+    .filter((criterion) => (ratings[criterion.key] ?? 50) < 75)
+    .sort((a, b) => (ratings[a.key] ?? 50) - (ratings[b.key] ?? 50))
+    .map((criterion) => criterion.recommendation);
+}
+
+function escapeAuditText(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]
+  ));
+}
+
+function getScoreStatus(score) {
+  if (score >= 85) {
+    return { label: 'Excellent', tone: 'positive' };
+  }
+  if (score >= 70) {
+    return { label: 'Bon', tone: 'positive' };
+  }
+  if (score >= 40) {
+    return { label: 'Moyen', tone: 'medium' };
+  }
+  return { label: 'À travailler', tone: 'high' };
+}
+
+function createGaugeMarkup(score) {
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const clamped = Math.max(0, Math.min(100, score));
+  const dashOffset = circumference * (1 - clamped / 100);
+  const color = clamped >= 70 ? '#2e7d32' : clamped >= 40 ? '#e08e2d' : '#c62828';
+
+  return `
+    <svg viewBox="0 0 140 140" class="score-gauge-svg">
+      <circle cx="70" cy="70" r="${radius}" class="gauge-track"></circle>
+      <circle cx="70" cy="70" r="${radius}" class="gauge-progress"
+        style="stroke: ${color}; stroke-dasharray: ${circumference}px; stroke-dashoffset: ${dashOffset}px;"></circle>
+      <text x="70" y="64" class="gauge-score-value" text-anchor="middle">${Math.round(clamped)}</text>
+      <text x="70" y="86" class="gauge-score-suffix" text-anchor="middle">/ 100</text>
+    </svg>
+  `;
 }
 
 function flashConfigSavedHint() {
@@ -124,13 +345,135 @@ function renderPlatformChecklist() {
       saveAuditConfig(freshConfig);
       label.classList.toggle('checked', checkbox.checked);
       flashConfigSavedHint();
+      renderPlatformAudits();
     });
 
     list.appendChild(label);
   });
 }
 
+function refreshPlatformAuditSection(platformKey, section) {
+  const definition = platformAuditDefinitions[platformKey];
+  const ratings = getPlatformRatings(platformKey);
+  const score = computePlatformScore(platformKey);
+  const status = getScoreStatus(score);
+
+  section.querySelectorAll('[data-role="criteria-grid"] select').forEach((select, index) => {
+    const criterion = definition.criteria[index];
+    select.value = String(ratings[criterion.key]);
+  });
+
+  const gaugeEl = section.querySelector('[data-role="gauge"]');
+  gaugeEl.innerHTML = `
+    ${createGaugeMarkup(score)}
+    <span class="gauge-status-badge tone-${status.tone}">${status.label}</span>
+  `;
+
+  const recoContainer = section.querySelector('[data-role="recommendations"]');
+  const recommendations = getPlatformRecommendations(platformKey);
+  recoContainer.innerHTML = '';
+
+  if (!recommendations.length) {
+    const empty = document.createElement('p');
+    empty.className = 'insight-empty';
+    empty.textContent = 'Aucune recommandation : tous les critères sont bien maîtrisés.';
+    recoContainer.appendChild(empty);
+    return;
+  }
+
+  recommendations.forEach((text) => {
+    const item = document.createElement('div');
+    item.className = 'insight-item tone-neutral';
+    item.innerHTML = `<span class="insight-icon">💡</span><span class="insight-text">${escapeAuditText(text)}</span>`;
+    recoContainer.appendChild(item);
+  });
+}
+
+function renderPlatformAuditSection(platformKey) {
+  const definition = platformAuditDefinitions[platformKey];
+  const section = document.createElement('section');
+  section.className = 'card audit-platform-card';
+  section.dataset.platform = platformKey;
+
+  section.innerHTML = `
+    <div class="audit-platform-header">
+      <div>
+        <p class="eyebrow">Audit plateforme</p>
+        <h3>${definition.icon} Audit ${escapeAuditText(definition.title)}</h3>
+      </div>
+      <div class="score-gauge" data-role="gauge"></div>
+    </div>
+    <div class="field-grid audit-criteria-grid" data-role="criteria-grid"></div>
+    <div class="analysis-subsection">
+      <h4>Recommandations</h4>
+      <div class="insight-list" data-role="recommendations"></div>
+    </div>
+  `;
+
+  const criteriaGrid = section.querySelector('[data-role="criteria-grid"]');
+  definition.criteria.forEach((criterion) => {
+    const wrapper = document.createElement('label');
+    wrapper.className = 'field-item';
+
+    const labelSpan = document.createElement('span');
+    labelSpan.textContent = criterion.label;
+    wrapper.appendChild(labelSpan);
+
+    const select = document.createElement('select');
+    select.className = 'field-input';
+    ratingLevels.forEach((level) => {
+      const option = document.createElement('option');
+      option.value = level.value;
+      option.textContent = level.label;
+      select.appendChild(option);
+    });
+    select.addEventListener('change', () => {
+      setCriterionRating(platformKey, criterion.key, Number(select.value));
+      refreshPlatformAuditSection(platformKey, section);
+    });
+    wrapper.appendChild(select);
+
+    criteriaGrid.appendChild(wrapper);
+  });
+
+  refreshPlatformAuditSection(platformKey, section);
+  return section;
+}
+
+function createNoPlatformsState() {
+  const card = document.createElement('div');
+  card.className = 'card audit-config-card';
+  card.innerHTML = `
+    <p class="eyebrow">Étape 2</p>
+    <h3>Audits par plateforme</h3>
+    <p>Cochez au moins une plateforme dans la configuration ci-dessus pour générer automatiquement les audits correspondants.</p>
+  `;
+  return card;
+}
+
+function renderPlatformAudits() {
+  const container = document.getElementById('platformAuditSections');
+  if (!container) {
+    return;
+  }
+
+  const config = getAuditConfig();
+  container.innerHTML = '';
+
+  const checkedPlatforms = platformOptions.filter((platform) => config.platforms[platform.key]);
+
+  if (!checkedPlatforms.length) {
+    container.appendChild(createNoPlatformsState());
+    return;
+  }
+
+  checkedPlatforms.forEach((platform) => {
+    container.appendChild(renderPlatformAuditSection(platform.key));
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   renderActivityTypeGrid();
   renderPlatformChecklist();
+  renderPlatformAudits();
 });
