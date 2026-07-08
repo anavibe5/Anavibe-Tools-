@@ -589,6 +589,8 @@ function renderPlatformAuditSection(platformKey) {
       refreshPlatformAuditSection(platformKey, section);
       refreshGlobalScoreGauge();
       refreshCommercialPotentialSection();
+      refreshPrioritySection();
+      refreshRoadmapSection();
     });
     wrapper.appendChild(select);
 
@@ -707,6 +709,205 @@ function refreshCommercialPotentialSection() {
   populateCommercialPotentialSection(section, platformKeys, config.activityType);
 }
 
+function getAllCheckedCriteriaRatings(platformKeys) {
+  const items = [];
+  platformKeys.forEach((platformKey) => {
+    const definition = platformAuditDefinitions[platformKey];
+    const ratings = getPlatformRatings(platformKey);
+    definition.criteria.forEach((criterion) => {
+      items.push({
+        platformKey,
+        platformTitle: definition.title,
+        platformIcon: definition.icon,
+        criterionKey: criterion.key,
+        criterionLabel: criterion.label,
+        dimension: criterion.dimension,
+        recommendation: criterion.recommendation,
+        rating: ratings[criterion.key] ?? 50
+      });
+    });
+  });
+  return items;
+}
+
+function getRatingLabel(value) {
+  const level = ratingLevels.find((item) => item.value === value);
+  return level ? level.label : 'Moyen';
+}
+
+function getPriorityActions(platformKeys) {
+  return getAllCheckedCriteriaRatings(platformKeys)
+    .filter((item) => item.rating < 75)
+    .sort((a, b) => a.rating - b.rating)
+    .slice(0, 3);
+}
+
+function buildPriorityExplanation(rank, item) {
+  const dimensionLabelWithArticle = dimensionLabelsWithArticle[item.dimension] || 'de performance globale';
+  const rankTexts = {
+    1: `Il s’agit du point le plus fragile de tout l’audit (${item.rating}/100 sur ${item.platformTitle}) : agir ici en premier aura l’impact le plus fort sur le potentiel ${dimensionLabelWithArticle}.`,
+    2: `Second point le plus fragile identifié (${item.rating}/100 sur ${item.platformTitle}) : à traiter juste après la priorité n°1 pour renforcer le potentiel ${dimensionLabelWithArticle}.`,
+    3: `Troisième point le plus fragile identifié (${item.rating}/100 sur ${item.platformTitle}) : une action complémentaire pour continuer à faire progresser le potentiel ${dimensionLabelWithArticle}.`
+  };
+  return rankTexts[rank] || rankTexts[3];
+}
+
+function createPriorityCard(rank, item) {
+  const card = document.createElement('div');
+  card.className = 'card priority-card';
+  const levelLabel = getRatingLabel(item.rating);
+  card.innerHTML = `
+    <div class="priority-card-header">
+      <span class="priority-rank">Priorité ${rank}</span>
+      <span class="gauge-status-badge tone-high">${escapeAuditText(levelLabel)} (${item.rating}/100)</span>
+    </div>
+    <h4>${item.platformIcon} ${escapeAuditText(item.platformTitle)} — ${escapeAuditText(item.criterionLabel)}</h4>
+    <p class="priority-action"><strong>Action :</strong> ${escapeAuditText(item.recommendation)}</p>
+    <p class="priority-explanation">${escapeAuditText(buildPriorityExplanation(rank, item))}</p>
+  `;
+  return card;
+}
+
+function createPriorityEmptyState() {
+  const empty = document.createElement('p');
+  empty.className = 'insight-empty';
+  empty.textContent = 'Aucune priorité corrective : tous les critères analysés sont déjà bien maîtrisés (Bon ou Excellent).';
+  return empty;
+}
+
+function populatePrioritySection(section, platformKeys) {
+  const grid = section.querySelector('[data-role="priority-grid"]');
+  grid.innerHTML = '';
+  const priorities = getPriorityActions(platformKeys);
+
+  if (!priorities.length) {
+    grid.appendChild(createPriorityEmptyState());
+    return;
+  }
+
+  priorities.forEach((item, index) => {
+    grid.appendChild(createPriorityCard(index + 1, item));
+  });
+}
+
+function renderPrioritySection(platformKeys) {
+  const section = document.createElement('section');
+  section.className = 'card audit-platform-card audit-priority-section';
+  section.dataset.role = 'priority-section';
+  section.innerHTML = `
+    <p class="eyebrow">Plan d’action</p>
+    <h3>🚀 Priorités</h3>
+    <p>Les points les plus fragiles identifiés sur les plateformes sélectionnées, classés par ordre d’impact.</p>
+    <div class="priority-grid" data-role="priority-grid"></div>
+  `;
+  populatePrioritySection(section, platformKeys);
+  return section;
+}
+
+function refreshPrioritySection() {
+  const section = document.querySelector('[data-role="priority-section"]');
+  if (!section) {
+    return;
+  }
+  const config = getAuditConfig();
+  const platformKeys = getCheckedPlatformKeys(config);
+  if (!platformKeys.length) {
+    return;
+  }
+  populatePrioritySection(section, platformKeys);
+}
+
+const roadmapPhaseConfig = [
+  { days: '30', title: '30 jours', subtitle: 'Actions urgentes' },
+  { days: '60', title: '60 jours', subtitle: 'Actions importantes' },
+  { days: '90', title: '90 jours', subtitle: 'Optimisations' }
+];
+
+function buildRoadmapActionExplanation(item, phase) {
+  const dimensionLabelWithArticle = dimensionLabelsWithArticle[item.dimension] || 'de performance globale';
+  const levelLabel = getRatingLabel(item.rating);
+  return `${item.recommendation} — Ce point est noté « ${levelLabel} » (${item.rating}/100) sur ${item.platformTitle} : il est classé dans les ${phase.days} premiers jours selon son niveau de priorité, pour renforcer le potentiel ${dimensionLabelWithArticle}.`;
+}
+
+function createRoadmapItem(item, phase) {
+  const el = document.createElement('div');
+  el.className = 'insight-item tone-neutral roadmap-item';
+  el.innerHTML = `
+    <span class="insight-icon">📌</span>
+    <span class="insight-text">
+      <strong>${item.platformIcon} ${escapeAuditText(item.platformTitle)} — ${escapeAuditText(item.criterionLabel)}</strong><br>
+      ${escapeAuditText(buildRoadmapActionExplanation(item, phase))}
+    </span>
+  `;
+  return el;
+}
+
+function createRoadmapEmptyState() {
+  const empty = document.createElement('p');
+  empty.className = 'insight-empty';
+  empty.textContent = 'Aucune action nécessaire à cette échéance.';
+  return empty;
+}
+
+function populateRoadmapSection(section, platformKeys) {
+  const allItems = getAllCheckedCriteriaRatings(platformKeys)
+    .filter((item) => item.rating < 75)
+    .sort((a, b) => a.rating - b.rating);
+
+  const chunkSize = Math.ceil(allItems.length / roadmapPhaseConfig.length);
+  const buckets = roadmapPhaseConfig.map((phase, index) => allItems.slice(index * chunkSize, (index + 1) * chunkSize));
+
+  roadmapPhaseConfig.forEach((phase, index) => {
+    const columnList = section.querySelector(`[data-role="roadmap-list-${phase.days}"]`);
+    columnList.innerHTML = '';
+    const phaseItems = buckets[index];
+
+    if (!phaseItems.length) {
+      columnList.appendChild(createRoadmapEmptyState());
+      return;
+    }
+
+    phaseItems.forEach((item) => {
+      columnList.appendChild(createRoadmapItem(item, phase));
+    });
+  });
+}
+
+function renderRoadmapSection(platformKeys) {
+  const section = document.createElement('section');
+  section.className = 'card audit-platform-card audit-roadmap-section';
+  section.dataset.role = 'roadmap-section';
+  section.innerHTML = `
+    <p class="eyebrow">Plan d’action</p>
+    <h3>🗺 Roadmap 30 / 60 / 90 jours</h3>
+    <p>Les actions sont réparties automatiquement selon leur degré d’urgence, du plus critique au plus long terme.</p>
+    <div class="roadmap-grid">
+      ${roadmapPhaseConfig.map((phase) => `
+        <div class="roadmap-column">
+          <p class="eyebrow">${phase.title}</p>
+          <h4>${escapeAuditText(phase.subtitle)}</h4>
+          <div class="insight-list" data-role="roadmap-list-${phase.days}"></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  populateRoadmapSection(section, platformKeys);
+  return section;
+}
+
+function refreshRoadmapSection() {
+  const section = document.querySelector('[data-role="roadmap-section"]');
+  if (!section) {
+    return;
+  }
+  const config = getAuditConfig();
+  const platformKeys = getCheckedPlatformKeys(config);
+  if (!platformKeys.length) {
+    return;
+  }
+  populateRoadmapSection(section, platformKeys);
+}
+
 function createNoPlatformsState() {
   const card = document.createElement('div');
   card.className = 'card audit-config-card';
@@ -740,6 +941,8 @@ function renderPlatformAudits() {
   refreshGlobalScoreGauge();
 
   container.appendChild(renderCommercialPotentialSection(checkedKeys, config.activityType));
+  container.appendChild(renderPrioritySection(checkedKeys));
+  container.appendChild(renderRoadmapSection(checkedKeys));
 
   checkedPlatforms.forEach((platform) => {
     container.appendChild(renderPlatformAuditSection(platform.key));
