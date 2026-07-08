@@ -245,7 +245,7 @@ function escapeAuditText(value) {
   ));
 }
 
-function getScoreStatus(score) {
+function getScoreLevel(score) {
   if (score >= 85) {
     return { label: 'Excellent', tone: 'positive' };
   }
@@ -255,7 +255,57 @@ function getScoreStatus(score) {
   if (score >= 40) {
     return { label: 'Moyen', tone: 'medium' };
   }
-  return { label: 'À travailler', tone: 'high' };
+  return { label: 'Faible', tone: 'high' };
+}
+
+function computeGlobalScore(platformKeys) {
+  if (!platformKeys.length) {
+    return null;
+  }
+  const total = platformKeys.reduce((sum, key) => sum + computePlatformScore(key), 0);
+  return total / platformKeys.length;
+}
+
+function refreshGlobalScoreGauge() {
+  const gaugeEl = document.querySelector('[data-role="global-gauge"]');
+  if (!gaugeEl) {
+    return;
+  }
+
+  const config = getAuditConfig();
+  const checkedKeys = platformOptions.filter((platform) => config.platforms[platform.key]).map((platform) => platform.key);
+  const score = computeGlobalScore(checkedKeys);
+
+  if (score === null) {
+    gaugeEl.innerHTML = '<p class="insight-empty">Cochez au moins une plateforme pour calculer le score global.</p>';
+    return;
+  }
+
+  const level = getScoreLevel(score);
+  gaugeEl.innerHTML = `
+    ${createGaugeMarkup(score)}
+    <span class="gauge-status-badge tone-${level.tone}">${level.label}</span>
+  `;
+}
+
+function renderGlobalScoreSection(platformKeys) {
+  const card = document.createElement('section');
+  card.className = 'card audit-platform-card audit-global-score-card';
+
+  const platformNames = platformKeys.map((key) => platformAuditDefinitions[key].title).join(', ');
+
+  card.innerHTML = `
+    <div class="audit-platform-header">
+      <div>
+        <p class="eyebrow">Vue d’ensemble</p>
+        <h3>🎯 Score global</h3>
+        <p>Calculé uniquement sur les plateformes sélectionnées : ${escapeAuditText(platformNames)}. Les plateformes non cochées n’ont aucun impact sur ce score.</p>
+      </div>
+      <div class="score-gauge" data-role="global-gauge"></div>
+    </div>
+  `;
+
+  return card;
 }
 
 function createGaugeMarkup(score) {
@@ -356,7 +406,7 @@ function refreshPlatformAuditSection(platformKey, section) {
   const definition = platformAuditDefinitions[platformKey];
   const ratings = getPlatformRatings(platformKey);
   const score = computePlatformScore(platformKey);
-  const status = getScoreStatus(score);
+  const status = getScoreLevel(score);
 
   section.querySelectorAll('[data-role="criteria-grid"] select').forEach((select, index) => {
     const criterion = definition.criteria[index];
@@ -430,6 +480,7 @@ function renderPlatformAuditSection(platformKey) {
     select.addEventListener('change', () => {
       setCriterionRating(platformKey, criterion.key, Number(select.value));
       refreshPlatformAuditSection(platformKey, section);
+      refreshGlobalScoreGauge();
     });
     wrapper.appendChild(select);
 
@@ -466,6 +517,9 @@ function renderPlatformAudits() {
     container.appendChild(createNoPlatformsState());
     return;
   }
+
+  container.appendChild(renderGlobalScoreSection(checkedPlatforms.map((platform) => platform.key)));
+  refreshGlobalScoreGauge();
 
   checkedPlatforms.forEach((platform) => {
     container.appendChild(renderPlatformAuditSection(platform.key));

@@ -1081,3 +1081,12 @@ a {
 .audit-criteria-grid {
   margin-top: 24px;
 }
+
+.audit-global-score-card {
+  background: linear-gradient(180deg, rgba(255, 253, 249, 0.95), rgba(244, 231, 216, 0.9));
+  border: 1px solid rgba(110, 31, 50, 0.18);
+}
+
+.audit-global-score-card .eyebrow {
+  color: var(--primary);
+}
