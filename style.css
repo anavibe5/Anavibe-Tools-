@@ -719,6 +719,10 @@ a {
 
 .month-selector-row {
   margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .month-select {
@@ -730,6 +734,22 @@ a {
   border: 1px solid rgba(61, 31, 38, 0.14);
   background: rgba(255, 255, 255, 0.85);
   min-width: 220px;
+}
+
+.month-delete-btn {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  background: rgba(198, 40, 40, 0.1);
+  color: #c62828;
+}
+
+.month-delete-btn:hover {
+  background: rgba(198, 40, 40, 0.18);
 }
 
 .month-select:focus {

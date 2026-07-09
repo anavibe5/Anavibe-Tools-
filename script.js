@@ -2330,6 +2330,7 @@ function createDashboardCard(clientId) {
     </div>
     <div class="month-selector-row">
       <select class="month-select" data-role="month-select"></select>
+      <button type="button" class="month-delete-btn" data-role="month-delete-btn">Supprimer ce mois</button>
     </div>
     <form class="inline-add-form" data-role="month-add-form">
       <input type="text" placeholder="Nouveau mois (ex : Août 2026)" required />
@@ -2344,6 +2345,7 @@ function createDashboardCard(clientId) {
 
   const monthSelect = monthControlBlock.querySelector('[data-role="month-select"]');
   const monthAddForm = monthControlBlock.querySelector('[data-role="month-add-form"]');
+  const monthDeleteBtn = monthControlBlock.querySelector('[data-role="month-delete-btn"]');
 
   const populateMonthSelect = (freshData) => {
     monthSelect.innerHTML = '';
@@ -2378,6 +2380,15 @@ function createDashboardCard(clientId) {
     const monthData = freshData.months[selectedMonth];
     const previousMonthData = previousMonthKey ? freshData.months[previousMonthKey] : null;
 
+    const monthDataIntro = document.createElement('p');
+    monthDataIntro.className = 'notes-hint';
+    monthDataIntro.textContent = 'Renseignez ci-dessous les chiffres du mois sélectionné : le tableau de synthèse, les alertes, les victoires et l’analyse sont calculés automatiquement à partir de ces données.';
+    monthContent.appendChild(monthDataIntro);
+
+    monthlySectionSchema.forEach((section) => {
+      monthContent.appendChild(renderMonthlyFieldSection(section, selectedMonth, monthData));
+    });
+
     monthContent.appendChild(renderSummaryCards(monthData, previousMonthData, freshData.initialSituation));
     monthContent.appendChild(renderSynthesisSection(monthData, previousMonthData, freshData.initialSituation));
 
@@ -2387,10 +2398,6 @@ function createDashboardCard(clientId) {
     monthContent.appendChild(renderWinsSection(freshData, selectedMonth, monthData, previousMonthData));
     monthContent.appendChild(renderAnalysisSection(freshData, selectedMonth, monthData, previousMonthData, monthlyScore, monthlyScoreBadge));
     monthContent.appendChild(renderRecommendationsSection(monthData, previousMonthData));
-
-    monthlySectionSchema.forEach((section) => {
-      monthContent.appendChild(renderMonthlyFieldSection(section, selectedMonth, monthData));
-    });
 
     monthContent.appendChild(renderObjectivesSection(clientId, selectedMonth));
     monthContent.appendChild(renderActionPlanSection(clientId, selectedMonth));
@@ -2423,6 +2430,27 @@ function createDashboardCard(clientId) {
     freshData.selectedMonth = key;
     saveClientData(clientId, freshData);
     input.value = '';
+    refreshMonthContent();
+  });
+
+  monthDeleteBtn.addEventListener('click', () => {
+    const freshData = getClientData(clientId);
+    if (!freshData.monthOrder.length) {
+      return;
+    }
+
+    const currentMonthKey = monthSelect.value;
+    const currentMonth = freshData.months[currentMonthKey];
+    const monthLabel = currentMonth ? currentMonth.label : currentMonthKey;
+    const confirmed = window.confirm(`Supprimer définitivement le mois « ${monthLabel} » et toutes ses données ? Cette action est irréversible.`);
+    if (!confirmed) {
+      return;
+    }
+
+    delete freshData.months[currentMonthKey];
+    freshData.monthOrder = freshData.monthOrder.filter((key) => key !== currentMonthKey);
+    freshData.selectedMonth = freshData.monthOrder.length ? freshData.monthOrder[freshData.monthOrder.length - 1] : null;
+    saveClientData(clientId, freshData);
     refreshMonthContent();
   });
 
