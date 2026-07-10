@@ -220,6 +220,7 @@ function renderGoogleOptimizerFicheForm() {
       refreshGoogleOptimizerScoreSection();
       refreshGoogleOptimizerWeaknessesSection();
       refreshGoogleOptimizerPlanSection();
+      refreshGoogleOptimizerPotentialSection();
     });
     grid.appendChild(control);
   });
@@ -632,10 +633,207 @@ function refreshGoogleOptimizerPlanSection() {
   });
 }
 
+const googleOptimizerFieldLabels = googleOptimizerFicheFieldsSchema.reduce((map, field) => {
+  map[field.key] = field.label;
+  return map;
+}, {});
+
+const googleOptimizerPotentialDimensions = [
+  { key: 'visibilite', label: 'Visibilité', criteria: ['descriptionPresent', 'mainCategory', 'secondaryCategories', 'photosCount', 'videosCount', 'postsActive', 'qnaCompleted'] },
+  { key: 'appels', label: 'Appels', criteria: ['phone', 'rating', 'reviewsCount'] },
+  { key: 'clics', label: 'Clics vers le site', criteria: ['website', 'descriptionPresent', 'photosCount'] },
+  { key: 'itineraires', label: 'Itinéraires', criteria: ['hours', 'mainCategory', 'rating', 'reviewsCount'] },
+  { key: 'reservations', label: 'Réservations', criteria: ['bookingAvailable', 'menuAvailable', 'rating', 'reviewsCount'] }
+];
+
+const googleOptimizerPotentialLabelsWithArticle = {
+  visibilite: 'de visibilité',
+  appels: 'd’appels',
+  clics: 'de clics vers le site',
+  itineraires: 'd’itinéraires',
+  reservations: 'de réservations'
+};
+
+function getGoogleOptimizerCriterionScore(fiche, key) {
+  switch (key) {
+    case 'rating':
+      return Math.max(0, Math.min(100, (Number(fiche.rating) || 0) / 5 * 100));
+    case 'reviewsCount':
+      return getGoogleOptimizerBandedPoints(fiche.reviewsCount, [[100, 100], [50, 80], [20, 55], [5, 30]]);
+    case 'photosCount':
+      return getGoogleOptimizerBandedPoints(fiche.photosCount, [[20, 100], [10, 75], [5, 50], [1, 25]]);
+    case 'videosCount':
+      return getGoogleOptimizerBandedPoints(fiche.videosCount, [[5, 100], [1, 60]]);
+    case 'descriptionPresent':
+      return fiche.descriptionPresent === 'Oui' ? 100 : 0;
+    case 'mainCategory':
+      return String(fiche.mainCategory || '').trim() ? 100 : 0;
+    case 'secondaryCategories':
+      return String(fiche.secondaryCategories || '').trim() ? 100 : 0;
+    case 'phone':
+      return String(fiche.phone || '').trim() ? 100 : 0;
+    case 'website':
+      return String(fiche.website || '').trim() ? 100 : 0;
+    case 'hours':
+      return String(fiche.hours || '').trim() ? 100 : 0;
+    case 'bookingAvailable':
+      return fiche.bookingAvailable === 'Oui' ? 100 : 0;
+    case 'menuAvailable':
+      return fiche.menuAvailable === 'Oui' ? 100 : 0;
+    case 'postsActive':
+      return fiche.postsActive === 'Oui' ? 100 : 0;
+    case 'qnaCompleted':
+      return fiche.qnaCompleted === 'Oui' ? 100 : 0;
+    default:
+      return 0;
+  }
+}
+
+function computeGoogleOptimizerDimensionPotential(fiche, criteriaKeys) {
+  const scores = criteriaKeys.map((key) => getGoogleOptimizerCriterionScore(fiche, key));
+  const average = scores.reduce((sum, value) => sum + value, 0) / scores.length;
+  return Math.max(0, Math.min(100, 100 - average));
+}
+
+function getGoogleOptimizerPotentialLevel(potentialScore) {
+  if (potentialScore >= 75) {
+    return { label: 'Très élevé', tone: 'opportunity' };
+  }
+  if (potentialScore >= 50) {
+    return { label: 'Élevé', tone: 'opportunity' };
+  }
+  if (potentialScore >= 25) {
+    return { label: 'Moyen', tone: 'medium' };
+  }
+  return { label: 'Faible', tone: 'positive' };
+}
+
+function buildGoogleOptimizerPotentialComment(dimension, potentialScore, level, fiche) {
+  const labelWithArticle = googleOptimizerPotentialLabelsWithArticle[dimension.key];
+  const weakest = dimension.criteria
+    .map((key) => ({ key, score: getGoogleOptimizerCriterionScore(fiche, key) }))
+    .filter((item) => item.score < 75)
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 2)
+    .map((item) => googleOptimizerFieldLabels[item.key]);
+
+  if (!weakest.length) {
+    return `Le potentiel ${labelWithArticle} est ${level.label.toLowerCase()} (${Math.round(potentialScore)}/100) : les éléments qui l’influencent sont déjà bien renseignés, la marge de progression restante est limitée.`;
+  }
+
+  return `Le potentiel ${labelWithArticle} est ${level.label.toLowerCase()} (${Math.round(potentialScore)}/100) : des éléments comme ${weakest.join(' et ')} sont encore à travailler, ce qui représente une marge de progression réelle.`;
+}
+
+function computeGoogleOptimizerEstimates(potentials) {
+  const visibilityPotential = potentials.find((p) => p.key === 'visibilite').score;
+  const conversionKeys = ['appels', 'clics', 'itineraires', 'reservations'];
+  const conversionScores = potentials.filter((p) => conversionKeys.includes(p.key)).map((p) => p.score);
+  const conversionPotential = conversionScores.reduce((sum, value) => sum + value, 0) / conversionScores.length;
+
+  const basket = 30;
+  const visibilityGainPercent = Math.round((visibilityPotential / 100) * 80);
+  const factor = conversionPotential / 100;
+  const newClientsLow = factor > 0 ? Math.max(1, Math.round(factor * 10)) : 0;
+  const newClientsHigh = factor > 0 ? Math.max(newClientsLow + 1, Math.round(factor * 30)) : 0;
+  const revenueLow = newClientsLow * basket;
+  const revenueHigh = newClientsHigh * basket;
+
+  return { visibilityGainPercent, newClientsLow, newClientsHigh, revenueLow, revenueHigh, basket };
+}
+
+function createGoogleOptimizerPotentialCard(dimension, potentialScore, fiche) {
+  const level = getGoogleOptimizerPotentialLevel(potentialScore);
+  const labelWithArticle = googleOptimizerPotentialLabelsWithArticle[dimension.key];
+  const comment = buildGoogleOptimizerPotentialComment(dimension, potentialScore, level, fiche);
+
+  const card = document.createElement('div');
+  card.className = 'card potential-card';
+  card.innerHTML = `
+    <div class="potential-card-header">
+      <p class="eyebrow">Potentiel ${escapeGoogleOptimizerText(labelWithArticle)}</p>
+      <span class="gauge-status-badge tone-${level.tone}">${level.label}</span>
+    </div>
+    <strong>${Math.round(potentialScore)}/100</strong>
+    <p>${escapeGoogleOptimizerText(comment)}</p>
+  `;
+  return card;
+}
+
+function createGoogleOptimizerGlobalPotentialCard(globalPotential, potentials) {
+  const level = getGoogleOptimizerPotentialLevel(globalPotential);
+  const best = potentials.reduce((max, item) => (item.score > max.score ? item : max), potentials[0]);
+  const bestLabelWithArticle = googleOptimizerPotentialLabelsWithArticle[best.key];
+  const comment = `Le potentiel global de la fiche est ${level.label.toLowerCase()} (${Math.round(globalPotential)}/100), porté notamment par la marge de progression identifiée ${bestLabelWithArticle}. Plus la fiche actuelle est incomplète, plus la marge de progression estimée est importante.`;
+
+  const card = document.createElement('div');
+  card.className = 'card potential-card potential-card-commercial';
+  card.innerHTML = `
+    <div class="potential-card-header">
+      <p class="eyebrow">Potentiel Google Business global</p>
+      <span class="gauge-status-badge tone-${level.tone}">${level.label}</span>
+    </div>
+    <strong>${Math.round(globalPotential)}/100</strong>
+    <p>${escapeGoogleOptimizerText(comment)}</p>
+  `;
+  return card;
+}
+
+function createGoogleOptimizerGainCard(icon, label, valueText) {
+  const card = document.createElement('div');
+  card.className = 'card kpi-card summary-card';
+  card.innerHTML = `
+    <span class="badge">${icon}</span>
+    <p>${escapeGoogleOptimizerText(label)}</p>
+    <strong>${escapeGoogleOptimizerText(valueText)}</strong>
+  `;
+  return card;
+}
+
+function refreshGoogleOptimizerPotentialSection() {
+  const section = document.getElementById('googleOptimizerPotential');
+  if (!section) {
+    return;
+  }
+
+  const data = getGoogleOptimizerData();
+  const potentials = googleOptimizerPotentialDimensions.map((dimension) => ({
+    key: dimension.key,
+    label: dimension.label,
+    score: computeGoogleOptimizerDimensionPotential(data.fiche, dimension.criteria)
+  }));
+  const globalPotential = potentials.reduce((sum, p) => sum + p.score, 0) / potentials.length;
+  const estimates = computeGoogleOptimizerEstimates(potentials);
+
+  section.innerHTML = `
+    <p class="eyebrow">Potentiel</p>
+    <h3>📈 Potentiel Google Business</h3>
+    <p>Cette section propose des estimations indicatives du potentiel de la fiche, calculées à partir des informations renseignées ci-dessus. Il ne s’agit pas de données Google réelles mais d’une projection destinée à orienter les priorités d’action.</p>
+    <div class="potential-grid" data-role="potential-grid"></div>
+    <div class="analysis-subsection">
+      <h4>Estimation des gains potentiels</h4>
+      <p class="notes-hint">Ces chiffres sont des estimations indicatives (panier moyen supposé de ${estimates.basket} €), elles ne constituent pas une prévision garantie.</p>
+      <div class="kpi-grid summary-grid" data-role="gain-grid"></div>
+    </div>
+  `;
+
+  const grid = section.querySelector('[data-role="potential-grid"]');
+  googleOptimizerPotentialDimensions.forEach((dimension) => {
+    const potential = potentials.find((p) => p.key === dimension.key);
+    grid.appendChild(createGoogleOptimizerPotentialCard(dimension, potential.score, data.fiche));
+  });
+  grid.appendChild(createGoogleOptimizerGlobalPotentialCard(globalPotential, potentials));
+
+  const gainGrid = section.querySelector('[data-role="gain-grid"]');
+  gainGrid.appendChild(createGoogleOptimizerGainCard('👁', 'Visibilité supplémentaire estimée', `+${estimates.visibilityGainPercent} %`));
+  gainGrid.appendChild(createGoogleOptimizerGainCard('👥', 'Nouveaux clients potentiels', `${estimates.newClientsLow} à ${estimates.newClientsHigh}`));
+  gainGrid.appendChild(createGoogleOptimizerGainCard('💶', 'Chiffre d’affaires potentiel', `${estimates.revenueLow} € à ${estimates.revenueHigh} €`));
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   renderGoogleOptimizerCompanyForm();
   renderGoogleOptimizerFicheForm();
   refreshGoogleOptimizerScoreSection();
   refreshGoogleOptimizerWeaknessesSection();
   refreshGoogleOptimizerPlanSection();
+  refreshGoogleOptimizerPotentialSection();
 });
