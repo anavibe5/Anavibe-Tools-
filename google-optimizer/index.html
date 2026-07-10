@@ -48,34 +48,35 @@
 
       <main class="main-content module-page">
         <header class="module-header card surface-glow">
-          <p class="eyebrow">Module</p>
-          <h2>Google Business Optimizer PRO</h2>
+          <p class="eyebrow">Google Business Optimizer PRO</p>
+          <h2>Analyser une fiche Google Business</h2>
           <p>
-            Optimisation avancee d’une fiche Google Business avec une base premium pour centraliser les actions,
-            recommandations, performances locales et priorites d’optimisation.
+            Première étape : renseignez l’entreprise puis les informations de sa fiche Google Business pour obtenir
+            automatiquement un score d’optimisation sur 100.
           </p>
-          <div class="header-actions">
-            <a class="btn btn-primary" href="../dashboard/index.html">Associer a un client</a>
-            <a class="btn btn-secondary" href="../index.html">Retour a l’accueil</a>
-          </div>
         </header>
 
-        <section class="module-cards">
-          <article class="module-card card">
-            <span class="badge">Local SEO</span>
-            <h3>Optimisation fiche</h3>
-            <p>Bloc prevu pour piloter categories, descriptions, services, medias et attributs cles.</p>
-          </article>
-          <article class="module-card card">
-            <span class="badge">Reputation</span>
-            <h3>Gestion des avis</h3>
-            <p>Structure prete pour le suivi des avis, la reponse client et les opportunites de reputation.</p>
-          </article>
-          <article class="module-card card">
-            <span class="badge">Pilotage</span>
-            <h3>Plan d’action</h3>
-            <p>Espace reserve aux actions prioritaires mensuelles et au suivi des performances locales.</p>
-          </article>
+        <section class="card audit-config-card">
+          <p class="eyebrow">Étape 1</p>
+          <h3>Informations de l’entreprise</h3>
+          <div class="field-grid" id="companyFieldsGrid"></div>
+        </section>
+
+        <section class="card audit-config-card">
+          <p class="eyebrow">Étape 2</p>
+          <h3>Fiche Google Business</h3>
+          <div class="field-grid" id="ficheFieldsGrid"></div>
+        </section>
+
+        <section class="card audit-platform-card audit-global-score-card">
+          <div class="audit-platform-header">
+            <div>
+              <p class="eyebrow">Résultat</p>
+              <h3>🎯 Score Google Business</h3>
+              <p>Calculé automatiquement à partir des informations renseignées ci-dessus.</p>
+            </div>
+            <div class="score-gauge" id="googleOptimizerGauge"></div>
+          </div>
         </section>
 
         <footer class="footer">
@@ -86,5 +87,6 @@
 
     <div class="overlay" id="overlay"></div>
     <script src="../script.js"></script>
+    <script src="google-optimizer.js"></script>
   </body>
 </html>
