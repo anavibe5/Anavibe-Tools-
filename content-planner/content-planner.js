@@ -342,70 +342,70 @@ function buildContentPlannerIdeaContext(config, date) {
 
 const contentPlannerIdeaPools = {
   Publication: [
-    (ctx) => ({ title: `Dans les coulisses de ${ctx.sector}`, hook: 'Vous ne verrez jamais ça sur la vitrine !', concept: `Montrez une étape de préparation ou de travail en interne pour humaniser ${ctx.companyLabel} et créer de la proximité avec votre audience.`, mediaType: 'Photo', cta: 'Commentez avec un emoji si vous aimez découvrir les coulisses !' }),
-    (ctx) => ({ title: `3 astuces pour bien choisir ${ctx.sector}`, hook: 'Le conseil n°2 change tout.', concept: 'Partagez 3 conseils pratiques liés à votre expertise pour démontrer votre savoir-faire et apporter de la valeur immédiate.', mediaType: 'Carrousel', cta: 'Enregistrez ce post pour le retrouver facilement.' }),
-    (ctx) => ({ title: 'Zoom sur notre offre phare', hook: 'Voici ce que nos clients préfèrent.', concept: 'Présentez en détail un produit ou service clé, ses bénéfices concrets et pourquoi il se distingue.', mediaType: 'Photo', cta: 'Écrivez-nous en message privé pour en savoir plus.' }),
-    (ctx) => ({ title: 'Ils nous ont fait confiance', hook: 'Rien ne vaut l’avis d’un client satisfait.', concept: 'Partagez un avis ou témoignage client authentique (avec accord) pour renforcer la crédibilité et rassurer les prospects.', mediaType: 'Photo', cta: 'Laissez votre propre avis en commentaire !' }),
-    (ctx) => ({ title: 'Et vous, plutôt ceci ou cela ?', hook: 'On a besoin de votre avis !', concept: `Posez une question simple et engageante liée à ${ctx.sector} pour stimuler les commentaires et l’algorithme.`, mediaType: 'Texte + visuel', cta: 'Répondez en commentaire, on a hâte de vous lire !' }),
-    (ctx) => ({ title: 'Une offre à ne pas manquer', hook: 'Disponible pour une durée limitée.', concept: 'Mettez en avant une offre, une promotion ou un avantage exclusif pour inciter au passage à l’action.', mediaType: 'Photo', cta: 'Contactez-nous vite pour en profiter.' }),
-    (ctx) => ({ title: ctx.moment ? `Préparez ${ctx.moment} avec ${ctx.companyLabel}` : `Une publication aux couleurs de l’${ctx.season}`, hook: 'La saison parfaite pour en profiter.', concept: 'Adaptez votre contenu à l’actualité saisonnière pour rester pertinent et captiver une audience sensible au bon moment.', mediaType: 'Photo', cta: 'Venez en profiter dès maintenant.' }),
-    (ctx) => ({ title: 'Rencontrez l’équipe', hook: `Derrière ${ctx.companyLabel}, il y a une équipe passionnée.`, concept: 'Présentez un membre de l’équipe, son rôle et sa personnalité pour humaniser la marque et créer du lien.', mediaType: 'Photo', cta: 'Dites bonjour à toute l’équipe en commentaire !' }),
-    (ctx) => ({ title: `L’histoire derrière ${ctx.companyLabel}`, hook: 'Tout a commencé par une idée simple.', concept: 'Racontez une partie de votre histoire de marque, votre mission ou ce qui vous distingue pour créer une connexion émotionnelle.', mediaType: 'Carrousel', cta: 'Partagez ce post si notre histoire vous inspire.' }),
-    (ctx) => ({ title: 'Le résultat parle de lui-même', hook: 'Voici ce qu’on peut accomplir ensemble.', concept: 'Montrez un avant/après ou un résultat concret pour illustrer la valeur de votre travail.', mediaType: 'Photo', cta: 'Contactez-nous pour un résultat similaire.' }),
-    (ctx) => ({ title: ctx.city ? `${ctx.companyLabel}, fier acteur de ${ctx.city}` : 'Ancrés dans notre communauté', hook: 'Votre quartier, notre priorité.', concept: 'Mettez en avant votre ancrage local, un partenariat ou un événement de quartier pour renforcer la proximité.', mediaType: 'Photo', cta: 'Taguez un proche de la région !' }),
-    (ctx) => ({ title: 'Une nouveauté arrive bientôt', hook: 'Restez à l’affût.', concept: 'Teasez une nouveauté, un lancement ou un événement à venir pour créer de l’attente et de la curiosité.', mediaType: 'Vidéo courte', cta: 'Activez les notifications pour ne rien manquer.' }),
-    (ctx) => ({ title: 'Les coulisses de notre savoir-faire', hook: 'La qualité, ça se voit dans le détail.', concept: `Détaillez un aspect technique ou un savoir-faire précis de ${ctx.sector} qui justifie la confiance de vos clients.`, mediaType: 'Carrousel', cta: 'Posez vos questions techniques en commentaire.' }),
-    (ctx) => ({ title: 'Ce qu’on nous demande le plus souvent', hook: 'La réponse à la question n°1.', concept: 'Répondez à la question la plus fréquemment posée par vos clients pour lever un frein commun à la décision.', mediaType: 'Texte + visuel', cta: 'D’autres questions ? Écrivez-les en commentaire.' }),
-    (ctx) => ({ title: 'Un mois, un engagement', hook: 'On s’engage pour vous.', concept: `Présentez un engagement qualité ou une valeur forte de ${ctx.companyLabel} pour rassurer et différencier votre offre.`, mediaType: 'Photo', cta: 'Partagez si cet engagement compte pour vous aussi.' })
+    (ctx) => ({ title: `Dans les coulisses de ${ctx.sector}`, hook: 'Vous ne verrez jamais ça sur la vitrine !', concept: `Montrez une étape de préparation ou de travail en interne pour humaniser ${ctx.companyLabel} et créer de la proximité avec votre audience.`, body: `On vous ouvre les portes de ${ctx.companyLabel} pour vous montrer tout le travail qui se cache derrière chaque prestation.`, mediaType: 'Photo', cta: 'Commentez avec un emoji si vous aimez découvrir les coulisses !' }),
+    (ctx) => ({ title: `3 astuces pour bien choisir ${ctx.sector}`, hook: 'Le conseil n°2 change tout.', concept: 'Partagez 3 conseils pratiques liés à votre expertise pour démontrer votre savoir-faire et apporter de la valeur immédiate.', body: `Ces astuces simples peuvent tout changer dans votre expérience avec ${ctx.sector}. On les partage avec plaisir.`, mediaType: 'Carrousel', cta: 'Enregistrez ce post pour le retrouver facilement.' }),
+    (ctx) => ({ title: 'Zoom sur notre offre phare', hook: 'Voici ce que nos clients préfèrent.', concept: 'Présentez en détail un produit ou service clé, ses bénéfices concrets et pourquoi il se distingue.', body: 'C’est ce que nos clients recommandent le plus souvent, et on comprend pourquoi.', mediaType: 'Photo', cta: 'Écrivez-nous en message privé pour en savoir plus.' }),
+    (ctx) => ({ title: 'Ils nous ont fait confiance', hook: 'Rien ne vaut l’avis d’un client satisfait.', concept: 'Partagez un avis ou témoignage client authentique (avec accord) pour renforcer la crédibilité et rassurer les prospects.', body: 'Rien ne nous fait plus plaisir que de lire ce genre de retour. Merci pour votre confiance !', mediaType: 'Photo', cta: 'Laissez votre propre avis en commentaire !' }),
+    (ctx) => ({ title: 'Et vous, plutôt ceci ou cela ?', hook: 'On a besoin de votre avis !', concept: `Posez une question simple et engageante liée à ${ctx.sector} pour stimuler les commentaires et l’algorithme.`, body: 'Votre réponse nous aide à créer encore plus de contenu qui vous ressemble.', mediaType: 'Texte + visuel', cta: 'Répondez en commentaire, on a hâte de vous lire !' }),
+    (ctx) => ({ title: 'Une offre à ne pas manquer', hook: 'Disponible pour une durée limitée.', concept: 'Mettez en avant une offre, une promotion ou un avantage exclusif pour inciter au passage à l’action.', body: `Une occasion parfaite de découvrir (ou redécouvrir) ce que ${ctx.companyLabel} a de mieux à offrir.`, mediaType: 'Photo', cta: 'Contactez-nous vite pour en profiter.' }),
+    (ctx) => ({ title: ctx.moment ? `Préparez ${ctx.moment} avec ${ctx.companyLabel}` : `Une publication aux couleurs de l’${ctx.season}`, hook: 'La saison parfaite pour en profiter.', concept: 'Adaptez votre contenu à l’actualité saisonnière pour rester pertinent et captiver une audience sensible au bon moment.', body: 'C’est le moment idéal pour en profiter pleinement, alors ne tardez pas.', mediaType: 'Photo', cta: 'Venez en profiter dès maintenant.' }),
+    (ctx) => ({ title: 'Rencontrez l’équipe', hook: `Derrière ${ctx.companyLabel}, il y a une équipe passionnée.`, concept: 'Présentez un membre de l’équipe, son rôle et sa personnalité pour humaniser la marque et créer du lien.', body: 'Une équipe passionnée, c’est la clé d’une expérience réussie. On est fiers de vous la présenter.', mediaType: 'Photo', cta: 'Dites bonjour à toute l’équipe en commentaire !' }),
+    (ctx) => ({ title: `L’histoire derrière ${ctx.companyLabel}`, hook: 'Tout a commencé par une idée simple.', concept: 'Racontez une partie de votre histoire de marque, votre mission ou ce qui vous distingue pour créer une connexion émotionnelle.', body: 'Depuis nos débuts, une seule idée nous guide : vous offrir le meilleur, toujours.', mediaType: 'Carrousel', cta: 'Partagez ce post si notre histoire vous inspire.' }),
+    (ctx) => ({ title: 'Le résultat parle de lui-même', hook: 'Voici ce qu’on peut accomplir ensemble.', concept: 'Montrez un avant/après ou un résultat concret pour illustrer la valeur de votre travail.', body: 'Ce type de résultat, c’est exactement ce qu’on adore accomplir pour nos clients.', mediaType: 'Photo', cta: 'Contactez-nous pour un résultat similaire.' }),
+    (ctx) => ({ title: ctx.city ? `${ctx.companyLabel}, fier acteur de ${ctx.city}` : 'Ancrés dans notre communauté', hook: 'Votre quartier, notre priorité.', concept: 'Mettez en avant votre ancrage local, un partenariat ou un événement de quartier pour renforcer la proximité.', body: 'Être présents localement, c’est une fierté qu’on cultive au quotidien.', mediaType: 'Photo', cta: 'Taguez un proche de la région !' }),
+    (ctx) => ({ title: 'Une nouveauté arrive bientôt', hook: 'Restez à l’affût.', concept: 'Teasez une nouveauté, un lancement ou un événement à venir pour créer de l’attente et de la curiosité.', body: 'On ne peut pas encore tout dévoiler, mais on peut vous dire que ça va vous plaire.', mediaType: 'Vidéo courte', cta: 'Activez les notifications pour ne rien manquer.' }),
+    (ctx) => ({ title: 'Les coulisses de notre savoir-faire', hook: 'La qualité, ça se voit dans le détail.', concept: `Détaillez un aspect technique ou un savoir-faire précis de ${ctx.sector} qui justifie la confiance de vos clients.`, body: 'La qualité ne s’improvise pas : c’est le fruit d’un vrai savoir-faire qu’on met au service de chaque client.', mediaType: 'Carrousel', cta: 'Posez vos questions techniques en commentaire.' }),
+    (ctx) => ({ title: 'Ce qu’on nous demande le plus souvent', hook: 'La réponse à la question n°1.', concept: 'Répondez à la question la plus fréquemment posée par vos clients pour lever un frein commun à la décision.', body: 'On préfère être transparents et répondre directement à ce qui vous intéresse le plus.', mediaType: 'Texte + visuel', cta: 'D’autres questions ? Écrivez-les en commentaire.' }),
+    (ctx) => ({ title: 'Un mois, un engagement', hook: 'On s’engage pour vous.', concept: `Présentez un engagement qualité ou une valeur forte de ${ctx.companyLabel} pour rassurer et différencier votre offre.`, body: 'Cet engagement, on le tient chaque jour, pour chaque client, sans exception.', mediaType: 'Photo', cta: 'Partagez si cet engagement compte pour vous aussi.' })
   ],
   Reel: [
-    (ctx) => ({ title: '3 secondes pour tout comprendre', hook: 'Le conseil que personne ne vous donne.', concept: `Un format ultra rapide et rythmé qui délivre une astuce concrète et actionnable liée à ${ctx.sector}.`, mediaType: 'Vidéo verticale', cta: 'Suivez-nous pour plus d’astuces comme celle-ci.' }),
-    (ctx) => ({ title: 'Une journée dans les coulisses', hook: 'Ce que vous ne voyez jamais.', concept: `Un montage dynamique montrant les coulisses de ${ctx.companyLabel} en accéléré ou en time-lapse.`, mediaType: 'Vidéo verticale', cta: 'Dites-nous en commentaire ce que vous voulez voir ensuite.' }),
-    (ctx) => ({ title: 'La transformation en quelques secondes', hook: 'Vous n’allez pas croire la différence.', concept: 'Un avant/après visuel percutant qui démontre l’impact concret de votre offre.', mediaType: 'Vidéo verticale', cta: 'Envoyez ce Reel à quelqu’un qui en a besoin.' }),
-    (ctx) => ({ title: 'On a testé la tendance du moment', hook: 'Ça devait arriver.', concept: 'Reprenez un format ou un son tendance pour l’adapter à votre univers et gagner en visibilité.', mediaType: 'Vidéo verticale', cta: 'Likez si vous voulez qu’on recommence !' }),
-    (ctx) => ({ title: 'La question qu’on nous pose tout le temps', hook: 'On y répond enfin.', concept: 'Répondez en vidéo courte à une question fréquente de vos clients pour informer tout en engageant.', mediaType: 'Vidéo verticale', cta: 'Posez votre question en commentaire, on y répondra.' }),
-    (ctx) => ({ title: 'Comment bien profiter de nos services', hook: 'Suivez le guide en 15 secondes.', concept: 'Un mini-tutoriel visuel rapide qui montre comment utiliser ou profiter au mieux de votre offre.', mediaType: 'Vidéo verticale', cta: 'Enregistrez ce Reel pour le revoir plus tard.' }),
-    (ctx) => ({ title: ctx.moment ? `${ctx.moment}, version Reel` : `L’ambiance ${ctx.season} en vidéo`, hook: 'L’ambiance du moment, capturée en quelques secondes.', concept: 'Un Reel rythmé qui capture l’énergie de la saison ou d’un moment commercial fort.', mediaType: 'Vidéo verticale', cta: 'Venez vivre ça avec nous !' }),
-    (ctx) => ({ title: `3 secondes avec ${ctx.companyLabel}`, hook: 'On vous présente la team.', concept: 'Un format rapide et dynamique présentant un membre de l’équipe avec une touche d’humour ou de personnalité.', mediaType: 'Vidéo verticale', cta: 'Suivez-nous pour découvrir toute l’équipe.' }),
-    (ctx) => ({ title: 'Un chiffre qui en dit long', hook: 'Vous n’allez pas croire ce chiffre.', concept: 'Mettez en scène une statistique ou un résultat marquant lié à votre activité de façon visuelle et percutante.', mediaType: 'Vidéo verticale', cta: 'Partagez si ce chiffre vous a surpris.' }),
-    (ctx) => ({ title: 'La vraie réaction de nos clients', hook: 'Regardez leurs visages.', concept: 'Filmez une réaction authentique et spontanée de clients pour renforcer la preuve sociale de façon vivante.', mediaType: 'Vidéo verticale', cta: 'Venez vivre la même expérience.' })
+    (ctx) => ({ title: '3 secondes pour tout comprendre', hook: 'Le conseil que personne ne vous donne.', concept: `Un format ultra rapide et rythmé qui délivre une astuce concrète et actionnable liée à ${ctx.sector}.`, body: 'Une astuce concrète, testée et approuvée, à appliquer dès aujourd’hui.', mediaType: 'Vidéo verticale', cta: 'Suivez-nous pour plus d’astuces comme celle-ci.' }),
+    (ctx) => ({ title: 'Une journée dans les coulisses', hook: 'Ce que vous ne voyez jamais.', concept: `Un montage dynamique montrant les coulisses de ${ctx.companyLabel} en accéléré ou en time-lapse.`, body: `Une immersion rapide dans le quotidien de ${ctx.companyLabel}, sans filtre.`, mediaType: 'Vidéo verticale', cta: 'Dites-nous en commentaire ce que vous voulez voir ensuite.' }),
+    (ctx) => ({ title: 'La transformation en quelques secondes', hook: 'Vous n’allez pas croire la différence.', concept: 'Un avant/après visuel percutant qui démontre l’impact concret de votre offre.', body: 'La preuve en images que le changement peut être spectaculaire.', mediaType: 'Vidéo verticale', cta: 'Envoyez ce Reel à quelqu’un qui en a besoin.' }),
+    (ctx) => ({ title: 'On a testé la tendance du moment', hook: 'Ça devait arriver.', concept: 'Reprenez un format ou un son tendance pour l’adapter à votre univers et gagner en visibilité.', body: 'On adore s’amuser avec les tendances tout en restant fidèles à notre univers.', mediaType: 'Vidéo verticale', cta: 'Likez si vous voulez qu’on recommence !' }),
+    (ctx) => ({ title: 'La question qu’on nous pose tout le temps', hook: 'On y répond enfin.', concept: 'Répondez en vidéo courte à une question fréquente de vos clients pour informer tout en engageant.', body: 'LA question qu’on nous pose presque tous les jours, enfin expliquée simplement.', mediaType: 'Vidéo verticale', cta: 'Posez votre question en commentaire, on y répondra.' }),
+    (ctx) => ({ title: 'Comment bien profiter de nos services', hook: 'Suivez le guide en 15 secondes.', concept: 'Un mini-tutoriel visuel rapide qui montre comment utiliser ou profiter au mieux de votre offre.', body: 'En quelques secondes, vous saurez exactement comment en profiter au mieux.', mediaType: 'Vidéo verticale', cta: 'Enregistrez ce Reel pour le revoir plus tard.' }),
+    (ctx) => ({ title: ctx.moment ? `${ctx.moment}, version Reel` : `L’ambiance ${ctx.season} en vidéo`, hook: 'L’ambiance du moment, capturée en quelques secondes.', concept: 'Un Reel rythmé qui capture l’énergie de la saison ou d’un moment commercial fort.', body: 'L’ambiance du moment, capturée comme on l’aime : vivante et authentique.', mediaType: 'Vidéo verticale', cta: 'Venez vivre ça avec nous !' }),
+    (ctx) => ({ title: `3 secondes avec ${ctx.companyLabel}`, hook: 'On vous présente la team.', concept: 'Un format rapide et dynamique présentant un membre de l’équipe avec une touche d’humour ou de personnalité.', body: 'Parce qu’une bonne équipe mérite d’être mise en lumière, même en quelques secondes.', mediaType: 'Vidéo verticale', cta: 'Suivez-nous pour découvrir toute l’équipe.' }),
+    (ctx) => ({ title: 'Un chiffre qui en dit long', hook: 'Vous n’allez pas croire ce chiffre.', concept: 'Mettez en scène une statistique ou un résultat marquant lié à votre activité de façon visuelle et percutante.', body: 'Un chiffre qui résume bien pourquoi on fait ce métier avec autant d’engagement.', mediaType: 'Vidéo verticale', cta: 'Partagez si ce chiffre vous a surpris.' }),
+    (ctx) => ({ title: 'La vraie réaction de nos clients', hook: 'Regardez leurs visages.', concept: 'Filmez une réaction authentique et spontanée de clients pour renforcer la preuve sociale de façon vivante.', body: 'Ces réactions spontanées valent tous les discours marketing du monde.', mediaType: 'Vidéo verticale', cta: 'Venez vivre la même expérience.' })
   ],
   Story: [
-    (ctx) => ({ title: 'Sondage du jour', hook: 'Votre avis compte !', concept: `Utilisez le sticker sondage pour poser une question rapide liée à ${ctx.sector} et stimuler l’interaction immédiate.`, mediaType: 'Story interactive', cta: 'Votez en story, résultats à suivre !' }),
-    (ctx) => ({ title: `En ce moment chez ${ctx.companyLabel}`, hook: 'Un aperçu en direct.', concept: 'Partagez un moment spontané de la journée pour créer de la proximité en temps réel.', mediaType: 'Story photo', cta: 'Répondez-nous en story pour discuter !' }),
-    (ctx) => ({ title: 'Plus que quelques jours', hook: 'Le compte à rebours est lancé.', concept: 'Utilisez le sticker compte à rebours pour annoncer un événement, une offre ou un lancement à venir.', mediaType: 'Story interactive', cta: 'Activez le rappel pour ne pas manquer le lancement.' }),
-    (ctx) => ({ title: 'Une question pour vous', hook: 'On veut vraiment savoir.', concept: 'Utilisez le sticker question pour recueillir les avis, envies ou besoins de votre communauté.', mediaType: 'Story interactive', cta: 'Répondez, on partagera les meilleures réponses !' }),
-    (ctx) => ({ title: 'Un avis qui nous touche', hook: 'Merci pour ce retour !', concept: 'Repartagez en story un avis, un tag ou un message client positif pour renforcer la confiance.', mediaType: 'Story photo', cta: 'Taguez-nous dans vos propres retours !' }),
-    (ctx) => ({ title: 'Offre valable aujourd’hui uniquement', hook: 'Ça se passe maintenant.', concept: 'Annoncez une offre limitée dans le temps pour créer un sentiment d’urgence propre au format éphémère des stories.', mediaType: 'Story interactive', cta: 'Swipez pour en profiter avant minuit !' }),
-    (ctx) => ({ title: 'Testez vos connaissances', hook: 'Sauriez-vous répondre ?', concept: `Utilisez le sticker quiz pour tester la connaissance de votre audience sur ${ctx.sector} de façon ludique.`, mediaType: 'Story interactive', cta: 'Répondez au quiz et découvrez le résultat !' }),
-    (ctx) => ({ title: ctx.moment ? `${ctx.moment} commence !` : `L’ambiance ${ctx.season} du jour`, hook: 'L’occasion parfaite.', concept: 'Partagez un contenu léger et immédiat en lien avec l’actualité saisonnière.', mediaType: 'Story photo', cta: 'Venez découvrir ça aujourd’hui !' }),
-    (ctx) => ({ title: 'On prépare quelque chose', hook: 'Patience...', concept: 'Teasez la préparation d’un contenu, d’un produit ou d’un événement à venir de façon informelle.', mediaType: 'Story vidéo', cta: 'Restez connectés pour la suite !' }),
-    (ctx) => ({ title: 'Vos questions, nos réponses', hook: 'On répond à tout !', concept: 'Invitez votre audience à poser des questions via le sticker question, puis répondez dans une story suivante.', mediaType: 'Story interactive', cta: 'Posez votre question maintenant !' }),
-    (ctx) => ({ title: 'Un chiffre à retenir', hook: 'Regardez bien ce chiffre.', concept: 'Partagez une statistique simple et marquante liée à votre activité, mise en scène de façon lisible en story.', mediaType: 'Story photo', cta: 'Swipez pour en savoir plus !' }),
-    (ctx) => ({ title: 'Curseur : votre humeur du jour', hook: 'Un clic suffit.', concept: 'Utilisez le sticker curseur pour une interaction légère et amusante avec votre communauté.', mediaType: 'Story interactive', cta: 'Placez le curseur et dites-nous tout !' }),
-    (ctx) => ({ title: 'Repartage d’un post', hook: 'Vous l’avez peut-être manqué.', concept: 'Repartagez en story votre dernière publication marquante pour lui donner une seconde exposition.', mediaType: 'Story photo', cta: 'Allez voir le post complet en story !' })
+    (ctx) => ({ title: 'Sondage du jour', hook: 'Votre avis compte !', concept: `Utilisez le sticker sondage pour poser une question rapide liée à ${ctx.sector} et stimuler l’interaction immédiate.`, body: 'On adore savoir ce que vous en pensez, votez et on partage les résultats !', mediaType: 'Story interactive', cta: 'Votez en story, résultats à suivre !' }),
+    (ctx) => ({ title: `En ce moment chez ${ctx.companyLabel}`, hook: 'Un aperçu en direct.', concept: 'Partagez un moment spontané de la journée pour créer de la proximité en temps réel.', body: 'Un instant capturé sur le vif, juste pour vous.', mediaType: 'Story photo', cta: 'Répondez-nous en story pour discuter !' }),
+    (ctx) => ({ title: 'Plus que quelques jours', hook: 'Le compte à rebours est lancé.', concept: 'Utilisez le sticker compte à rebours pour annoncer un événement, une offre ou un lancement à venir.', body: 'Le suspense monte... rendez-vous très bientôt !', mediaType: 'Story interactive', cta: 'Activez le rappel pour ne pas manquer le lancement.' }),
+    (ctx) => ({ title: 'Une question pour vous', hook: 'On veut vraiment savoir.', concept: 'Utilisez le sticker question pour recueillir les avis, envies ou besoins de votre communauté.', body: 'Votre avis compte vraiment pour nous, dites-nous tout.', mediaType: 'Story interactive', cta: 'Répondez, on partagera les meilleures réponses !' }),
+    (ctx) => ({ title: 'Un avis qui nous touche', hook: 'Merci pour ce retour !', concept: 'Repartagez en story un avis, un tag ou un message client positif pour renforcer la confiance.', body: 'Ce genre de message, ça fait chaud au cœur. Merci infiniment !', mediaType: 'Story photo', cta: 'Taguez-nous dans vos propres retours !' }),
+    (ctx) => ({ title: 'Offre valable aujourd’hui uniquement', hook: 'Ça se passe maintenant.', concept: 'Annoncez une offre limitée dans le temps pour créer un sentiment d’urgence propre au format éphémère des stories.', body: 'Une occasion à ne pas laisser filer, disponible seulement aujourd’hui.', mediaType: 'Story interactive', cta: 'Swipez pour en profiter avant minuit !' }),
+    (ctx) => ({ title: 'Testez vos connaissances', hook: 'Sauriez-vous répondre ?', concept: `Utilisez le sticker quiz pour tester la connaissance de votre audience sur ${ctx.sector} de façon ludique.`, body: 'Un petit défi pour tester vos connaissances, amusez-vous bien !', mediaType: 'Story interactive', cta: 'Répondez au quiz et découvrez le résultat !' }),
+    (ctx) => ({ title: ctx.moment ? `${ctx.moment} commence !` : `L’ambiance ${ctx.season} du jour`, hook: 'L’occasion parfaite.', concept: 'Partagez un contenu léger et immédiat en lien avec l’actualité saisonnière.', body: 'Le moment parfait pour en profiter, on vous attend.', mediaType: 'Story photo', cta: 'Venez découvrir ça aujourd’hui !' }),
+    (ctx) => ({ title: 'On prépare quelque chose', hook: 'Patience...', concept: 'Teasez la préparation d’un contenu, d’un produit ou d’un événement à venir de façon informelle.', body: 'Quelque chose se prépare en coulisses... restez à l’affût !', mediaType: 'Story vidéo', cta: 'Restez connectés pour la suite !' }),
+    (ctx) => ({ title: 'Vos questions, nos réponses', hook: 'On répond à tout !', concept: 'Invitez votre audience à poser des questions via le sticker question, puis répondez dans une story suivante.', body: 'On répond à toutes vos questions avec plaisir, à vous de jouer.', mediaType: 'Story interactive', cta: 'Posez votre question maintenant !' }),
+    (ctx) => ({ title: 'Un chiffre à retenir', hook: 'Regardez bien ce chiffre.', concept: 'Partagez une statistique simple et marquante liée à votre activité, mise en scène de façon lisible en story.', body: 'Un chiffre simple, mais qui dit beaucoup sur notre engagement.', mediaType: 'Story photo', cta: 'Swipez pour en savoir plus !' }),
+    (ctx) => ({ title: 'Curseur : votre humeur du jour', hook: 'Un clic suffit.', concept: 'Utilisez le sticker curseur pour une interaction légère et amusante avec votre communauté.', body: 'Une interaction toute simple, juste pour garder le contact avec vous.', mediaType: 'Story interactive', cta: 'Placez le curseur et dites-nous tout !' }),
+    (ctx) => ({ title: 'Repartage d’un post', hook: 'Vous l’avez peut-être manqué.', concept: 'Repartagez en story votre dernière publication marquante pour lui donner une seconde exposition.', body: 'Au cas où vous l’auriez manqué, on vous le repartage avec plaisir.', mediaType: 'Story photo', cta: 'Allez voir le post complet en story !' })
   ],
   'Publication Google Business': [
-    (ctx) => ({ title: 'Nos informations à jour', hook: 'Toujours disponibles pour vous.', concept: 'Publiez une mise à jour claire sur vos horaires, services ou actualités pour rassurer les prospects qui consultent votre fiche.', mediaType: 'Photo + texte', cta: 'Appelez-nous ou visitez notre fiche pour plus d’infos.' }),
-    (ctx) => ({ title: 'Découvrez notre offre', hook: 'Ce que nous faisons de mieux.', concept: 'Présentez un service ou produit clé directement sur votre fiche Google pour capter l’intention de recherche locale.', mediaType: 'Photo + texte', cta: 'Cliquez sur « En savoir plus » pour découvrir l’offre.' }),
-    (ctx) => ({ title: 'Une offre spéciale pour nos visiteurs locaux', hook: 'Réservée à notre communauté.', concept: 'Publiez une offre ou promotion visible directement dans les résultats de recherche Google pour convertir les recherches locales.', mediaType: 'Photo + texte', cta: 'Réservez dès maintenant via la fiche.' }),
-    (ctx) => ({ title: 'Merci pour votre confiance', hook: 'Vos avis nous portent.', concept: 'Mettez en avant un avis client récent pour renforcer la crédibilité de la fiche auprès des nouveaux visiteurs.', mediaType: 'Texte', cta: 'Laissez à votre tour votre avis sur notre fiche.' }),
-    (ctx) => ({ title: 'Ça se passe bientôt', hook: 'Ne manquez pas ça.', concept: 'Annoncez un événement ou une actualité locale pour dynamiser la fiche et améliorer le référencement local.', mediaType: 'Photo + texte', cta: 'Consultez la fiche pour tous les détails.' }),
-    (ctx) => ({ title: ctx.moment ? `${ctx.moment} chez ${ctx.companyLabel}` : `Actualité de l’${ctx.season}`, hook: 'La bonne période pour nous rendre visite.', concept: 'Adaptez votre publication Google à l’actualité saisonnière pour rester pertinent dans les recherches locales.', mediaType: 'Photo + texte', cta: 'Venez nous rencontrer dès maintenant.' }),
-    (ctx) => ({ title: 'Question fréquente : la réponse ici', hook: 'Vous vous posez la question ?', concept: 'Répondez à une question fréquente de vos clients directement dans une publication pour lever les freins.', mediaType: 'Texte', cta: 'Contactez-nous pour toute autre question.' }),
-    (ctx) => ({ title: ctx.city ? `Fiers de servir ${ctx.city}` : 'Ancrés dans notre communauté locale', hook: 'Votre partenaire de proximité.', concept: 'Renforcez votre ancrage local pour améliorer votre pertinence sur les recherches géolocalisées.', mediaType: 'Photo + texte', cta: 'Passez nous voir, on vous attend.' })
+    (ctx) => ({ title: 'Nos informations à jour', hook: 'Toujours disponibles pour vous.', concept: 'Publiez une mise à jour claire sur vos horaires, services ou actualités pour rassurer les prospects qui consultent votre fiche.', body: 'Nous tenons à vous informer clairement pour vous faciliter la visite.', mediaType: 'Photo + texte', cta: 'Appelez-nous ou visitez notre fiche pour plus d’infos.' }),
+    (ctx) => ({ title: 'Découvrez notre offre', hook: 'Ce que nous faisons de mieux.', concept: 'Présentez un service ou produit clé directement sur votre fiche Google pour capter l’intention de recherche locale.', body: 'Une offre pensée pour répondre au mieux à vos besoins.', mediaType: 'Photo + texte', cta: 'Cliquez sur « En savoir plus » pour découvrir l’offre.' }),
+    (ctx) => ({ title: 'Une offre spéciale pour nos visiteurs locaux', hook: 'Réservée à notre communauté.', concept: 'Publiez une offre ou promotion visible directement dans les résultats de recherche Google pour convertir les recherches locales.', body: 'Réservée à notre communauté locale, à ne pas manquer.', mediaType: 'Photo + texte', cta: 'Réservez dès maintenant via la fiche.' }),
+    (ctx) => ({ title: 'Merci pour votre confiance', hook: 'Vos avis nous portent.', concept: 'Mettez en avant un avis client récent pour renforcer la crédibilité de la fiche auprès des nouveaux visiteurs.', body: 'Votre satisfaction est notre priorité, merci pour votre confiance.', mediaType: 'Texte', cta: 'Laissez à votre tour votre avis sur notre fiche.' }),
+    (ctx) => ({ title: 'Ça se passe bientôt', hook: 'Ne manquez pas ça.', concept: 'Annoncez un événement ou une actualité locale pour dynamiser la fiche et améliorer le référencement local.', body: 'Un rendez-vous à ne pas manquer, on espère vous y voir.', mediaType: 'Photo + texte', cta: 'Consultez la fiche pour tous les détails.' }),
+    (ctx) => ({ title: ctx.moment ? `${ctx.moment} chez ${ctx.companyLabel}` : `Actualité de l’${ctx.season}`, hook: 'La bonne période pour nous rendre visite.', concept: 'Adaptez votre publication Google à l’actualité saisonnière pour rester pertinent dans les recherches locales.', body: 'La bonne période pour venir nous rencontrer et en profiter.', mediaType: 'Photo + texte', cta: 'Venez nous rencontrer dès maintenant.' }),
+    (ctx) => ({ title: 'Question fréquente : la réponse ici', hook: 'Vous vous posez la question ?', concept: 'Répondez à une question fréquente de vos clients directement dans une publication pour lever les freins.', body: 'On répond directement à cette question fréquente pour vous faire gagner du temps.', mediaType: 'Texte', cta: 'Contactez-nous pour toute autre question.' }),
+    (ctx) => ({ title: ctx.city ? `Fiers de servir ${ctx.city}` : 'Ancrés dans notre communauté locale', hook: 'Votre partenaire de proximité.', concept: 'Renforcez votre ancrage local pour améliorer votre pertinence sur les recherches géolocalisées.', body: 'Servir notre communauté locale, c’est notre engagement au quotidien.', mediaType: 'Photo + texte', cta: 'Passez nous voir, on vous attend.' })
   ],
   'Publication LinkedIn': [
-    (ctx) => ({ title: 'Ce que nous avons appris cette année', hook: 'Un enseignement qui a tout changé.', concept: 'Partagez un retour d’expérience professionnel ou une leçon apprise pour asseoir votre expertise auprès d’un réseau professionnel.', mediaType: 'Texte + visuel', cta: 'Partagez votre propre expérience en commentaire.' }),
-    (ctx) => ({ title: `Ce qui évolue dans ${ctx.sector}`, hook: 'Une tendance à surveiller de près.', concept: 'Commentez une actualité ou tendance de votre secteur pour démontrer votre veille et votre expertise.', mediaType: 'Texte', cta: 'Quel est votre avis sur cette évolution ?' }),
-    (ctx) => ({ title: 'Comment nous avons aidé un client', hook: 'Les résultats parlent d’eux-mêmes.', concept: 'Présentez une étude de cas ou un succès client (anonymisé si besoin) pour illustrer votre valeur ajoutée de façon professionnelle.', mediaType: 'Texte + visuel', cta: 'Contactez-nous pour discuter de votre projet.' }),
-    (ctx) => ({ title: `Derrière ${ctx.companyLabel}`, hook: 'Notre approche, expliquée simplement.', concept: 'Expliquez votre méthode de travail ou vos valeurs d’entreprise pour renforcer votre crédibilité professionnelle.', mediaType: 'Texte + visuel', cta: 'Échangeons sur votre projet en message privé.' }),
-    (ctx) => ({ title: 'Notre équipe s’agrandit', hook: 'Les talents qui font la différence.', concept: 'Mettez en avant un membre de l’équipe ou une opportunité pour humaniser votre marque employeur.', mediaType: 'Photo', cta: 'Contactez-nous pour en savoir plus sur nos équipes.' }),
-    (ctx) => ({ title: 'Un conseil pour les décideurs', hook: 'Un point souvent négligé.', concept: 'Partagez un conseil pratique et actionnable destiné à un public professionnel dans votre domaine d’expertise.', mediaType: 'Texte', cta: 'Enregistrez ce post pour le retrouver facilement.' }),
-    (ctx) => ({ title: 'Un chiffre qui interpelle', hook: 'Une donnée à connaître absolument.', concept: 'Partagez une statistique pertinente de votre secteur accompagnée de votre analyse pour engager la conversation.', mediaType: 'Texte + visuel', cta: 'Qu’en pensez-vous ? Réagissez en commentaire.' }),
-    (ctx) => ({ title: 'Une collaboration dont nous sommes fiers', hook: 'Ensemble, on va plus loin.', concept: 'Mettez en avant un partenariat stratégique ou une collaboration pour élargir votre réseau et votre crédibilité.', mediaType: 'Photo', cta: 'Découvrez cette collaboration en message privé.' }),
-    (ctx) => ({ title: 'Pourquoi nous faisons ce métier', hook: 'Notre mission, en une phrase.', concept: 'Exposez votre vision d’entreprise ou votre mission pour inspirer votre réseau professionnel et attirer les bons partenaires.', mediaType: 'Texte', cta: 'Partagez ce post si notre vision résonne avec la vôtre.' }),
-    (ctx) => ({ title: 'Un bilan de notre activité', hook: 'Voici où nous en sommes.', concept: 'Partagez une actualité, un jalon ou un bilan de l’entreprise pour tenir votre réseau informé et engagé.', mediaType: 'Texte + visuel', cta: 'Merci de nous suivre dans cette aventure.' })
+    (ctx) => ({ title: 'Ce que nous avons appris cette année', hook: 'Un enseignement qui a tout changé.', concept: 'Partagez un retour d’expérience professionnel ou une leçon apprise pour asseoir votre expertise auprès d’un réseau professionnel.', body: 'Cette expérience nous a appris énormément, et on tenait à la partager avec notre réseau.', mediaType: 'Texte + visuel', cta: 'Partagez votre propre expérience en commentaire.' }),
+    (ctx) => ({ title: `Ce qui évolue dans ${ctx.sector}`, hook: 'Une tendance à surveiller de près.', concept: 'Commentez une actualité ou tendance de votre secteur pour démontrer votre veille et votre expertise.', body: 'Cette évolution mérite qu’on s’y attarde, voici notre analyse.', mediaType: 'Texte', cta: 'Quel est votre avis sur cette évolution ?' }),
+    (ctx) => ({ title: 'Comment nous avons aidé un client', hook: 'Les résultats parlent d’eux-mêmes.', concept: 'Présentez une étude de cas ou un succès client (anonymisé si besoin) pour illustrer votre valeur ajoutée de façon professionnelle.', body: 'Ce résultat illustre bien la valeur qu’on cherche à apporter à chaque client.', mediaType: 'Texte + visuel', cta: 'Contactez-nous pour discuter de votre projet.' }),
+    (ctx) => ({ title: `Derrière ${ctx.companyLabel}`, hook: 'Notre approche, expliquée simplement.', concept: 'Expliquez votre méthode de travail ou vos valeurs d’entreprise pour renforcer votre crédibilité professionnelle.', body: 'Notre méthode repose sur des principes simples, mais qu’on applique avec rigueur.', mediaType: 'Texte + visuel', cta: 'Échangeons sur votre projet en message privé.' }),
+    (ctx) => ({ title: 'Notre équipe s’agrandit', hook: 'Les talents qui font la différence.', concept: 'Mettez en avant un membre de l’équipe ou une opportunité pour humaniser votre marque employeur.', body: 'Ce sont ces talents qui font la différence chaque jour.', mediaType: 'Photo', cta: 'Contactez-nous pour en savoir plus sur nos équipes.' }),
+    (ctx) => ({ title: 'Un conseil pour les décideurs', hook: 'Un point souvent négligé.', concept: 'Partagez un conseil pratique et actionnable destiné à un public professionnel dans votre domaine d’expertise.', body: 'Un point souvent sous-estimé, mais qui peut avoir un impact réel sur vos résultats.', mediaType: 'Texte', cta: 'Enregistrez ce post pour le retrouver facilement.' }),
+    (ctx) => ({ title: 'Un chiffre qui interpelle', hook: 'Une donnée à connaître absolument.', concept: 'Partagez une statistique pertinente de votre secteur accompagnée de votre analyse pour engager la conversation.', body: 'Cette donnée en dit long sur les enjeux actuels de notre secteur.', mediaType: 'Texte + visuel', cta: 'Qu’en pensez-vous ? Réagissez en commentaire.' }),
+    (ctx) => ({ title: 'Une collaboration dont nous sommes fiers', hook: 'Ensemble, on va plus loin.', concept: 'Mettez en avant un partenariat stratégique ou une collaboration pour élargir votre réseau et votre crédibilité.', body: 'Cette collaboration nous permet d’aller encore plus loin, ensemble.', mediaType: 'Photo', cta: 'Découvrez cette collaboration en message privé.' }),
+    (ctx) => ({ title: 'Pourquoi nous faisons ce métier', hook: 'Notre mission, en une phrase.', concept: 'Exposez votre vision d’entreprise ou votre mission pour inspirer votre réseau professionnel et attirer les bons partenaires.', body: 'C’est cette conviction qui nous anime chaque jour dans notre métier.', mediaType: 'Texte', cta: 'Partagez ce post si notre vision résonne avec la vôtre.' }),
+    (ctx) => ({ title: 'Un bilan de notre activité', hook: 'Voici où nous en sommes.', concept: 'Partagez une actualité, un jalon ou un bilan de l’entreprise pour tenir votre réseau informé et engagé.', body: 'Merci à toutes celles et ceux qui nous accompagnent dans cette aventure.', mediaType: 'Texte + visuel', cta: 'Merci de nous suivre dans cette aventure.' })
   ]
 };
 
@@ -447,6 +447,57 @@ function pickContentPlannerIdea(type, ctx, cursorRef, usedSignatures, day) {
   return idea;
 }
 
+const contentPlannerEmojiSets = {
+  Publication: ['✨', '📸', '💬', '❤️', '👌'],
+  Reel: ['🔥', '✨', '👀', '🎬', '⚡'],
+  Story: ['👉', '✨', '💬', '⏳'],
+  'Publication Google Business': ['📍', '⭐'],
+  'Publication LinkedIn': []
+};
+
+function getContentPlannerEmoji(type, seed) {
+  const set = contentPlannerEmojiSets[type] || contentPlannerEmojiSets.Publication;
+  if (!set.length) {
+    return '';
+  }
+  return set[((seed % set.length) + set.length) % set.length];
+}
+
+function buildContentPlannerEmojiField(type, seed) {
+  if (type === 'Publication LinkedIn') {
+    return '';
+  }
+  if (type === 'Publication Google Business') {
+    return getContentPlannerEmoji(type, seed);
+  }
+  return [getContentPlannerEmoji(type, seed), getContentPlannerEmoji(type, seed + 1), getContentPlannerEmoji(type, seed + 2)]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function buildContentPlannerCaption(hook, body, cta, type, seed) {
+  if (type === 'Publication LinkedIn') {
+    // LinkedIn best practice: sober tone, no emojis, clear paragraph breaks.
+    return [hook, body, cta].filter(Boolean).join('\n\n');
+  }
+
+  if (type === 'Publication Google Business') {
+    // Google Business: practical, at most one light emoji, no hashtag culture.
+    const emoji = getContentPlannerEmoji(type, seed);
+    const hookLine = emoji ? `${emoji} ${hook}` : hook;
+    return [hookLine, body, cta].filter(Boolean).join('\n\n');
+  }
+
+  // Instagram / Facebook / TikTok (Publication, Reel, Story): casual tone, adapted emojis.
+  const emoji1 = getContentPlannerEmoji(type, seed);
+  const emoji2 = getContentPlannerEmoji(type, seed + 1);
+  const emoji3 = getContentPlannerEmoji(type, seed + 2);
+  const hookLine = emoji1 ? `${emoji1} ${hook}` : hook;
+  const bodyLine = emoji2 ? `${body} ${emoji2}` : body;
+  const ctaLine = emoji3 ? `${cta} ${emoji3}` : cta;
+  return [hookLine, bodyLine, ctaLine].filter(Boolean).join('\n\n');
+}
+
 function scheduleContentPlannerItems(items, weekDays, count, platformKeys, type, goalCursorRef, goalPool, fallbackGoal, config, ideaCursorRef, usedSignatures) {
   if (!count || !platformKeys.length || !weekDays.length) {
     return;
@@ -461,6 +512,7 @@ function scheduleContentPlannerItems(items, weekDays, count, platformKeys, type,
     }
     const ideaContext = buildContentPlannerIdeaContext(config, day);
     const idea = pickContentPlannerIdea(type, ideaContext, ideaCursorRef, usedSignatures, day);
+    const captionBody = idea.body || '';
     items.push({
       id: generateContentPlannerId(),
       date: formatContentPlannerDateKey(day),
@@ -472,7 +524,10 @@ function scheduleContentPlannerItems(items, weekDays, count, platformKeys, type,
       hook: idea.hook,
       concept: idea.concept,
       mediaType: idea.mediaType,
-      cta: idea.cta
+      cta: idea.cta,
+      captionBody,
+      emojis: buildContentPlannerEmojiField(type, i),
+      caption: buildContentPlannerCaption(idea.hook, captionBody, idea.cta, type, i)
     });
   }
 }
@@ -623,7 +678,7 @@ function updateContentPlannerItemField(itemId, field, value) {
   }
 }
 
-function createContentPlannerIdeaField(label, value, itemId, field, multiline) {
+function createContentPlannerIdeaField(label, value, itemId, field, multiline, rows) {
   const wrapper = document.createElement('label');
   wrapper.className = 'field-item';
 
@@ -634,11 +689,12 @@ function createContentPlannerIdeaField(label, value, itemId, field, multiline) {
   const input = document.createElement(multiline ? 'textarea' : 'input');
   input.className = multiline ? 'notes-textarea' : 'field-input';
   if (multiline) {
-    input.rows = 2;
+    input.rows = rows || 2;
   } else {
     input.type = 'text';
   }
   input.value = value ?? '';
+  input.dataset.ideaField = field;
 
   input.addEventListener('input', () => updateContentPlannerItemField(itemId, field, input.value));
 
@@ -739,6 +795,13 @@ function createContentPlannerItemCard(item, checkedPlatforms) {
   ideaGrid.appendChild(conceptField);
   ideaGrid.appendChild(createContentPlannerIdeaField('Objectif marketing', item.objective, item.id, 'objective', false));
   ideaGrid.appendChild(createContentPlannerIdeaField('CTA recommandé', item.cta, item.id, 'cta', false));
+  ideaGrid.appendChild(createContentPlannerIdeaField('Emojis adaptés', item.emojis, item.id, 'emojis', false));
+  const bodyField = createContentPlannerIdeaField('Corps du texte', item.captionBody, item.id, 'captionBody', true);
+  bodyField.classList.add('idea-field-full');
+  ideaGrid.appendChild(bodyField);
+  const captionField = createContentPlannerIdeaField('Légende (prête à publier)', item.caption, item.id, 'caption', true, 5);
+  captionField.classList.add('idea-field-full');
+  ideaGrid.appendChild(captionField);
   card.appendChild(ideaGrid);
 
   return card;
@@ -804,7 +867,9 @@ function populateContentPlannerCalendarPanel(panel, checkedPlatforms, monthInfo,
     const freshConfig = getContentPlannerConfig();
     const newItemType = contentPlannerContentTypes[0];
     const ideaContext = buildContentPlannerIdeaContext(freshConfig, new Date(`${dateValue}T00:00:00`));
-    const idea = pickContentPlannerIdea(newItemType, ideaContext, { value: freshCalendar.items.length + Date.now() });
+    const ideaSeed = freshCalendar.items.length + Date.now();
+    const idea = pickContentPlannerIdea(newItemType, ideaContext, { value: ideaSeed });
+    const captionBody = idea.body || '';
     freshCalendar.items.push({
       id: generateContentPlannerId(),
       date: dateValue,
@@ -816,7 +881,10 @@ function populateContentPlannerCalendarPanel(panel, checkedPlatforms, monthInfo,
       hook: idea.hook,
       concept: idea.concept,
       mediaType: idea.mediaType,
-      cta: idea.cta
+      cta: idea.cta,
+      captionBody,
+      emojis: buildContentPlannerEmojiField(newItemType, ideaSeed),
+      caption: buildContentPlannerCaption(idea.hook, captionBody, idea.cta, newItemType, ideaSeed)
     });
     saveContentPlannerCalendar(freshCalendar);
     renderContentPlannerCalendarSection();
