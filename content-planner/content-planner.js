@@ -1078,10 +1078,513 @@ function renderContentPlannerCalendarSection() {
   populateContentPlannerShootingPanel(shootingPanel, calendar, monthInfo);
 }
 
+const CP_PDF_COLORS = {
+  primary: [110, 31, 50],
+  primaryDark: [81, 21, 36],
+  background: [244, 237, 227],
+  muted: [246, 238, 228],
+  text: [22, 22, 22],
+  textSoft: [94, 85, 79],
+  positive: [46, 125, 50],
+  mediumTone: [224, 142, 45],
+  negative: [198, 40, 40],
+  opportunity: [124, 58, 237],
+  white: [255, 255, 255]
+};
+
+const CP_CONSULTANT_NAME_KEY = 'anavibe-tools-consultant-name';
+
+function sanitizeCpPdfText(text) {
+  // jsPDF's core Helvetica font (WinAnsiEncoding) has no emoji glyphs: strip them
+  // (and the narrow no-break space, a known culprit) so PDF text never renders as garbage.
+  return String(text ?? '')
+    .replace(/ /g, ' ')
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2300}-\u{23FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}️]/gu, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+function getContentPlannerClientLabel(config) {
+  const name = String((config && config.client && config.client.name) || '').trim();
+  return name || 'le client';
+}
+
+function formatCpPdfDate(date) {
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function promptCpConsultantName() {
+  const saved = localStorage.getItem(CP_CONSULTANT_NAME_KEY) || '';
+  const input = window.prompt('Nom du consultant AnaVibe (affiché sur le rapport) :', saved);
+  if (input === null) {
+    return saved || 'Équipe AnaVibe';
+  }
+  const trimmed = input.trim();
+  const finalName = trimmed || 'Équipe AnaVibe';
+  localStorage.setItem(CP_CONSULTANT_NAME_KEY, finalName);
+  return finalName;
+}
+
+function slugifyCpFilename(text) {
+  const slug = String(text || 'content-planner')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-+|-+$)/g, '');
+  return slug || 'content-planner';
+}
+
+function createCpPdfState(doc) {
+  return {
+    doc,
+    marginLeft: 18,
+    marginRight: 18,
+    marginTop: 18,
+    marginBottom: 20,
+    pageWidth: 210,
+    pageHeight: 297,
+    cursorY: 18
+  };
+}
+
+function ensureCpPdfSpace(state, needed) {
+  const maxY = state.pageHeight - state.marginBottom;
+  if (state.cursorY + needed > maxY) {
+    state.doc.addPage();
+    state.cursorY = state.marginTop;
+  }
+}
+
+function addCpPdfSectionTitle(state, text) {
+  ensureCpPdfSpace(state, 16);
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(15);
+  state.doc.setTextColor(...CP_PDF_COLORS.primary);
+  state.doc.text(sanitizeCpPdfText(text), state.marginLeft, state.cursorY);
+  state.cursorY += 3;
+  state.doc.setDrawColor(...CP_PDF_COLORS.primary);
+  state.doc.setLineWidth(0.6);
+  state.doc.line(state.marginLeft, state.cursorY, state.pageWidth - state.marginRight, state.cursorY);
+  state.cursorY += 8;
+}
+
+function addCpPdfSubTitle(state, text) {
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(11.5);
+  state.doc.setTextColor(...CP_PDF_COLORS.primaryDark);
+  const usableWidth = state.pageWidth - state.marginLeft - state.marginRight;
+  const lines = state.doc.splitTextToSize(sanitizeCpPdfText(text), usableWidth);
+  lines.forEach((line) => {
+    ensureCpPdfSpace(state, 6);
+    state.doc.text(line, state.marginLeft, state.cursorY);
+    state.cursorY += 6;
+  });
+}
+
+function addCpPdfParagraph(state, text) {
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(10);
+  state.doc.setTextColor(...CP_PDF_COLORS.text);
+  const usableWidth = state.pageWidth - state.marginLeft - state.marginRight;
+  const lines = state.doc.splitTextToSize(sanitizeCpPdfText(text), usableWidth);
+  lines.forEach((line) => {
+    ensureCpPdfSpace(state, 6);
+    state.doc.text(line, state.marginLeft, state.cursorY);
+    state.cursorY += 5.6;
+  });
+  state.cursorY += 3;
+}
+
+function addCpPdfBulletList(state, items) {
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(10);
+  const usableWidth = state.pageWidth - state.marginLeft - state.marginRight - 6;
+  items.forEach((item) => {
+    const lines = state.doc.splitTextToSize(sanitizeCpPdfText(item), usableWidth);
+    ensureCpPdfSpace(state, 5.6 * lines.length);
+    state.doc.setTextColor(...CP_PDF_COLORS.primary);
+    state.doc.text('-', state.marginLeft, state.cursorY);
+    state.doc.setTextColor(...CP_PDF_COLORS.text);
+    lines.forEach((line) => {
+      state.doc.text(line, state.marginLeft + 5, state.cursorY);
+      state.cursorY += 5.6;
+    });
+  });
+  state.cursorY += 3;
+}
+
+function addCpPdfTable(state, columns, rows) {
+  const totalWidth = columns.reduce((sum, col) => sum + col.width, 0);
+  const rowHeight = 7;
+  const headerHeight = 8;
+
+  ensureCpPdfSpace(state, headerHeight + rowHeight);
+
+  state.doc.setFillColor(...CP_PDF_COLORS.primary);
+  state.doc.rect(state.marginLeft, state.cursorY, totalWidth, headerHeight, 'F');
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(8);
+  state.doc.setTextColor(...CP_PDF_COLORS.white);
+  let headerX = state.marginLeft;
+  columns.forEach((col) => {
+    state.doc.text(sanitizeCpPdfText(col.header), headerX + 2, state.cursorY + headerHeight - 2.6);
+    headerX += col.width;
+  });
+  state.cursorY += headerHeight;
+
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(9);
+
+  rows.forEach((row, rowIndex) => {
+    ensureCpPdfSpace(state, rowHeight);
+    if (rowIndex % 2 === 1) {
+      state.doc.setFillColor(...CP_PDF_COLORS.muted);
+      state.doc.rect(state.marginLeft, state.cursorY, totalWidth, rowHeight, 'F');
+    }
+    let cellX = state.marginLeft;
+    row.forEach((cell, colIndex) => {
+      const col = columns[colIndex];
+      const color = cell.color || CP_PDF_COLORS.text;
+      state.doc.setTextColor(...color);
+      const text = sanitizeCpPdfText(cell.text ?? '');
+      const truncated = state.doc.splitTextToSize(text, col.width - 4)[0] || '';
+      state.doc.text(truncated, cellX + 2, state.cursorY + rowHeight - 2.4);
+      cellX += col.width;
+    });
+    state.cursorY += rowHeight;
+  });
+
+  state.cursorY += 6;
+}
+
+function addCpPdfFootersAndPageNumbers(doc, subjectLabel) {
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let pageNumber = 2; pageNumber <= pageCount; pageNumber += 1) {
+    doc.setPage(pageNumber);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...CP_PDF_COLORS.textSoft);
+    doc.text(`AnaVibe Tools — Content Planner PRO préparé pour ${sanitizeCpPdfText(subjectLabel)}`, 18, 291);
+    doc.text(`Page ${pageNumber - 1} / ${pageCount - 1}`, 210 - 18, 291, { align: 'right' });
+  }
+}
+
+function drawCpPdfCoverPage(doc, config, monthInfo, calendar, consultantName) {
+  const pageWidth = 210;
+  const pageHeight = 297;
+
+  doc.setFillColor(...CP_PDF_COLORS.background);
+  doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+  doc.setFillColor(...CP_PDF_COLORS.primary);
+  doc.rect(0, 0, pageWidth, 8, 'F');
+  doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
+
+  doc.setFillColor(...CP_PDF_COLORS.primary);
+  doc.circle(38, 46, 12, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(...CP_PDF_COLORS.white);
+  doc.text('A', 38, 50.5, { align: 'center' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...CP_PDF_COLORS.textSoft);
+  doc.text('PLATEFORME PREMIUM', 56, 42);
+  doc.setFontSize(19);
+  doc.setTextColor(...CP_PDF_COLORS.text);
+  doc.text('AnaVibe Tools', 56, 51);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(26);
+  doc.setTextColor(...CP_PDF_COLORS.primary);
+  doc.text('Content Planner PRO', 18, 130);
+  doc.setTextColor(...CP_PDF_COLORS.text);
+  doc.setFontSize(22);
+  doc.text(sanitizeCpPdfText(getContentPlannerClientLabel(config)), 18, 144);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.setTextColor(...CP_PDF_COLORS.textSoft);
+  let infoY = 163;
+  const platformLabels = contentPlannerPlatformOptions.filter((p) => config.platforms[p.key]).map((p) => p.label).join(', ');
+  const infoLines = [
+    `Planning : ${monthInfo.monthLabel}`,
+    `${calendar.items.length} publication${calendar.items.length > 1 ? 's' : ''} planifiée${calendar.items.length > 1 ? 's' : ''}`,
+    `Date de génération : ${formatCpPdfDate(new Date())}`,
+    `Consultant AnaVibe : ${consultantName}`
+  ];
+  if (platformLabels) {
+    infoLines.push(`Plateformes : ${platformLabels}`);
+  }
+  if (config.client.sector) {
+    infoLines.push(`Secteur d’activité : ${config.client.sector}`);
+  }
+  if (config.client.city) {
+    infoLines.push(`Ville : ${config.client.city}`);
+  }
+  infoLines.forEach((line) => {
+    const wrapped = doc.splitTextToSize(sanitizeCpPdfText(line), pageWidth - 36);
+    wrapped.forEach((wrappedLine) => {
+      doc.text(wrappedLine, 18, infoY);
+      infoY += 9;
+    });
+  });
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(10);
+  doc.setTextColor(...CP_PDF_COLORS.primary);
+  doc.text('Document préparé par AnaVibe, directement présentable au client.', 18, pageHeight - 20);
+}
+
+function generateContentPlannerPdf() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    window.alert('Le module de génération PDF n’a pas pu se charger. Rechargez la page et réessayez.');
+    return;
+  }
+
+  const calendar = getContentPlannerCalendar();
+  const config = getContentPlannerConfig();
+  if (!calendar || !calendar.items.length) {
+    window.alert('Générez d’abord le calendrier du mois avant d’exporter le PDF.');
+    return;
+  }
+
+  const consultantName = promptCpConsultantName();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const monthInfo = getContentPlannerMonthInfo();
+  const items = [...calendar.items].sort((a, b) => a.date.localeCompare(b.date));
+  const weeks = partitionContentPlannerDaysIntoWeeks(monthInfo.days);
+
+  const dateLabelOf = (item) => new Date(`${item.date}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+
+  drawCpPdfCoverPage(doc, config, monthInfo, calendar, consultantName);
+
+  doc.addPage();
+  const state = createCpPdfState(doc);
+
+  addCpPdfSectionTitle(state, 'Calendrier éditorial');
+  weeks.forEach((week, index) => {
+    const weekDateKeys = week.days.map((d) => formatContentPlannerDateKey(d));
+    const weekItems = items.filter((item) => weekDateKeys.includes(item.date));
+    addCpPdfSubTitle(state, `Semaine ${index + 1} — ${formatContentPlannerWeekLabel(week.days)}`);
+    if (!weekItems.length) {
+      addCpPdfParagraph(state, 'Aucune publication cette semaine.');
+      return;
+    }
+    addCpPdfTable(
+      state,
+      [
+        { header: 'Date', width: 24 },
+        { header: 'Jour', width: 24 },
+        { header: 'Plateforme', width: 34 },
+        { header: 'Type', width: 56 },
+        { header: 'Statut', width: 36 }
+      ],
+      weekItems.map((item) => {
+        const dateObj = new Date(`${item.date}T00:00:00`);
+        const platform = getContentPlannerPlatformInfo(item.platformKey);
+        return [
+          { text: dateObj.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) },
+          { text: dateObj.toLocaleDateString('fr-FR', { weekday: 'short' }) },
+          { text: platform.label },
+          { text: item.type },
+          { text: item.status }
+        ];
+      })
+    );
+  });
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addCpPdfSectionTitle(state, 'Toutes les idées du mois');
+  weeks.forEach((week, index) => {
+    const weekDateKeys = week.days.map((d) => formatContentPlannerDateKey(d));
+    const weekItems = items.filter((item) => weekDateKeys.includes(item.date));
+    if (!weekItems.length) {
+      return;
+    }
+    addCpPdfSubTitle(state, `Semaine ${index + 1} — ${formatContentPlannerWeekLabel(week.days)}`);
+    addCpPdfBulletList(state, weekItems.map((item) => {
+      const platform = getContentPlannerPlatformInfo(item.platformKey);
+      return `${dateLabelOf(item)} · ${platform.label} · ${item.type} — "${item.title || 'Sans titre'}" (média : ${item.mediaType || '—'}) — Objectif : ${item.objective || '—'} — Concept : ${item.concept || '—'}`;
+    }));
+  });
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addCpPdfSectionTitle(state, 'Hooks');
+  addCpPdfBulletList(state, items.map((item) => {
+    const platform = getContentPlannerPlatformInfo(item.platformKey);
+    return `${dateLabelOf(item)} · ${platform.label} · ${item.type} — ${item.hook || '—'}`;
+  }));
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addCpPdfSectionTitle(state, 'Légendes');
+  items.forEach((item) => {
+    const platform = getContentPlannerPlatformInfo(item.platformKey);
+    addCpPdfSubTitle(state, `${dateLabelOf(item)} — ${platform.label} — ${item.type}`);
+    const captionLines = String(item.caption || '').split('\n').map((line) => line.trim()).filter(Boolean);
+    if (!captionLines.length) {
+      addCpPdfParagraph(state, '—');
+    } else {
+      captionLines.forEach((line) => addCpPdfParagraph(state, line));
+    }
+  });
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addCpPdfSectionTitle(state, 'CTA');
+  addCpPdfBulletList(state, items.map((item) => {
+    const platform = getContentPlannerPlatformInfo(item.platformKey);
+    return `${dateLabelOf(item)} · ${platform.label} · ${item.type} — ${item.cta || '—'}`;
+  }));
+
+  const videoItems = items.filter((item) => isContentPlannerVideoMediaType(item.mediaType));
+  let calendarMutated = false;
+  videoItems.forEach((item) => {
+    if (ensureContentPlannerShootingPlan(item)) {
+      calendarMutated = true;
+    }
+  });
+  if (calendarMutated) {
+    saveContentPlannerCalendar(calendar);
+  }
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addCpPdfSectionTitle(state, 'Plan de tournage');
+  if (!videoItems.length) {
+    addCpPdfParagraph(state, 'Aucun contenu vidéo dans le calendrier de ce mois.');
+  } else {
+    addCpPdfParagraph(state, `${videoItems.length} vidéo${videoItems.length > 1 ? 's' : ''} à tourner ce mois-ci, regroupées pour permettre un tournage en une seule session.`);
+    videoItems.forEach((item) => {
+      const platform = getContentPlannerPlatformInfo(item.platformKey);
+      addCpPdfSubTitle(state, `${platform.label} — ${item.type} — ${dateLabelOf(item)} — ${item.title || 'Sans titre'}`);
+      addCpPdfParagraph(state, `Durée estimée : ${item.shootDuration || '—'}`);
+      addCpPdfBulletList(state, (item.shots && item.shots.length) ? item.shots : ['—']);
+      addCpPdfParagraph(state, `Texte à dire : ${item.script || '—'}`);
+      addCpPdfParagraph(state, `Transitions : ${item.transitions || '—'}`);
+      addCpPdfParagraph(state, `B-roll conseillé : ${item.broll || '—'}`);
+    });
+  }
+
+  addCpPdfFootersAndPageNumbers(doc, getContentPlannerClientLabel(config));
+
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  doc.save(`content-planner-${slugifyCpFilename(config.client.name)}-${monthInfo.monthKey}-${dateStamp}.pdf`);
+}
+
+function buildContentPlannerExcelPlanningRows(items) {
+  const header = ['Date', 'Jour', 'Plateforme', 'Type de contenu', 'Statut', 'Titre', 'Hook', 'Corps du texte', 'CTA recommandé', 'Emojis adaptés', 'Légende complète', 'Objectif marketing', 'Type de média'];
+  const rows = items.map((item) => {
+    const dateObj = new Date(`${item.date}T00:00:00`);
+    const platform = getContentPlannerPlatformInfo(item.platformKey);
+    return [
+      item.date,
+      dateObj.toLocaleDateString('fr-FR', { weekday: 'long' }),
+      platform.label,
+      item.type,
+      item.status,
+      item.title || '',
+      item.hook || '',
+      item.captionBody || '',
+      item.cta || '',
+      item.emojis || '',
+      item.caption || '',
+      item.objective || '',
+      item.mediaType || ''
+    ];
+  });
+  return [header, ...rows];
+}
+
+function buildContentPlannerExcelShootingRows(videoItems) {
+  const header = ['Date', 'Plateforme', 'Type', 'Titre', 'Durée', 'Plans à filmer (ordre de tournage)', 'Texte à dire', 'Transitions', 'B-roll conseillé'];
+  const rows = videoItems.map((item) => {
+    const platform = getContentPlannerPlatformInfo(item.platformKey);
+    return [
+      item.date,
+      platform.label,
+      item.type,
+      item.title || '',
+      item.shootDuration || '',
+      (item.shots || []).join('\n'),
+      item.script || '',
+      item.transitions || '',
+      item.broll || ''
+    ];
+  });
+  return [header, ...rows];
+}
+
+function generateContentPlannerExcel() {
+  if (!window.XLSX) {
+    window.alert('Le module d’export Excel n’a pas pu se charger. Rechargez la page et réessayez.');
+    return;
+  }
+
+  const calendar = getContentPlannerCalendar();
+  const config = getContentPlannerConfig();
+  if (!calendar || !calendar.items.length) {
+    window.alert('Générez d’abord le calendrier du mois avant d’exporter l’Excel.');
+    return;
+  }
+
+  const monthInfo = getContentPlannerMonthInfo();
+  const items = [...calendar.items].sort((a, b) => a.date.localeCompare(b.date));
+
+  const workbook = XLSX.utils.book_new();
+
+  const planningSheet = XLSX.utils.aoa_to_sheet(buildContentPlannerExcelPlanningRows(items));
+  planningSheet['!cols'] = [
+    { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 24 }, { wch: 12 },
+    { wch: 28 }, { wch: 32 }, { wch: 40 }, { wch: 28 }, { wch: 16 },
+    { wch: 50 }, { wch: 30 }, { wch: 18 }
+  ];
+  XLSX.utils.book_append_sheet(workbook, planningSheet, 'Planning éditorial');
+
+  const videoItems = items.filter((item) => isContentPlannerVideoMediaType(item.mediaType));
+  let calendarMutated = false;
+  videoItems.forEach((item) => {
+    if (ensureContentPlannerShootingPlan(item)) {
+      calendarMutated = true;
+    }
+  });
+  if (calendarMutated) {
+    saveContentPlannerCalendar(calendar);
+  }
+
+  if (videoItems.length) {
+    const shootingSheet = XLSX.utils.aoa_to_sheet(buildContentPlannerExcelShootingRows(videoItems));
+    shootingSheet['!cols'] = [
+      { wch: 12 }, { wch: 16 }, { wch: 24 }, { wch: 28 }, { wch: 16 },
+      { wch: 50 }, { wch: 40 }, { wch: 30 }, { wch: 30 }
+    ];
+    XLSX.utils.book_append_sheet(workbook, shootingSheet, 'Plan de tournage');
+  }
+
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(workbook, `content-planner-${slugifyCpFilename(config.client.name)}-${monthInfo.monthKey}-${dateStamp}.xlsx`);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   renderContentPlannerClientFields();
   renderContentPlannerGoalsFields();
   renderContentPlannerPlatformChecklist();
   renderContentPlannerRhythmFields();
   renderContentPlannerCalendarSection();
+
+  const pdfButton = document.getElementById('downloadContentPlannerPdfBtn');
+  if (pdfButton) {
+    pdfButton.addEventListener('click', generateContentPlannerPdf);
+  }
+
+  const excelButton = document.getElementById('downloadContentPlannerExcelBtn');
+  if (excelButton) {
+    excelButton.addEventListener('click', generateContentPlannerExcel);
+  }
 });

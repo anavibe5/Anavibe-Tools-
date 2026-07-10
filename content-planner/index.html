@@ -54,6 +54,10 @@
             Première étape : renseignez le client, ses objectifs du mois et les plateformes réellement utilisées.
             Le planner ne générera du contenu que pour les plateformes cochées.
           </p>
+          <div class="header-actions">
+            <button class="btn btn-primary" id="downloadContentPlannerPdfBtn" type="button">📄 Export PDF</button>
+            <button class="btn btn-secondary" id="downloadContentPlannerExcelBtn" type="button">📊 Export Excel</button>
+          </div>
         </header>
 
         <section class="card audit-config-card">
@@ -100,6 +104,8 @@
     </div>
 
     <div class="overlay" id="overlay"></div>
+    <script src="../vendor/jspdf/jspdf.umd.min.js"></script>
+    <script src="../vendor/xlsx/xlsx.full.min.js"></script>
     <script src="../script.js"></script>
     <script src="content-planner.js"></script>
   </body>
