@@ -153,7 +153,8 @@ function createDefaultAuditConfig() {
       facebook: true,
       tiktok: false,
       linkedin: false
-    }
+    },
+    dashboardClientId: ''
   };
 }
 
@@ -178,6 +179,109 @@ function getAuditConfig() {
 
 function saveAuditConfig(config) {
   localStorage.setItem(AUDIT_CONFIG_KEY, JSON.stringify(config));
+}
+
+// --- Connexion au Profil Stratégique Client du Dashboard (script.js, chargé sur cette même
+// page) : lecture seule, ne modifie jamais script.js. Audit Pro n'a pas de champ "nom du
+// client" persistant (il sert aussi à auditer des prospects hors Dashboard), donc le
+// rattachement se fait ici manuellement plutôt que par auto-match sur un nom.
+function getAuditDashboardClientOptions() {
+  if (typeof getClientIds !== 'function' || typeof getClientData !== 'function') {
+    return [];
+  }
+  try {
+    return getClientIds().map((id) => {
+      const clientData = getClientData(id);
+      return { id, name: (clientData && clientData.general && clientData.general.name) || id };
+    });
+  } catch (error) {
+    return [];
+  }
+}
+
+function renderAuditStrategicProfileList(strategicProfile) {
+  const schemaFields = (typeof clientStrategicProfileFieldsSchema !== 'undefined') ? clientStrategicProfileFieldsSchema.fields : [];
+  const texts = schemaFields
+    .map((field) => ({ label: field.label, value: String((strategicProfile && strategicProfile[field.key]) || '').trim() }))
+    .filter((entry) => entry.value)
+    .map((entry) => `${entry.label} : ${entry.value}`);
+
+  const list = document.createElement('div');
+  list.className = 'insight-list';
+  if (!texts.length) {
+    const empty = document.createElement('p');
+    empty.className = 'insight-empty';
+    empty.textContent = 'Aucune information renseignée dans le profil stratégique du client (onglet dédié dans sa fiche Dashboard).';
+    list.appendChild(empty);
+    return list;
+  }
+  texts.forEach((text) => {
+    const item = document.createElement('div');
+    item.className = 'insight-item tone-neutral';
+    item.innerHTML = `<span class="insight-icon">🧠</span><span class="insight-text">${escapeAuditText(text)}</span>`;
+    list.appendChild(item);
+  });
+  return list;
+}
+
+function renderAuditDashboardSection() {
+  const section = document.getElementById('auditDashboardSection');
+  if (!section) {
+    return;
+  }
+
+  const config = getAuditConfig();
+  const options = getAuditDashboardClientOptions();
+
+  section.innerHTML = `
+    <p class="eyebrow">Connexion Dashboard (optionnel)</p>
+    <h3>🧠 Profil Stratégique Client</h3>
+    <p>Si cet audit concerne un client déjà présent dans le Dashboard, reliez-le ici pour afficher automatiquement son profil stratégique (positionnement, produits à mettre en avant ou à éviter, contraintes, réseaux...).</p>
+  `;
+
+  if (!options.length) {
+    section.appendChild(renderAuditStrategicProfileList(null));
+    return;
+  }
+
+  const linkRow = document.createElement('label');
+  linkRow.className = 'field-item';
+  const linkLabel = document.createElement('span');
+  linkLabel.textContent = 'Client Dashboard lié';
+  linkRow.appendChild(linkLabel);
+  const select = document.createElement('select');
+  select.className = 'field-input';
+  const noneOption = document.createElement('option');
+  noneOption.value = '';
+  noneOption.textContent = '— Aucun (prospect hors Dashboard) —';
+  select.appendChild(noneOption);
+  options.forEach((option) => {
+    const optionEl = document.createElement('option');
+    optionEl.value = option.id;
+    optionEl.textContent = option.name;
+    select.appendChild(optionEl);
+  });
+  select.value = config.dashboardClientId || '';
+  select.addEventListener('change', () => {
+    const freshConfig = getAuditConfig();
+    freshConfig.dashboardClientId = select.value;
+    saveAuditConfig(freshConfig);
+    renderAuditDashboardSection();
+  });
+  linkRow.appendChild(select);
+  section.appendChild(linkRow);
+
+  const clientId = config.dashboardClientId || '';
+  if (!clientId) {
+    const empty = document.createElement('p');
+    empty.className = 'insight-empty';
+    empty.textContent = 'Aucun client sélectionné : cet audit est traité comme un prospect indépendant.';
+    section.appendChild(empty);
+    return;
+  }
+
+  const clientData = getClientData(clientId);
+  section.appendChild(renderAuditStrategicProfileList(clientData.strategicProfile));
 }
 
 function getAuditRatings() {
@@ -1675,6 +1779,7 @@ function generateAuditPdf() {
 document.addEventListener('DOMContentLoaded', () => {
   renderActivityTypeGrid();
   renderPlatformChecklist();
+  renderAuditDashboardSection();
   renderPlatformAudits();
 
   const pdfButton = document.getElementById('downloadAuditPdfBtn');

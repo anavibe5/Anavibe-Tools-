@@ -206,35 +206,67 @@ function createEmptyMonthData(label) {
   };
 }
 
-const clientDnaFieldsSchema = {
-  key: 'clientDna',
-  eyebrow: 'Profil stratégique',
-  title: '🧠 ADN du client',
+const clientStrategicProfileFieldsSchema = {
+  key: 'strategicProfile',
+  eyebrow: 'Source de vérité client',
+  title: '🧠 Profil Stratégique Client',
   fields: [
     { key: 'positioning', label: 'Positionnement', type: 'textarea' },
     { key: 'values', label: 'Valeurs', type: 'textarea' },
-    { key: 'differentiation', label: 'Différenciation', type: 'textarea' },
-    { key: 'qualityLevel', label: 'Niveau de gamme', type: 'textarea' },
     { key: 'targetAudience', label: 'Clientèle cible', type: 'textarea' },
-    { key: 'commercialGoals', label: 'Objectifs commerciaux', type: 'textarea' },
-    { key: 'priorityOfferings', label: 'Produits / services prioritaires', type: 'textarea' },
-    { key: 'avoidedOfferings', label: 'Produits / services à éviter', type: 'textarea' },
-    { key: 'keyMoments', label: 'Temps forts de l’année', type: 'textarea' },
-    { key: 'events', label: 'Événements', type: 'textarea' },
-    { key: 'graphicStyle', label: 'Style graphique', type: 'textarea' },
-    { key: 'toneOfVoice', label: 'Ton de communication', type: 'textarea' },
+    { key: 'permanentGoals', label: 'Objectifs permanents', type: 'textarea' },
+    { key: 'monthlyGoals', label: 'Objectifs mensuels', type: 'textarea' },
+    { key: 'highlightedOfferings', label: 'Produits à mettre en avant', type: 'textarea' },
+    { key: 'avoidedOfferings', label: 'Produits à éviter', type: 'textarea' },
+    { key: 'communicationStyle', label: 'Style de communication', type: 'textarea' },
+    { key: 'tone', label: 'Ton', type: 'textarea' },
     { key: 'constraints', label: 'Contraintes', type: 'textarea' },
     { key: 'usedNetworks', label: 'Réseaux utilisés', type: 'textarea' },
-    { key: 'unusedNetworks', label: 'Réseaux volontairement non utilisés', type: 'textarea' }
+    { key: 'unusedNetworks', label: 'Réseaux volontairement non utilisés', type: 'textarea' },
+    { key: 'keyMoments', label: 'Temps forts de l’année', type: 'textarea' },
+    { key: 'events', label: 'Événements', type: 'textarea' },
+    { key: 'decisionHistory', label: 'Historique des décisions', type: 'textarea' }
   ]
 };
 
-function createEmptyClientDna() {
-  const dna = {};
-  clientDnaFieldsSchema.fields.forEach((field) => {
-    dna[field.key] = '';
+function createEmptyClientStrategicProfile() {
+  const profile = {};
+  clientStrategicProfileFieldsSchema.fields.forEach((field) => {
+    profile[field.key] = '';
   });
-  return dna;
+  return profile;
+}
+
+// One-time migration from the short-lived "ADN du client" tab (merged just before this
+// central Profil Stratégique layer): folds fields that no longer have a direct equivalent
+// into Contraintes rather than silently discarding anything the consultant already typed.
+function migrateClientDnaToStrategicProfile(oldDna) {
+  if (!oldDna) {
+    return null;
+  }
+  const legacyNotes = [
+    oldDna.differentiation ? `Différenciation (ancien champ) : ${oldDna.differentiation}` : '',
+    oldDna.qualityLevel ? `Niveau de gamme (ancien champ) : ${oldDna.qualityLevel}` : '',
+    oldDna.graphicStyle ? `Style graphique (ancien champ) : ${oldDna.graphicStyle}` : ''
+  ].filter(Boolean).join('\n');
+
+  return {
+    positioning: oldDna.positioning || '',
+    values: oldDna.values || '',
+    targetAudience: oldDna.targetAudience || '',
+    permanentGoals: oldDna.commercialGoals || '',
+    monthlyGoals: '',
+    highlightedOfferings: oldDna.priorityOfferings || '',
+    avoidedOfferings: oldDna.avoidedOfferings || '',
+    communicationStyle: '',
+    tone: oldDna.toneOfVoice || '',
+    constraints: [oldDna.constraints, legacyNotes].filter(Boolean).join('\n'),
+    usedNetworks: oldDna.usedNetworks || '',
+    unusedNetworks: oldDna.unusedNetworks || '',
+    keyMoments: oldDna.keyMoments || '',
+    events: oldDna.events || '',
+    decisionHistory: ''
+  };
 }
 
 function createEmptyClientData(id, name) {
@@ -250,7 +282,7 @@ function createEmptyClientData(id, name) {
       monthStatus: 'À définir'
     },
     initialSituation: createEmptyInitialSituation(),
-    clientDna: createEmptyClientDna(),
+    strategicProfile: createEmptyClientStrategicProfile(),
     months: {},
     monthOrder: [],
     selectedMonth: null,
@@ -272,7 +304,7 @@ const clientSeedData = [
       monthStatus: 'En bonne voie'
     },
     initialSituation: createEmptyInitialSituation(),
-    clientDna: createEmptyClientDna(),
+    strategicProfile: createEmptyClientStrategicProfile(),
     months: {},
     monthOrder: [],
     selectedMonth: null,
@@ -291,7 +323,7 @@ const clientSeedData = [
       monthStatus: 'Objectif atteint'
     },
     initialSituation: createEmptyInitialSituation(),
-    clientDna: createEmptyClientDna(),
+    strategicProfile: createEmptyClientStrategicProfile(),
     months: {},
     monthOrder: [],
     selectedMonth: null,
@@ -336,7 +368,7 @@ function migrateLegacyClientData(data) {
     id: data.id,
     general: data.general,
     initialSituation: createEmptyInitialSituation(),
-    clientDna: createEmptyClientDna(),
+    strategicProfile: createEmptyClientStrategicProfile(),
     months: {
       [monthKey]: {
         label: 'Historique',
@@ -432,8 +464,10 @@ function getClientData(id) {
       if (parsed.caseStudyTestimonial === undefined) {
         parsed.caseStudyTestimonial = '';
       }
-      if (!parsed.clientDna) {
-        parsed.clientDna = createEmptyClientDna();
+      if (!parsed.strategicProfile) {
+        parsed.strategicProfile = migrateClientDnaToStrategicProfile(parsed.clientDna) || createEmptyClientStrategicProfile();
+        delete parsed.clientDna;
+        saveClientData(id, parsed);
       }
       return parsed;
     } catch (error) {
@@ -2369,7 +2403,7 @@ function createDashboardCard(clientId) {
   const dnaTabBtn = document.createElement('button');
   dnaTabBtn.type = 'button';
   dnaTabBtn.className = 'planner-tab-btn';
-  dnaTabBtn.textContent = '🧠 ADN du client';
+  dnaTabBtn.textContent = '🧠 Profil Stratégique Client';
   clientTabNav.appendChild(ficheTabBtn);
   clientTabNav.appendChild(dnaTabBtn);
   article.appendChild(clientTabNav);
@@ -2394,7 +2428,7 @@ function createDashboardCard(clientId) {
     fichePanel.classList.add('hidden');
   });
 
-  dnaPanel.appendChild(renderFieldSection(clientDnaFieldsSchema));
+  dnaPanel.appendChild(renderFieldSection(clientStrategicProfileFieldsSchema));
 
   fichePanel.appendChild(renderFieldSection(generalFieldsSchema));
   fichePanel.appendChild(renderFieldSection(initialSituationSchema));

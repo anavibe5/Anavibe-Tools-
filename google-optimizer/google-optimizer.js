@@ -32,6 +32,7 @@ function createDefaultGoogleOptimizerData() {
       sector: '',
       city: ''
     },
+    dashboardClientId: '',
     fiche: {
       rating: '',
       reviewsCount: '',
@@ -196,9 +197,134 @@ function renderGoogleOptimizerCompanyForm() {
       refreshGoogleOptimizerWeaknessesSection();
       refreshGoogleOptimizerPlanSection();
       refreshGoogleOptimizerRoadmapSection();
+      if (field.key === 'name') {
+        renderGboDashboardSection();
+      }
     });
     grid.appendChild(control);
   });
+}
+
+// --- Connexion au Profil Stratégique Client du Dashboard (script.js, chargé sur cette même
+// page) : lecture seule, ne modifie jamais script.js. Même schéma de rattachement que le
+// Content Planner (auto-match par nom + sélection manuelle) pour une source de vérité unique.
+function getGboDashboardClientOptions() {
+  if (typeof getClientIds !== 'function' || typeof getClientData !== 'function') {
+    return [];
+  }
+  try {
+    return getClientIds().map((id) => {
+      const clientData = getClientData(id);
+      return { id, name: (clientData && clientData.general && clientData.general.name) || id };
+    });
+  } catch (error) {
+    return [];
+  }
+}
+
+function resolveGboDashboardClientId(data, options) {
+  const list = options || getGboDashboardClientOptions();
+  const stored = data.dashboardClientId || '';
+  if (stored && list.some((client) => client.id === stored)) {
+    return stored;
+  }
+  const name = String((data.company && data.company.name) || '').trim();
+  if (!name || typeof normalizeId !== 'function') {
+    return '';
+  }
+  const target = normalizeId(name);
+  const match = list.find((client) => normalizeId(client.name) === target);
+  return match ? match.id : '';
+}
+
+function renderGboStrategicProfileList(strategicProfile) {
+  const schemaFields = (typeof clientStrategicProfileFieldsSchema !== 'undefined') ? clientStrategicProfileFieldsSchema.fields : [];
+  const texts = schemaFields
+    .map((field) => ({ label: field.label, value: String((strategicProfile && strategicProfile[field.key]) || '').trim() }))
+    .filter((entry) => entry.value)
+    .map((entry) => `${entry.label} : ${entry.value}`);
+
+  const list = document.createElement('div');
+  list.className = 'insight-list';
+  if (!texts.length) {
+    const empty = document.createElement('p');
+    empty.className = 'insight-empty';
+    empty.textContent = 'Aucune information renseignée dans le profil stratégique du client (onglet dédié dans sa fiche Dashboard).';
+    list.appendChild(empty);
+    return list;
+  }
+  texts.forEach((text) => {
+    const item = document.createElement('div');
+    item.className = 'insight-item tone-neutral';
+    item.innerHTML = `<span class="insight-icon">🧠</span><span class="insight-text">${escapeGoogleOptimizerText(text)}</span>`;
+    list.appendChild(item);
+  });
+  return list;
+}
+
+function renderGboDashboardSection() {
+  const section = document.getElementById('googleOptimizerDashboardSection');
+  if (!section) {
+    return;
+  }
+
+  const data = getGoogleOptimizerData();
+  const options = getGboDashboardClientOptions();
+
+  section.innerHTML = `
+    <p class="eyebrow">Connexion Dashboard</p>
+    <h3>🧠 Profil Stratégique Client</h3>
+    <p>Source de vérité unique pour ce client, saisie une fois dans le Dashboard et automatiquement accessible ici pour affiner l’audit.</p>
+  `;
+
+  if (!options.length) {
+    section.appendChild(renderGboStrategicProfileList(null));
+    return;
+  }
+
+  const clientId = resolveGboDashboardClientId(data, options);
+  if (clientId && data.dashboardClientId !== clientId) {
+    data.dashboardClientId = clientId;
+    saveGoogleOptimizerData(data);
+  }
+
+  const linkRow = document.createElement('label');
+  linkRow.className = 'field-item';
+  const linkLabel = document.createElement('span');
+  linkLabel.textContent = 'Client Dashboard lié';
+  linkRow.appendChild(linkLabel);
+  const select = document.createElement('select');
+  select.className = 'field-input';
+  const noneOption = document.createElement('option');
+  noneOption.value = '';
+  noneOption.textContent = '— Aucun —';
+  select.appendChild(noneOption);
+  options.forEach((option) => {
+    const optionEl = document.createElement('option');
+    optionEl.value = option.id;
+    optionEl.textContent = option.name;
+    select.appendChild(optionEl);
+  });
+  select.value = clientId;
+  select.addEventListener('change', () => {
+    const freshData = getGoogleOptimizerData();
+    freshData.dashboardClientId = select.value;
+    saveGoogleOptimizerData(freshData);
+    renderGboDashboardSection();
+  });
+  linkRow.appendChild(select);
+  section.appendChild(linkRow);
+
+  if (!clientId) {
+    const empty = document.createElement('p');
+    empty.className = 'insight-empty';
+    empty.textContent = 'Sélectionnez le client Dashboard correspondant pour afficher automatiquement son profil stratégique.';
+    section.appendChild(empty);
+    return;
+  }
+
+  const clientData = getClientData(clientId);
+  section.appendChild(renderGboStrategicProfileList(clientData.strategicProfile));
 }
 
 function renderGoogleOptimizerFicheForm() {
@@ -1376,6 +1502,7 @@ function generateGoogleOptimizerPdf() {
 
 document.addEventListener('DOMContentLoaded', () => {
   renderGoogleOptimizerCompanyForm();
+  renderGboDashboardSection();
   renderGoogleOptimizerFicheForm();
   refreshGoogleOptimizerScoreSection();
   refreshGoogleOptimizerWeaknessesSection();

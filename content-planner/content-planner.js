@@ -501,16 +501,54 @@ function computeContentPlannerDashboardSignals(latestMonth, previousMonth) {
   return { formatWeights, formatReasons, themeGoals };
 }
 
+// Profil Stratégique Client (Dashboard) is the single source of truth for the client's
+// positioning/offerings/networks: read here so the Planner's strategy and generated
+// justifications automatically reflect it, whether or not any monthly Dashboard KPI exists yet.
+function computeContentPlannerStrategicProfileSignals(config, strategicProfile) {
+  const themeGoals = [];
+  const warnings = [];
+
+  if (!strategicProfile) {
+    return { themeGoals, warnings };
+  }
+
+  const highlighted = String(strategicProfile.highlightedOfferings || '').trim();
+  if (highlighted) {
+    themeGoals.push(`Mettre en avant en priorité : ${highlighted} (profil stratégique du client).`);
+  }
+
+  const avoided = String(strategicProfile.avoidedOfferings || '').trim();
+  if (avoided) {
+    themeGoals.push(`Ne jamais mettre en avant : ${avoided} (profil stratégique du client).`);
+  }
+
+  const unusedNetworks = String(strategicProfile.unusedNetworks || '').toLowerCase();
+  if (unusedNetworks.trim()) {
+    contentPlannerPlatformOptions.forEach((platform) => {
+      if (config.platforms[platform.key] && unusedNetworks.includes(platform.label.toLowerCase())) {
+        warnings.push(`${platform.label} est coché dans la Configuration, mais le profil stratégique indique que ce réseau est volontairement non utilisé par le client.`);
+      }
+    });
+  }
+
+  return { themeGoals, warnings };
+}
+
 function computeContentPlannerDashboardInsights(config) {
   const bundle = getContentPlannerDashboardBundle(config);
   if (!bundle) {
-    return { connected: false, hasData: false, bundle: null };
-  }
-  if (!bundle.latestMonthKey) {
-    return { connected: true, hasData: false, bundle };
+    return { connected: false, hasData: false, bundle: null, strategicProfile: null, profileSignals: { themeGoals: [], warnings: [] } };
   }
 
-  const { latestMonth, previousMonth, clientData } = bundle;
+  const strategicProfile = (bundle.clientData && bundle.clientData.strategicProfile) || null;
+  const profileSignals = computeContentPlannerStrategicProfileSignals(config, strategicProfile);
+  const clientName = (bundle.clientData.general && bundle.clientData.general.name) || bundle.clientId;
+
+  if (!bundle.latestMonthKey) {
+    return { connected: true, hasData: false, bundle, strategicProfile, profileSignals, clientName };
+  }
+
+  const { latestMonth, previousMonth } = bundle;
   const strengths = generateStrengths(latestMonth, previousMonth);
   const weaknesses = generateWeaknesses(latestMonth, previousMonth);
   const recommendations = generateRecommendations(latestMonth, previousMonth);
@@ -519,13 +557,16 @@ function computeContentPlannerDashboardInsights(config) {
   const objectivesMissed = (latestMonth.monthlyObjectives || []).filter((objective) => !objective.done).map((objective) => objective.label);
   const openActions = (latestMonth.actionPlan || []).filter((action) => action.status !== 'Terminé').map((action) => `${action.label} (${action.status})`);
   const signals = computeContentPlannerDashboardSignals(latestMonth, previousMonth);
+  signals.themeGoals = [...signals.themeGoals, ...profileSignals.themeGoals];
 
   return {
     connected: true,
     hasData: true,
     bundle,
+    strategicProfile,
+    profileSignals,
     monthLabel: latestMonth.label,
-    clientName: (clientData.general && clientData.general.name) || bundle.clientId,
+    clientName,
     strengths,
     weaknesses,
     recommendations,
@@ -534,6 +575,30 @@ function computeContentPlannerDashboardInsights(config) {
     objectivesMissed,
     openActions,
     signals
+  };
+}
+
+function buildContentPlannerStrategyForGeneration(config) {
+  const bundle = getContentPlannerDashboardBundle(config);
+  if (!bundle) {
+    return null;
+  }
+
+  const strategicProfile = (bundle.clientData && bundle.clientData.strategicProfile) || null;
+  const profileSignals = computeContentPlannerStrategicProfileSignals(config, strategicProfile);
+
+  if (!bundle.latestMonthKey) {
+    if (!profileSignals.themeGoals.length) {
+      return null;
+    }
+    return { formatWeights: {}, formatReasons: {}, themeGoals: profileSignals.themeGoals };
+  }
+
+  const signals = computeContentPlannerDashboardSignals(bundle.latestMonth, bundle.previousMonth);
+  return {
+    formatWeights: signals.formatWeights,
+    formatReasons: signals.formatReasons,
+    themeGoals: [...signals.themeGoals, ...profileSignals.themeGoals]
   };
 }
 
@@ -574,6 +639,21 @@ function createContentPlannerInsightList(items, tone, icon, emptyText) {
 
 function contentPlannerFormatLabel(type) {
   return type === 'Publication Google Business' ? 'Publications Google Business' : `${type}s`;
+}
+
+// clientStrategicProfileFieldsSchema is defined in script.js (Dashboard), loaded on this same
+// page: reused here so the field labels stay identical to the single source of truth.
+function renderContentPlannerStrategicProfileBlock(strategicProfile) {
+  const block = document.createElement('div');
+  block.className = 'analysis-subsection';
+  block.innerHTML = '<h4>🧠 Profil Stratégique Client</h4>';
+  const schemaFields = (typeof clientStrategicProfileFieldsSchema !== 'undefined') ? clientStrategicProfileFieldsSchema.fields : [];
+  const texts = schemaFields
+    .map((field) => ({ label: field.label, value: String((strategicProfile && strategicProfile[field.key]) || '').trim() }))
+    .filter((entry) => entry.value)
+    .map((entry) => `${entry.label} : ${entry.value}`);
+  block.appendChild(createContentPlannerInsightList(texts, 'neutral', '🧠', 'Aucune information renseignée dans le profil stratégique du client (onglet dédié dans sa fiche Dashboard).'));
+  return block;
 }
 
 function renderContentPlannerDashboardSection() {
@@ -637,6 +717,16 @@ function renderContentPlannerDashboardSection() {
   }
 
   const insights = computeContentPlannerDashboardInsights(config);
+
+  section.appendChild(renderContentPlannerStrategicProfileBlock(insights.strategicProfile));
+
+  if (insights.profileSignals && insights.profileSignals.warnings.length) {
+    const warningsBlock = document.createElement('div');
+    warningsBlock.className = 'analysis-subsection';
+    warningsBlock.innerHTML = '<h4>⚠️ Incohérences détectées</h4>';
+    warningsBlock.appendChild(createContentPlannerInsightList(insights.profileSignals.warnings, 'high', '⚠️', ''));
+    section.appendChild(warningsBlock);
+  }
 
   if (!insights.hasData) {
     section.appendChild(createContentPlannerInsightList([], 'neutral', 'ℹ️', 'Aucune donnée mensuelle n’a encore été saisie dans le Dashboard pour ce client. Le Planner générera un calendrier standard tant qu’aucune donnée n’est disponible.'));
@@ -1444,10 +1534,7 @@ function renderContentPlannerCalendarSection() {
     }
     const freshConfig = getContentPlannerConfig();
     const freshMonthInfo = getContentPlannerMonthInfo();
-    const dashboardBundle = getContentPlannerDashboardBundle(freshConfig);
-    const strategy = (dashboardBundle && dashboardBundle.latestMonthKey)
-      ? computeContentPlannerDashboardSignals(dashboardBundle.latestMonth, dashboardBundle.previousMonth)
-      : null;
+    const strategy = buildContentPlannerStrategyForGeneration(freshConfig);
     const items = generateContentPlannerItems(freshConfig, freshMonthInfo, strategy);
     saveContentPlannerCalendar({ monthKey: freshMonthInfo.monthKey, monthLabel: freshMonthInfo.monthLabel, items });
     renderContentPlannerCalendarSection();
