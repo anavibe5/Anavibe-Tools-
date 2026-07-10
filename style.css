@@ -1336,10 +1336,37 @@ a {
   flex: 0 0 190px;
 }
 
-.calendar-item-objective {
-  flex: 1 1 220px;
-}
-
 .calendar-item-status {
   flex: 0 0 120px;
+  margin-left: auto;
+}
+
+.calendar-item-card {
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(61, 31, 38, 0.08);
+}
+
+.calendar-item-card .calendar-item-row {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.calendar-item-idea-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(61, 31, 38, 0.14);
+}
+
+.calendar-item-idea-grid .field-item {
+  font-size: 0.78rem;
+}
+
+.idea-field-full {
+  grid-column: 1 / -1;
 }
