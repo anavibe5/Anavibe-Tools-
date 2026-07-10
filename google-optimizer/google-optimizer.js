@@ -901,6 +901,479 @@ function refreshGoogleOptimizerPotentialSection() {
   gainGrid.appendChild(createGoogleOptimizerGainCard('💶', 'Chiffre d’affaires potentiel', `${estimates.revenueLow} € à ${estimates.revenueHigh} €`));
 }
 
+const GBO_PDF_COLORS = {
+  primary: [110, 31, 50],
+  primaryDark: [81, 21, 36],
+  background: [244, 237, 227],
+  muted: [246, 238, 228],
+  text: [22, 22, 22],
+  textSoft: [94, 85, 79],
+  positive: [46, 125, 50],
+  mediumTone: [224, 142, 45],
+  negative: [198, 40, 40],
+  opportunity: [124, 58, 237],
+  white: [255, 255, 255]
+};
+
+const GBO_CONSULTANT_NAME_KEY = 'anavibe-tools-consultant-name';
+
+const googleOptimizerStrengthNotes = {
+  rating: 'Une bonne note Google renforce la confiance et le taux de clic depuis les résultats de recherche.',
+  reviewsCount: 'Un volume d’avis suffisant renforce la crédibilité de la fiche et favorise son classement local.',
+  photosCount: 'Une galerie de photos fournie rend la fiche attractive et inspire confiance.',
+  videosCount: 'La présence de vidéos renforce l’engagement des visiteurs de la fiche.',
+  descriptionPresent: 'La description est renseignée, ce qui clarifie l’offre pour les prospects et améliore le référencement local.',
+  mainCategory: 'La catégorie principale est renseignée, ce qui permet à Google de positionner correctement la fiche.',
+  secondaryCategories: 'Les catégories secondaires sont renseignées, ce qui élargit la visibilité sur des recherches complémentaires.',
+  phone: 'Le numéro de téléphone est visible, ce qui facilite le contact direct depuis la fiche.',
+  website: 'Le site internet est renseigné, ce qui permet de rediriger le trafic vers un canal de conversion.',
+  hours: 'Les horaires sont renseignés, ce qui évite toute friction pour les prospects.',
+  bookingAvailable: 'La réservation est disponible directement depuis la fiche, ce qui facilite la conversion.',
+  menuAvailable: 'Le menu ou les prestations sont renseignés, ce qui aide le prospect à se décider rapidement.',
+  postsActive: 'Les publications Google sont actives, ce qui signale une fiche vivante et à jour.',
+  qnaCompleted: 'La section Questions/Réponses est complétée, ce qui lève les freins courants à la décision.'
+};
+
+function getGoogleOptimizerStrengths(fiche) {
+  return googleOptimizerFicheFieldsSchema
+    .map((field) => ({ key: field.key, label: field.label, score: getGoogleOptimizerCriterionScore(fiche, field.key) }))
+    .filter((item) => item.score >= 75)
+    .sort((a, b) => b.score - a.score);
+}
+
+function formatGboPdfDate(date) {
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function promptGboConsultantName() {
+  const saved = localStorage.getItem(GBO_CONSULTANT_NAME_KEY) || '';
+  const input = window.prompt('Nom du consultant AnaVibe (affiché sur le rapport) :', saved);
+  if (input === null) {
+    return saved || 'Équipe AnaVibe';
+  }
+  const trimmed = input.trim();
+  const finalName = trimmed || 'Équipe AnaVibe';
+  localStorage.setItem(GBO_CONSULTANT_NAME_KEY, finalName);
+  return finalName;
+}
+
+function slugifyGboFilename(text) {
+  const slug = String(text || 'google-business')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-+|-+$)/g, '');
+  return slug || 'google-business';
+}
+
+function createGboPdfState(doc) {
+  return {
+    doc,
+    marginLeft: 18,
+    marginRight: 18,
+    marginTop: 18,
+    marginBottom: 20,
+    pageWidth: 210,
+    pageHeight: 297,
+    cursorY: 18
+  };
+}
+
+function ensureGboPdfSpace(state, needed) {
+  const maxY = state.pageHeight - state.marginBottom;
+  if (state.cursorY + needed > maxY) {
+    state.doc.addPage();
+    state.cursorY = state.marginTop;
+  }
+}
+
+function addGboPdfSectionTitle(state, text) {
+  ensureGboPdfSpace(state, 16);
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(15);
+  state.doc.setTextColor(...GBO_PDF_COLORS.primary);
+  state.doc.text(text, state.marginLeft, state.cursorY);
+  state.cursorY += 3;
+  state.doc.setDrawColor(...GBO_PDF_COLORS.primary);
+  state.doc.setLineWidth(0.6);
+  state.doc.line(state.marginLeft, state.cursorY, state.pageWidth - state.marginRight, state.cursorY);
+  state.cursorY += 8;
+}
+
+function addGboPdfSubTitle(state, text) {
+  ensureGboPdfSpace(state, 10);
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(11.5);
+  state.doc.setTextColor(...GBO_PDF_COLORS.primaryDark);
+  state.doc.text(text, state.marginLeft, state.cursorY);
+  state.cursorY += 6;
+}
+
+function addGboPdfParagraph(state, text) {
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(10);
+  state.doc.setTextColor(...GBO_PDF_COLORS.text);
+  const usableWidth = state.pageWidth - state.marginLeft - state.marginRight;
+  const lines = state.doc.splitTextToSize(text, usableWidth);
+  lines.forEach((line) => {
+    ensureGboPdfSpace(state, 6);
+    state.doc.text(line, state.marginLeft, state.cursorY);
+    state.cursorY += 5.6;
+  });
+  state.cursorY += 3;
+}
+
+function addGboPdfBulletList(state, items) {
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(10);
+  const usableWidth = state.pageWidth - state.marginLeft - state.marginRight - 6;
+  items.forEach((item) => {
+    const lines = state.doc.splitTextToSize(item, usableWidth);
+    ensureGboPdfSpace(state, 5.6 * lines.length);
+    state.doc.setTextColor(...GBO_PDF_COLORS.primary);
+    state.doc.text('-', state.marginLeft, state.cursorY);
+    state.doc.setTextColor(...GBO_PDF_COLORS.text);
+    lines.forEach((line) => {
+      state.doc.text(line, state.marginLeft + 5, state.cursorY);
+      state.cursorY += 5.6;
+    });
+  });
+  state.cursorY += 3;
+}
+
+function addGboPdfFootersAndPageNumbers(doc, subjectLabel) {
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let pageNumber = 2; pageNumber <= pageCount; pageNumber += 1) {
+    doc.setPage(pageNumber);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...GBO_PDF_COLORS.textSoft);
+    doc.text(`AnaVibe Tools — Google Business Optimizer PRO préparé pour ${subjectLabel}`, 18, 291);
+    doc.text(`Page ${pageNumber - 1} / ${pageCount - 1}`, 210 - 18, 291, { align: 'right' });
+  }
+}
+
+function createGboGaugeRingImage(value, colorRgb) {
+  const size = 440;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = size / 2 - 32;
+  const lineWidth = 32;
+
+  ctx.lineCap = 'round';
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(61, 31, 38, 0.12)';
+  ctx.lineWidth = lineWidth;
+  ctx.stroke();
+
+  const clamped = Math.max(0, Math.min(100, value));
+  if (clamped > 0) {
+    const startAngle = -Math.PI / 2;
+    const endAngle = startAngle + (clamped / 100) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, startAngle, endAngle, false);
+    ctx.strokeStyle = `rgb(${colorRgb[0]}, ${colorRgb[1]}, ${colorRgb[2]})`;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
+
+  return canvas.toDataURL('image/png');
+}
+
+function addGboPdfGauge(state, x, yTop, diameterMm, value, colorRgb, label) {
+  const dataUrl = createGboGaugeRingImage(value, colorRgb);
+  state.doc.addImage(dataUrl, 'PNG', x, yTop, diameterMm, diameterMm);
+
+  const centerX = x + diameterMm / 2;
+  const centerY = yTop + diameterMm / 2;
+
+  state.doc.setFont('helvetica', 'bold');
+  state.doc.setFontSize(diameterMm * 0.85);
+  state.doc.setTextColor(...GBO_PDF_COLORS.text);
+  state.doc.text(`${Math.round(value)}`, centerX, centerY + diameterMm * 0.06, { align: 'center' });
+
+  state.doc.setFont('helvetica', 'normal');
+  state.doc.setFontSize(Math.max(7, diameterMm * 0.2));
+  state.doc.setTextColor(...GBO_PDF_COLORS.textSoft);
+  state.doc.text('/ 100', centerX, centerY + diameterMm * 0.26, { align: 'center' });
+
+  if (label) {
+    state.doc.setFont('helvetica', 'bold');
+    state.doc.setFontSize(9.5);
+    state.doc.setTextColor(...GBO_PDF_COLORS.primaryDark);
+    state.doc.text(label, centerX, yTop + diameterMm + 7, { align: 'center', maxWidth: diameterMm + 24 });
+  }
+}
+
+function createGboCriteriaBarChartImage(fiche) {
+  const items = googleOptimizerFicheFieldsSchema.map((field) => ({
+    label: field.label,
+    score: getGoogleOptimizerCriterionScore(fiche, field.key)
+  }));
+
+  const width = 900;
+  const rowHeight = 46;
+  const paddingTop = 16;
+  const paddingBottom = 16;
+  const height = paddingTop + paddingBottom + rowHeight * items.length;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#fffdf8';
+  ctx.fillRect(0, 0, width, height);
+
+  const labelWidth = 240;
+  const valueWidth = 90;
+  const barMaxWidth = width - labelWidth - valueWidth;
+  const barHeight = 20;
+
+  items.forEach((item, index) => {
+    const y = paddingTop + index * rowHeight + (rowHeight - barHeight) / 2;
+
+    ctx.fillStyle = '#161616';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(item.label, 0, y + barHeight / 2);
+
+    ctx.fillStyle = 'rgba(61, 31, 38, 0.1)';
+    ctx.fillRect(labelWidth, y, barMaxWidth, barHeight);
+
+    const clamped = Math.max(0, Math.min(100, item.score));
+    const filledWidth = (clamped / 100) * barMaxWidth;
+    const color = clamped >= 70 ? GBO_PDF_COLORS.positive : clamped >= 40 ? GBO_PDF_COLORS.mediumTone : GBO_PDF_COLORS.negative;
+    ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    ctx.fillRect(labelWidth, y, filledWidth, barHeight);
+
+    ctx.fillStyle = '#161616';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText(`${Math.round(item.score)}/100`, labelWidth + barMaxWidth + 12, y + barHeight / 2);
+  });
+  ctx.textBaseline = 'alphabetic';
+
+  return { dataUrl: canvas.toDataURL('image/png'), width, height };
+}
+
+function drawGboPdfCoverPage(doc, company, fiche, score, level, consultantName) {
+  const pageWidth = 210;
+  const pageHeight = 297;
+
+  doc.setFillColor(...GBO_PDF_COLORS.background);
+  doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+  doc.setFillColor(...GBO_PDF_COLORS.primary);
+  doc.rect(0, 0, pageWidth, 8, 'F');
+  doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
+
+  doc.setFillColor(...GBO_PDF_COLORS.primary);
+  doc.circle(38, 46, 12, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(...GBO_PDF_COLORS.white);
+  doc.text('A', 38, 50.5, { align: 'center' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...GBO_PDF_COLORS.textSoft);
+  doc.text('PLATEFORME PREMIUM', 56, 42);
+  doc.setFontSize(19);
+  doc.setTextColor(...GBO_PDF_COLORS.text);
+  doc.text('AnaVibe Tools', 56, 51);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(26);
+  doc.setTextColor(...GBO_PDF_COLORS.primary);
+  doc.text('Rapport Google Business', 18, 130);
+  doc.setTextColor(...GBO_PDF_COLORS.text);
+  doc.setFontSize(22);
+  doc.text(getGoogleOptimizerCompanyLabel(company), 18, 144);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.setTextColor(...GBO_PDF_COLORS.textSoft);
+  let infoY = 163;
+  const infoLines = [`Score Google Business : ${Math.round(score)}/100 (${level.label})`, `Date de génération : ${formatGboPdfDate(new Date())}`, `Consultant AnaVibe : ${consultantName}`];
+  if (company.sector) {
+    infoLines.push(`Secteur d’activité : ${company.sector}`);
+  }
+  if (company.city) {
+    infoLines.push(`Ville : ${company.city}`);
+  }
+  infoLines.forEach((line) => {
+    const wrapped = doc.splitTextToSize(line, pageWidth - 36);
+    wrapped.forEach((wrappedLine) => {
+      doc.text(wrappedLine, 18, infoY);
+      infoY += 9;
+    });
+  });
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(10);
+  doc.setTextColor(...GBO_PDF_COLORS.primary);
+  doc.text('Document préparé par AnaVibe, directement présentable au client.', 18, pageHeight - 20);
+}
+
+function buildGboPdfConclusion(company, score, level, globalPotential) {
+  const companyLabel = getGoogleOptimizerCompanyLabel(company);
+  const potentialLevel = getGoogleOptimizerPotentialLevel(globalPotential);
+
+  let opening;
+  if (score >= 85) {
+    opening = `La fiche Google Business de ${companyLabel} est excellemment optimisée.`;
+  } else if (score >= 70) {
+    opening = `La fiche Google Business de ${companyLabel} est globalement bien optimisée.`;
+  } else if (score >= 40) {
+    opening = `La fiche Google Business de ${companyLabel} présente une optimisation moyenne, avec une marge de progression identifiable.`;
+  } else {
+    opening = `La fiche Google Business de ${companyLabel} nécessite une optimisation prioritaire.`;
+  }
+
+  return `${opening} Le score actuel est de ${Math.round(score)}/100 (${level.label}), pour un potentiel de progression global ${potentialLevel.label.toLowerCase()} (${Math.round(globalPotential)}/100). La mise en œuvre des actions prioritaires identifiées dans ce rapport, en particulier celles classées en urgence, permettra d’améliorer rapidement la visibilité et la performance commerciale de la fiche. L’équipe AnaVibe reste à disposition pour accompagner la mise en œuvre de ce plan d’action.`;
+}
+
+function generateGoogleOptimizerPdf() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    window.alert('Le module de génération PDF n’a pas pu se charger. Rechargez la page et réessayez.');
+    return;
+  }
+
+  const data = getGoogleOptimizerData();
+  const consultantName = promptGboConsultantName();
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  const score = computeGoogleOptimizerScore(data.fiche);
+  const level = getGoogleOptimizerScoreLevel(score);
+
+  drawGboPdfCoverPage(doc, data.company, data.fiche, score, level, consultantName);
+
+  doc.addPage();
+  const state = createGboPdfState(doc);
+
+  addGboPdfSectionTitle(state, 'Score Google Business');
+  addGboPdfParagraph(state, `Score calculé automatiquement à partir des informations renseignées sur la fiche de ${getGoogleOptimizerCompanyLabel(data.company)}.`);
+  ensureGboPdfSpace(state, 60);
+  addGboPdfGauge(state, state.marginLeft, state.cursorY, 42, score, GBO_PDF_COLORS[score >= 70 ? 'positive' : score >= 40 ? 'mediumTone' : 'negative'], level.label);
+  state.cursorY += 58;
+
+  addGboPdfSectionTitle(state, 'Graphique : détail par critère');
+  const chart = createGboCriteriaBarChartImage(data.fiche);
+  const chartWidthMm = state.pageWidth - state.marginLeft - state.marginRight;
+  const chartHeightMm = (chart.height / chart.width) * chartWidthMm;
+  ensureGboPdfSpace(state, chartHeightMm + 6);
+  state.doc.addImage(chart.dataUrl, 'PNG', state.marginLeft, state.cursorY, chartWidthMm, chartHeightMm);
+  state.cursorY += chartHeightMm + 8;
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addGboPdfSectionTitle(state, 'Points forts');
+  const strengths = getGoogleOptimizerStrengths(data.fiche);
+  if (!strengths.length) {
+    addGboPdfParagraph(state, 'Aucun point fort majeur ne se dégage encore : la majorité des critères analysés nécessite des améliorations.');
+  } else {
+    addGboPdfBulletList(state, strengths.map((item) => `${item.label} : ${googleOptimizerStrengthNotes[item.key]}`));
+  }
+
+  const weaknesses = detectGoogleOptimizerWeaknesses(data.fiche, data.company);
+
+  addGboPdfSectionTitle(state, 'Points faibles');
+  if (!weaknesses.length) {
+    addGboPdfParagraph(state, 'Aucun point faible détecté : la fiche est déjà bien optimisée.');
+  } else {
+    googleOptimizerPriorityConfig.forEach((priority) => {
+      const items = weaknesses.filter((weakness) => weakness.priority === priority.key);
+      if (!items.length) {
+        return;
+      }
+      addGboPdfSubTitle(state, priority.title);
+      addGboPdfBulletList(state, items.map((item) => `${item.label} — ${item.explanation}`));
+    });
+  }
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addGboPdfSectionTitle(state, 'Recommandations');
+  if (!weaknesses.length) {
+    addGboPdfParagraph(state, 'Aucune recommandation nécessaire : tous les critères analysés sont déjà bien maîtrisés.');
+  } else {
+    googleOptimizerPriorityConfig.forEach((priority) => {
+      const items = weaknesses.filter((weakness) => weakness.priority === priority.key);
+      if (!items.length) {
+        return;
+      }
+      addGboPdfSubTitle(state, priority.title);
+      addGboPdfBulletList(state, items.map((item) => item.action));
+    });
+  }
+
+  addGboPdfSectionTitle(state, 'Roadmap 30 / 60 / 90 jours');
+  const maxItemsPerPhase = 6;
+  googleOptimizerRoadmapPhaseConfig.forEach((phase) => {
+    const items = weaknesses.filter((weakness) => weakness.priority === phase.priorityKey);
+    addGboPdfSubTitle(state, `${phase.title} — ${phase.subtitle}`);
+    if (!items.length) {
+      addGboPdfParagraph(state, 'Aucune action nécessaire à cette échéance.');
+      return;
+    }
+    const visibleItems = items.slice(0, maxItemsPerPhase);
+    addGboPdfBulletList(state, visibleItems.map((item) => `${item.label} : ${item.action}`));
+    if (items.length > maxItemsPerPhase) {
+      addGboPdfParagraph(state, `+ ${items.length - maxItemsPerPhase} autre(s) action(s) sur cette échéance.`);
+    }
+  });
+
+  doc.addPage();
+  state.cursorY = state.marginTop;
+  addGboPdfSectionTitle(state, 'Potentiel commercial');
+  const potentials = googleOptimizerPotentialDimensions.map((dimension) => ({
+    key: dimension.key,
+    label: dimension.label,
+    score: computeGoogleOptimizerDimensionPotential(data.fiche, dimension.criteria)
+  }));
+  const globalPotential = potentials.reduce((sum, p) => sum + p.score, 0) / potentials.length;
+  const estimates = computeGoogleOptimizerEstimates(potentials);
+
+  addGboPdfParagraph(state, 'Ces potentiels sont des estimations indicatives calculées à partir des informations de la fiche : plus un élément est incomplet ou faible, plus la marge de progression estimée est importante.');
+
+  ensureGboPdfSpace(state, 62);
+  const gaugeDiameter = 30;
+  const gaugeGap = (state.pageWidth - state.marginLeft - state.marginRight - gaugeDiameter * 5) / 4;
+  potentials.forEach((potential, index) => {
+    const x = state.marginLeft + index * (gaugeDiameter + gaugeGap);
+    const potentialLevel = getGoogleOptimizerPotentialLevel(potential.score);
+    const color = potentialLevel.tone === 'opportunity' ? GBO_PDF_COLORS.opportunity : potentialLevel.tone === 'medium' ? GBO_PDF_COLORS.mediumTone : GBO_PDF_COLORS.positive;
+    addGboPdfGauge(state, x, state.cursorY, gaugeDiameter, potential.score, color, potential.label);
+  });
+  state.cursorY += gaugeDiameter + 16;
+
+  addGboPdfSubTitle(state, 'Estimation des gains potentiels');
+  addGboPdfParagraph(state, `Ces chiffres sont des estimations indicatives (panier moyen supposé de ${estimates.basket} €), elles ne constituent pas une prévision garantie.`);
+  addGboPdfBulletList(state, [
+    `Visibilité supplémentaire estimée : +${estimates.visibilityGainPercent} %`,
+    `Nouveaux clients potentiels : ${estimates.newClientsLow} à ${estimates.newClientsHigh}`,
+    `Chiffre d’affaires potentiel : ${estimates.revenueLow} € à ${estimates.revenueHigh} €`
+  ]);
+
+  addGboPdfSectionTitle(state, 'Conclusion');
+  addGboPdfParagraph(state, buildGboPdfConclusion(data.company, score, level, globalPotential));
+
+  addGboPdfFootersAndPageNumbers(doc, getGoogleOptimizerCompanyLabel(data.company));
+
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  doc.save(`google-business-${slugifyGboFilename(data.company.name)}-${dateStamp}.pdf`);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   renderGoogleOptimizerCompanyForm();
   renderGoogleOptimizerFicheForm();
@@ -909,4 +1382,9 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshGoogleOptimizerPlanSection();
   refreshGoogleOptimizerRoadmapSection();
   refreshGoogleOptimizerPotentialSection();
+
+  const pdfButton = document.getElementById('downloadGoogleOptimizerPdfBtn');
+  if (pdfButton) {
+    pdfButton.addEventListener('click', generateGoogleOptimizerPdf);
+  }
 });
