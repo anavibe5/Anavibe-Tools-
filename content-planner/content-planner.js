@@ -524,6 +524,89 @@ function generateContentPlannerItems(config, monthInfo) {
   return items;
 }
 
+function isContentPlannerVideoMediaType(mediaType) {
+  return /vid[eé]o/i.test(String(mediaType || ''));
+}
+
+function buildContentPlannerShootingPlan(item) {
+  const hook = item.hook || item.title || '';
+  const concept = item.concept || '';
+  const cta = item.cta || '';
+
+  const builders = {
+    Reel: () => ({
+      shots: [
+        `Plan 1 (0-3s) — Accroche : plan serré et dynamique qui capte l’attention dès la première seconde. Reprend le hook : « ${hook} »`,
+        `Plan 2 (3-10s) — Démonstration : montrez concrètement le sujet du concept : ${concept}`,
+        'Plan 3 (10-15s) — Détail : gros plan sur un élément clé (produit, geste, expression) pour renforcer l’impact visuel.',
+        `Plan 4 (15-20s) — Clôture : plan final avec le CTA affiché ou dit à l’oral : « ${cta} »`
+      ],
+      duration: '15 à 20 secondes',
+      script: `${hook} ${concept} ${cta}`.trim(),
+      transitions: 'Coupes franches et rythmées entre chaque plan pour garder l’énergie du Reel ; évitez les fondus qui cassent le rythme.',
+      broll: 'Filmez en supplément quelques plans de coupe (mains, détails, ambiance) pour dynamiser le montage si besoin.'
+    }),
+    Story: () => ({
+      shots: [
+        `Plan 1 (0-6s) — Principal : filmez le moment tel qu’il se présente, ton spontané et non scénarisé, en lien avec « ${hook} »`,
+        `Plan 2 (6-10s) — Rappel : plan rapide avec le sticker ou le texte à l’écran pour l’appel à l’action « ${cta} »`
+      ],
+      duration: '8 à 12 secondes',
+      script: `${hook} ${cta}`.trim(),
+      transitions: 'Pas de transition nécessaire : format spontané en un seul mouvement de caméra.',
+      broll: 'Gardez quelques secondes de plan large en réserve si vous devez combler la story.'
+    }),
+    Publication: () => ({
+      shots: [
+        `Plan 1 (0-10s) — Introduction : plan large posé qui installe le sujet, en écho au hook « ${hook} »`,
+        `Plan 2 (10-25s) — Développement : illustrez le concept en image : ${concept}`,
+        `Plan 3 (25-40s) — Conclusion : plan de clôture avec le CTA affiché ou dit à l’oral : « ${cta} »`
+      ],
+      duration: '30 à 45 secondes',
+      script: `${hook} ${concept} ${cta}`.trim(),
+      transitions: 'Coupes simples entre chaque plan, montage propre sans effet superflu.',
+      broll: 'Prévoyez quelques plans de coupe additionnels (ambiance, détails) pour fluidifier le montage.'
+    }),
+    'Publication LinkedIn': () => ({
+      shots: [
+        `Plan 1 (0-10s) — Introduction : plan buste, cadrage stable, présentation du sujet : « ${hook} »`,
+        `Plan 2 (10-40s) — Développement : argumentaire principal en plan fixe ou légers mouvements : ${concept}`,
+        `Plan 3 (40-60s) — Conclusion : rappel du message clé et du CTA « ${cta} », regard caméra.`
+      ],
+      duration: '45 à 60 secondes',
+      script: `${hook} ${concept} ${cta}`.trim(),
+      transitions: 'Coupes sobres et espacées, sans effet ; privilégier un montage professionnel et épuré.',
+      broll: 'Prévoyez quelques plans d’illustration (bureau, équipe, réalisations) pour habiller le montage si le propos le permet.'
+    }),
+    'Publication Google Business': () => ({
+      shots: [
+        `Plan 1 (0-10s) — Présentation : présentez clairement l’information en lien avec « ${hook} »`,
+        `Plan 2 (10-20s) — Clôture : plan sur l’établissement avec les coordonnées ou le CTA « ${cta} » à l’écran.`
+      ],
+      duration: '15 à 20 secondes',
+      script: `${hook} ${cta}`.trim(),
+      transitions: 'Montage simple, une seule coupe entre les deux plans.',
+      broll: 'Filmez quelques plans de la devanture ou de l’intérieur pour illustrer si besoin.'
+    })
+  };
+
+  const builder = builders[item.type] || builders.Publication;
+  return builder();
+}
+
+function ensureContentPlannerShootingPlan(item) {
+  if (item.shots && item.shots.length) {
+    return false;
+  }
+  const plan = buildContentPlannerShootingPlan(item);
+  item.shots = plan.shots;
+  item.shootDuration = plan.duration;
+  item.script = plan.script;
+  item.transitions = plan.transitions;
+  item.broll = plan.broll;
+  return true;
+}
+
 function getContentPlannerPlatformInfo(key) {
   return contentPlannerPlatformOptions.find((p) => p.key === key) || { key, label: key, icon: '' };
 }
@@ -661,6 +744,169 @@ function createContentPlannerItemCard(item, checkedPlatforms) {
   return card;
 }
 
+let contentPlannerActiveTab = 'calendar';
+
+function populateContentPlannerCalendarPanel(panel, checkedPlatforms, monthInfo, calendar) {
+  panel.innerHTML = '';
+
+  const weeks = partitionContentPlannerDaysIntoWeeks(monthInfo.days);
+
+  weeks.forEach((week, index) => {
+    const weekBlock = document.createElement('div');
+    weekBlock.className = 'analysis-subsection calendar-week-block';
+
+    const heading = document.createElement('h4');
+    heading.textContent = `Semaine ${index + 1} — ${formatContentPlannerWeekLabel(week.days)}`;
+    weekBlock.appendChild(heading);
+
+    const weekDateKeys = week.days.map((date) => formatContentPlannerDateKey(date));
+    const weekItems = calendar.items
+      .filter((item) => weekDateKeys.includes(item.date))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const list = document.createElement('div');
+    list.className = 'calendar-item-list';
+
+    if (!weekItems.length) {
+      const empty = document.createElement('p');
+      empty.className = 'insight-empty';
+      empty.textContent = 'Aucune publication cette semaine.';
+      list.appendChild(empty);
+    } else {
+      weekItems.forEach((item) => {
+        list.appendChild(createContentPlannerItemCard(item, checkedPlatforms));
+      });
+    }
+
+    weekBlock.appendChild(list);
+    panel.appendChild(weekBlock);
+  });
+
+  const addForm = document.createElement('form');
+  addForm.className = 'inline-add-form';
+  addForm.style.marginTop = '18px';
+  const firstDateKey = formatContentPlannerDateKey(monthInfo.days[0]);
+  const lastDateKey = formatContentPlannerDateKey(monthInfo.days[monthInfo.days.length - 1]);
+  addForm.innerHTML = `
+    <input type="date" required min="${firstDateKey}" max="${lastDateKey}" value="${firstDateKey}" />
+    <button type="submit" class="client-open-btn">Ajouter une publication</button>
+  `;
+  addForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const dateValue = addForm.querySelector('input').value;
+    if (!dateValue) {
+      return;
+    }
+    const freshCalendar = getContentPlannerCalendar();
+    if (!freshCalendar) {
+      return;
+    }
+    const freshConfig = getContentPlannerConfig();
+    const newItemType = contentPlannerContentTypes[0];
+    const ideaContext = buildContentPlannerIdeaContext(freshConfig, new Date(`${dateValue}T00:00:00`));
+    const idea = pickContentPlannerIdea(newItemType, ideaContext, { value: freshCalendar.items.length + Date.now() });
+    freshCalendar.items.push({
+      id: generateContentPlannerId(),
+      date: dateValue,
+      platformKey: checkedPlatforms[0].key,
+      type: newItemType,
+      objective: buildContentPlannerGoalPool(freshConfig)[0] || '',
+      status: contentPlannerStatusOptions[0],
+      title: idea.title,
+      hook: idea.hook,
+      concept: idea.concept,
+      mediaType: idea.mediaType,
+      cta: idea.cta
+    });
+    saveContentPlannerCalendar(freshCalendar);
+    renderContentPlannerCalendarSection();
+  });
+  panel.appendChild(addForm);
+}
+
+function createContentPlannerShootingCard(item) {
+  const card = document.createElement('div');
+  card.className = 'card shooting-card';
+
+  const platformInfo = getContentPlannerPlatformInfo(item.platformKey);
+  const dateLabel = new Date(`${item.date}T00:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+
+  card.innerHTML = `
+    <div class="shooting-card-header">
+      <div>
+        <p class="eyebrow">${escapeContentPlannerText(platformInfo.icon)} ${escapeContentPlannerText(platformInfo.label)} — ${escapeContentPlannerText(item.type)} — prévu le ${escapeContentPlannerText(dateLabel)}</p>
+        <h4>${escapeContentPlannerText(item.title || 'Sans titre')}</h4>
+      </div>
+      <span class="shooting-duration-badge">${escapeContentPlannerText(item.shootDuration || '')}</span>
+    </div>
+    <div class="analysis-subsection">
+      <h4>Plans à filmer (ordre de tournage)</h4>
+      <p class="notes-hint">Un plan par ligne, dans l’ordre de tournage.</p>
+      <textarea class="notes-textarea" rows="4" data-field="shotsText"></textarea>
+    </div>
+    <div class="shooting-detail-grid">
+      <label class="field-item idea-field-full"><span>Texte à dire</span><textarea class="notes-textarea" rows="2" data-field="script"></textarea></label>
+      <label class="field-item"><span>Transitions</span><textarea class="notes-textarea" rows="2" data-field="transitions"></textarea></label>
+      <label class="field-item"><span>B-roll conseillé</span><textarea class="notes-textarea" rows="2" data-field="broll"></textarea></label>
+    </div>
+  `;
+
+  const shotsTextarea = card.querySelector('[data-field="shotsText"]');
+  shotsTextarea.value = (item.shots || []).join('\n');
+  shotsTextarea.addEventListener('input', () => {
+    const shots = shotsTextarea.value.split('\n').map((line) => line.trim()).filter(Boolean);
+    updateContentPlannerItemField(item.id, 'shots', shots);
+  });
+
+  ['script', 'transitions', 'broll'].forEach((field) => {
+    const textarea = card.querySelector(`[data-field="${field}"]`);
+    textarea.value = item[field] || '';
+    textarea.addEventListener('input', () => updateContentPlannerItemField(item.id, field, textarea.value));
+  });
+
+  return card;
+}
+
+function populateContentPlannerShootingPanel(panel, calendar, monthInfo) {
+  panel.innerHTML = `
+    <p>Tous les contenus vidéo du mois, regroupés pour être tournés en une seule session. Chaque fiche indique les plans à filmer dans leur ordre de tournage, la durée, le texte à dire, les transitions et le B-roll conseillé.</p>
+  `;
+
+  const videoItems = calendar.items
+    .filter((item) => isContentPlannerVideoMediaType(item.mediaType))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!videoItems.length) {
+    const empty = document.createElement('p');
+    empty.className = 'insight-empty';
+    empty.textContent = 'Aucun contenu vidéo dans le calendrier de ce mois.';
+    panel.appendChild(empty);
+    return;
+  }
+
+  let mutated = false;
+  videoItems.forEach((item) => {
+    if (ensureContentPlannerShootingPlan(item)) {
+      mutated = true;
+    }
+  });
+  if (mutated) {
+    saveContentPlannerCalendar(calendar);
+  }
+
+  const summary = document.createElement('p');
+  summary.className = 'notes-hint';
+  summary.textContent = `${videoItems.length} vidéo${videoItems.length > 1 ? 's' : ''} à tourner ce mois-ci.`;
+  panel.appendChild(summary);
+
+  const list = document.createElement('div');
+  list.className = 'shooting-list';
+  videoItems.forEach((item) => {
+    list.appendChild(createContentPlannerShootingCard(item));
+  });
+  panel.appendChild(list);
+}
+
 function renderContentPlannerCalendarSection() {
   const section = document.getElementById('contentPlannerCalendarSection');
   if (!section) {
@@ -674,7 +920,7 @@ function renderContentPlannerCalendarSection() {
 
   section.innerHTML = `
     <p class="eyebrow">Planning</p>
-    <h3>📅 Calendrier éditorial — ${escapeContentPlannerText(monthInfo.monthLabel)}</h3>
+    <h3>📅 Planning éditorial — ${escapeContentPlannerText(monthInfo.monthLabel)}</h3>
   `;
 
   if (!checkedPlatforms.length) {
@@ -718,79 +964,50 @@ function renderContentPlannerCalendarSection() {
     return;
   }
 
-  const weeks = partitionContentPlannerDaysIntoWeeks(monthInfo.days);
+  const tabNav = document.createElement('div');
+  tabNav.className = 'planner-tab-nav';
 
-  weeks.forEach((week, index) => {
-    const weekBlock = document.createElement('div');
-    weekBlock.className = 'analysis-subsection calendar-week-block';
+  const calendarTabBtn = document.createElement('button');
+  calendarTabBtn.type = 'button';
+  calendarTabBtn.className = `planner-tab-btn${contentPlannerActiveTab === 'calendar' ? ' active' : ''}`;
+  calendarTabBtn.textContent = '📅 Calendrier éditorial';
 
-    const heading = document.createElement('h4');
-    heading.textContent = `Semaine ${index + 1} — ${formatContentPlannerWeekLabel(week.days)}`;
-    weekBlock.appendChild(heading);
+  const shootingTabBtn = document.createElement('button');
+  shootingTabBtn.type = 'button';
+  shootingTabBtn.className = `planner-tab-btn${contentPlannerActiveTab === 'shooting' ? ' active' : ''}`;
+  shootingTabBtn.textContent = '🎬 Plan de tournage';
 
-    const weekDateKeys = week.days.map((date) => formatContentPlannerDateKey(date));
-    const weekItems = calendar.items
-      .filter((item) => weekDateKeys.includes(item.date))
-      .sort((a, b) => a.date.localeCompare(b.date));
+  const calendarPanel = document.createElement('div');
+  calendarPanel.className = `planner-tab-panel${contentPlannerActiveTab === 'calendar' ? '' : ' hidden'}`;
 
-    const list = document.createElement('div');
-    list.className = 'calendar-item-list';
+  const shootingPanel = document.createElement('div');
+  shootingPanel.className = `planner-tab-panel${contentPlannerActiveTab === 'shooting' ? '' : ' hidden'}`;
 
-    if (!weekItems.length) {
-      const empty = document.createElement('p');
-      empty.className = 'insight-empty';
-      empty.textContent = 'Aucune publication cette semaine.';
-      list.appendChild(empty);
-    } else {
-      weekItems.forEach((item) => {
-        list.appendChild(createContentPlannerItemCard(item, checkedPlatforms));
-      });
-    }
-
-    weekBlock.appendChild(list);
-    section.appendChild(weekBlock);
+  calendarTabBtn.addEventListener('click', () => {
+    contentPlannerActiveTab = 'calendar';
+    calendarTabBtn.classList.add('active');
+    shootingTabBtn.classList.remove('active');
+    calendarPanel.classList.remove('hidden');
+    shootingPanel.classList.add('hidden');
+    populateContentPlannerCalendarPanel(calendarPanel, checkedPlatforms, monthInfo, getContentPlannerCalendar());
+  });
+  shootingTabBtn.addEventListener('click', () => {
+    contentPlannerActiveTab = 'shooting';
+    shootingTabBtn.classList.add('active');
+    calendarTabBtn.classList.remove('active');
+    shootingPanel.classList.remove('hidden');
+    calendarPanel.classList.add('hidden');
+    populateContentPlannerShootingPanel(shootingPanel, getContentPlannerCalendar(), monthInfo);
   });
 
-  const addForm = document.createElement('form');
-  addForm.className = 'inline-add-form';
-  addForm.style.marginTop = '18px';
-  const firstDateKey = formatContentPlannerDateKey(monthInfo.days[0]);
-  const lastDateKey = formatContentPlannerDateKey(monthInfo.days[monthInfo.days.length - 1]);
-  addForm.innerHTML = `
-    <input type="date" required min="${firstDateKey}" max="${lastDateKey}" value="${firstDateKey}" />
-    <button type="submit" class="client-open-btn">Ajouter une publication</button>
-  `;
-  addForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const dateValue = addForm.querySelector('input').value;
-    if (!dateValue) {
-      return;
-    }
-    const freshCalendar = getContentPlannerCalendar();
-    if (!freshCalendar) {
-      return;
-    }
-    const freshConfig = getContentPlannerConfig();
-    const newItemType = contentPlannerContentTypes[0];
-    const ideaContext = buildContentPlannerIdeaContext(freshConfig, new Date(`${dateValue}T00:00:00`));
-    const idea = pickContentPlannerIdea(newItemType, ideaContext, { value: freshCalendar.items.length + Date.now() });
-    freshCalendar.items.push({
-      id: generateContentPlannerId(),
-      date: dateValue,
-      platformKey: checkedPlatforms[0].key,
-      type: newItemType,
-      objective: buildContentPlannerGoalPool(freshConfig)[0] || '',
-      status: contentPlannerStatusOptions[0],
-      title: idea.title,
-      hook: idea.hook,
-      concept: idea.concept,
-      mediaType: idea.mediaType,
-      cta: idea.cta
-    });
-    saveContentPlannerCalendar(freshCalendar);
-    renderContentPlannerCalendarSection();
-  });
-  section.appendChild(addForm);
+  tabNav.appendChild(calendarTabBtn);
+  tabNav.appendChild(shootingTabBtn);
+  section.appendChild(tabNav);
+  section.appendChild(calendarPanel);
+  section.appendChild(shootingPanel);
+
+  populateContentPlannerCalendarPanel(calendarPanel, checkedPlatforms, monthInfo, calendar);
+  populateContentPlannerShootingPanel(shootingPanel, calendar, monthInfo);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
