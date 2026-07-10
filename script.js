@@ -206,6 +206,37 @@ function createEmptyMonthData(label) {
   };
 }
 
+const clientDnaFieldsSchema = {
+  key: 'clientDna',
+  eyebrow: 'Profil stratégique',
+  title: '🧠 ADN du client',
+  fields: [
+    { key: 'positioning', label: 'Positionnement', type: 'textarea' },
+    { key: 'values', label: 'Valeurs', type: 'textarea' },
+    { key: 'differentiation', label: 'Différenciation', type: 'textarea' },
+    { key: 'qualityLevel', label: 'Niveau de gamme', type: 'textarea' },
+    { key: 'targetAudience', label: 'Clientèle cible', type: 'textarea' },
+    { key: 'commercialGoals', label: 'Objectifs commerciaux', type: 'textarea' },
+    { key: 'priorityOfferings', label: 'Produits / services prioritaires', type: 'textarea' },
+    { key: 'avoidedOfferings', label: 'Produits / services à éviter', type: 'textarea' },
+    { key: 'keyMoments', label: 'Temps forts de l’année', type: 'textarea' },
+    { key: 'events', label: 'Événements', type: 'textarea' },
+    { key: 'graphicStyle', label: 'Style graphique', type: 'textarea' },
+    { key: 'toneOfVoice', label: 'Ton de communication', type: 'textarea' },
+    { key: 'constraints', label: 'Contraintes', type: 'textarea' },
+    { key: 'usedNetworks', label: 'Réseaux utilisés', type: 'textarea' },
+    { key: 'unusedNetworks', label: 'Réseaux volontairement non utilisés', type: 'textarea' }
+  ]
+};
+
+function createEmptyClientDna() {
+  const dna = {};
+  clientDnaFieldsSchema.fields.forEach((field) => {
+    dna[field.key] = '';
+  });
+  return dna;
+}
+
 function createEmptyClientData(id, name) {
   return {
     id,
@@ -219,6 +250,7 @@ function createEmptyClientData(id, name) {
       monthStatus: 'À définir'
     },
     initialSituation: createEmptyInitialSituation(),
+    clientDna: createEmptyClientDna(),
     months: {},
     monthOrder: [],
     selectedMonth: null,
@@ -240,6 +272,7 @@ const clientSeedData = [
       monthStatus: 'En bonne voie'
     },
     initialSituation: createEmptyInitialSituation(),
+    clientDna: createEmptyClientDna(),
     months: {},
     monthOrder: [],
     selectedMonth: null,
@@ -258,6 +291,7 @@ const clientSeedData = [
       monthStatus: 'Objectif atteint'
     },
     initialSituation: createEmptyInitialSituation(),
+    clientDna: createEmptyClientDna(),
     months: {},
     monthOrder: [],
     selectedMonth: null,
@@ -302,6 +336,7 @@ function migrateLegacyClientData(data) {
     id: data.id,
     general: data.general,
     initialSituation: createEmptyInitialSituation(),
+    clientDna: createEmptyClientDna(),
     months: {
       [monthKey]: {
         label: 'Historique',
@@ -397,6 +432,9 @@ function getClientData(id) {
       if (parsed.caseStudyTestimonial === undefined) {
         parsed.caseStudyTestimonial = '';
       }
+      if (!parsed.clientDna) {
+        parsed.clientDna = createEmptyClientDna();
+      }
       return parsed;
     } catch (error) {
       // fall through to seed/empty
@@ -479,6 +517,10 @@ function createFieldControl(sectionKey, field, monthKey) {
       option.textContent = optionValue;
       input.appendChild(option);
     });
+  } else if (field.type === 'textarea') {
+    input = document.createElement('textarea');
+    input.className = 'field-input notes-textarea';
+    input.rows = field.rows || 3;
   } else {
     input = document.createElement('input');
     input.className = 'field-input';
@@ -494,6 +536,9 @@ function createFieldControl(sectionKey, field, monthKey) {
     input.dataset.month = monthKey;
   }
   wrapper.appendChild(input);
+  if (field.type === 'textarea') {
+    wrapper.classList.add('idea-field-full');
+  }
   return wrapper;
 }
 
@@ -2315,8 +2360,44 @@ function createDashboardCard(clientId) {
   heading.textContent = data.general.name;
   article.appendChild(heading);
 
-  article.appendChild(renderFieldSection(generalFieldsSchema));
-  article.appendChild(renderFieldSection(initialSituationSchema));
+  const clientTabNav = document.createElement('div');
+  clientTabNav.className = 'planner-tab-nav';
+  const ficheTabBtn = document.createElement('button');
+  ficheTabBtn.type = 'button';
+  ficheTabBtn.className = 'planner-tab-btn active';
+  ficheTabBtn.textContent = '📋 Fiche client';
+  const dnaTabBtn = document.createElement('button');
+  dnaTabBtn.type = 'button';
+  dnaTabBtn.className = 'planner-tab-btn';
+  dnaTabBtn.textContent = '🧠 ADN du client';
+  clientTabNav.appendChild(ficheTabBtn);
+  clientTabNav.appendChild(dnaTabBtn);
+  article.appendChild(clientTabNav);
+
+  const fichePanel = document.createElement('div');
+  fichePanel.className = 'planner-tab-panel';
+  const dnaPanel = document.createElement('div');
+  dnaPanel.className = 'planner-tab-panel hidden';
+  article.appendChild(fichePanel);
+  article.appendChild(dnaPanel);
+
+  ficheTabBtn.addEventListener('click', () => {
+    ficheTabBtn.classList.add('active');
+    dnaTabBtn.classList.remove('active');
+    fichePanel.classList.remove('hidden');
+    dnaPanel.classList.add('hidden');
+  });
+  dnaTabBtn.addEventListener('click', () => {
+    dnaTabBtn.classList.add('active');
+    ficheTabBtn.classList.remove('active');
+    dnaPanel.classList.remove('hidden');
+    fichePanel.classList.add('hidden');
+  });
+
+  dnaPanel.appendChild(renderFieldSection(clientDnaFieldsSchema));
+
+  fichePanel.appendChild(renderFieldSection(generalFieldsSchema));
+  fichePanel.appendChild(renderFieldSection(initialSituationSchema));
   fillFieldValues(article, data);
 
   const monthControlBlock = document.createElement('div');
@@ -2337,11 +2418,11 @@ function createDashboardCard(clientId) {
       <button type="submit" class="client-open-btn">Ajouter un mois</button>
     </form>
   `;
-  article.appendChild(monthControlBlock);
+  fichePanel.appendChild(monthControlBlock);
 
   const monthContent = document.createElement('div');
   monthContent.dataset.role = 'month-content';
-  article.appendChild(monthContent);
+  fichePanel.appendChild(monthContent);
 
   const monthSelect = monthControlBlock.querySelector('[data-role="month-select"]');
   const monthAddForm = monthControlBlock.querySelector('[data-role="month-add-form"]');
@@ -2456,8 +2537,8 @@ function createDashboardCard(clientId) {
 
   refreshMonthContent();
 
-  article.appendChild(renderNotesSection(clientId, data));
-  article.appendChild(renderCaseStudySection(clientId));
+  fichePanel.appendChild(renderNotesSection(clientId, data));
+  fichePanel.appendChild(renderCaseStudySection(clientId));
 
   const reportButton = document.createElement('button');
   reportButton.type = 'button';
@@ -2470,7 +2551,7 @@ function createDashboardCard(clientId) {
   const reportBlock = document.createElement('div');
   reportBlock.className = 'report-export-block';
   reportBlock.appendChild(reportButton);
-  article.appendChild(reportBlock);
+  fichePanel.appendChild(reportBlock);
 
   const handleFieldInput = (event) => {
     const target = event.target;
