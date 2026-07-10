@@ -48,34 +48,47 @@
 
       <main class="main-content module-page">
         <header class="module-header card surface-glow">
-          <p class="eyebrow">Module</p>
-          <h2>Content Planner PRO</h2>
+          <p class="eyebrow">Content Planner PRO</p>
+          <h2>Configuration</h2>
           <p>
-            Creation automatique d’une strategie editoriale complete avec une structure claire pour accueillir plus tard
-            des generateurs, des templates et un pilotage de planning multi-clients.
+            Première étape : renseignez le client, ses objectifs du mois et les plateformes réellement utilisées.
+            Le planner ne générera du contenu que pour les plateformes cochées.
           </p>
-          <div class="header-actions">
-            <a class="btn btn-primary" href="../dashboard/index.html">Associer a un client</a>
-            <a class="btn btn-secondary" href="../index.html">Retour a l’accueil</a>
-          </div>
         </header>
 
-        <section class="module-cards">
-          <article class="module-card card">
-            <span class="badge">Strategie</span>
-            <h3>Piliers editoriaux</h3>
-            <p>Zone reservee pour structurer les themes, les objectifs de contenu et les angles prioritaires.</p>
-          </article>
-          <article class="module-card card">
-            <span class="badge">Planning</span>
-            <h3>Calendrier de publication</h3>
-            <p>Base prete pour integrer un planning mensuel, hebdomadaire et par canal de diffusion.</p>
-          </article>
-          <article class="module-card card">
-            <span class="badge">Production</span>
-            <h3>Idees et automatisation</h3>
-            <p>Carte prevue pour accueillir les futurs generateurs AnaVibe et les sequences de creation de contenu.</p>
-          </article>
+        <section class="card audit-config-card">
+          <p class="eyebrow">Étape 1</p>
+          <h3>Configuration</h3>
+
+          <div class="analysis-subsection">
+            <h4>Informations générales</h4>
+            <div class="field-grid" id="contentPlannerClientFieldsGrid"></div>
+          </div>
+
+          <div class="analysis-subsection">
+            <h4>Objectifs du mois</h4>
+            <label class="field-item">
+              <span>Objectif principal du mois</span>
+              <textarea class="notes-textarea" id="contentPlannerMainGoal" rows="2" placeholder="Ex : Renforcer la notoriété locale et générer plus de réservations."></textarea>
+            </label>
+            <label class="field-item" style="margin-top: 14px;">
+              <span>Objectifs secondaires</span>
+              <textarea class="notes-textarea" id="contentPlannerSecondaryGoals" rows="3" placeholder="Ex : Mettre en avant l’équipe, augmenter l’engagement, préparer un événement."></textarea>
+            </label>
+          </div>
+
+          <div class="analysis-subsection">
+            <h4>Plateformes utilisées</h4>
+            <p>Seules les plateformes cochées recevront du contenu généré : les autres seront totalement ignorées par le planner.</p>
+            <div class="platform-checklist" id="contentPlannerPlatformChecklist"></div>
+          </div>
+
+          <div class="analysis-subsection">
+            <h4>Rythme de publication</h4>
+            <div class="field-grid" id="contentPlannerRhythmFieldsGrid"></div>
+          </div>
+
+          <p class="notes-hint" id="contentPlannerSavedHint">Configuration enregistrée automatiquement.</p>
         </section>
 
         <footer class="footer">
@@ -86,5 +99,6 @@
 
     <div class="overlay" id="overlay"></div>
     <script src="../script.js"></script>
+    <script src="content-planner.js"></script>
   </body>
 </html>
