@@ -40,7 +40,8 @@ function createDefaultContentPlannerConfig() {
       postsPerWeek: '',
       reelsPerWeek: '',
       storiesPerWeek: ''
-    }
+    },
+    dashboardClientId: ''
   };
 }
 
@@ -120,6 +121,9 @@ function renderContentPlannerClientFields() {
       freshConfig.client[field.key] = input.value;
       saveContentPlannerConfig(freshConfig);
       flashContentPlannerSavedHint();
+      if (field.key === 'name') {
+        renderContentPlannerDashboardSection();
+      }
     });
     grid.appendChild(control);
   });
@@ -287,7 +291,7 @@ function formatContentPlannerWeekLabel(weekDays) {
   return `Semaine du ${fmt(first)} au ${fmt(last)}`;
 }
 
-function buildContentPlannerGoalPool(config) {
+function buildContentPlannerGoalPool(config, extraGoals) {
   const pool = [];
   const mainGoal = String(config.client.mainGoal || '').trim();
   if (mainGoal) {
@@ -301,7 +305,343 @@ function buildContentPlannerGoalPool(config) {
       .filter(Boolean)
       .forEach((goal) => pool.push(goal));
   }
+  (extraGoals || []).forEach((goal) => pool.push(goal));
   return pool;
+}
+
+// --- Connexion au Dashboard Clients (script.js, chargé sur cette même page) ---
+// Le Planner lit les données déjà exposées globalement par script.js (getClientIds,
+// getClientData, generateStrengths/Weaknesses/Recommendations, buildNextMonthActionPlan,
+// computeEvolution, etc.) sans jamais modifier ce fichier partagé, pour construire
+// automatiquement la stratégie éditoriale du mois à partir des résultats du mois précédent.
+
+function getContentPlannerDashboardClientOptions() {
+  if (typeof getClientIds !== 'function' || typeof getClientData !== 'function') {
+    return [];
+  }
+  try {
+    return getClientIds().map((id) => {
+      const data = getClientData(id);
+      return { id, name: (data && data.general && data.general.name) || id };
+    });
+  } catch (error) {
+    return [];
+  }
+}
+
+function resolveContentPlannerDashboardClientId(config, options) {
+  const list = options || getContentPlannerDashboardClientOptions();
+  const stored = config.dashboardClientId || '';
+  if (stored && list.some((client) => client.id === stored)) {
+    return stored;
+  }
+  const name = String((config.client && config.client.name) || '').trim();
+  if (!name || typeof normalizeId !== 'function') {
+    return '';
+  }
+  const target = normalizeId(name);
+  const match = list.find((client) => normalizeId(client.name) === target);
+  return match ? match.id : '';
+}
+
+function getContentPlannerDashboardBundle(config) {
+  if (typeof getClientData !== 'function') {
+    return null;
+  }
+  const options = getContentPlannerDashboardClientOptions();
+  const clientId = resolveContentPlannerDashboardClientId(config, options);
+  if (!clientId) {
+    return null;
+  }
+  const clientData = getClientData(clientId);
+  const monthOrder = (clientData && clientData.monthOrder) || [];
+  if (!monthOrder.length) {
+    return { clientId, clientData, latestMonthKey: null, latestMonth: null, previousMonthKey: null, previousMonth: null };
+  }
+  const latestMonthKey = monthOrder[monthOrder.length - 1];
+  const latestMonth = clientData.months[latestMonthKey];
+  const latestIndex = monthOrder.indexOf(latestMonthKey);
+  const previousMonthKey = latestIndex > 0 ? monthOrder[latestIndex - 1] : null;
+  const previousMonth = previousMonthKey ? clientData.months[previousMonthKey] : null;
+  return { clientId, clientData, latestMonthKey, latestMonth, previousMonthKey, previousMonth };
+}
+
+// Traduit les résultats bruts du mois précédent en pondérations de formats (Reels,
+// Stories, Google Business) et en thèmes prioritaires, chaque signal étant justifié
+// par un chiffre réel issu du Dashboard.
+function computeContentPlannerDashboardSignals(latestMonth, previousMonth) {
+  const formatWeights = {};
+  const formatReasons = {};
+  const themeGoals = [];
+
+  const hv = (value) => value !== '' && value !== null && value !== undefined && !Number.isNaN(Number(value));
+  const gb = latestMonth.googleBusiness || {};
+  const ig = latestMonth.instagram || {};
+  const bc = latestMonth.beacons || {};
+
+  if (hv(ig.posts) && hv(ig.reels) && Number(ig.posts) > 0) {
+    const posts = Number(ig.posts);
+    const reels = Number(ig.reels);
+    if (reels < posts / 3) {
+      formatWeights.Reel = Math.max(formatWeights.Reel || 1, 1.6);
+      formatReasons.Reel = `Cette idée est proposée car seulement ${formatNumber(reels)} Reel(s) ont été publiés contre ${formatNumber(posts)} publications le mois précédent : ce format, habituellement plus performant en portée, est sous-exploité et mérite d’être renforcé.`;
+    } else if (previousMonth) {
+      const reachEvo = computeEvolution(previousMonth.instagram.reach, ig.reach);
+      if (reachEvo.percent !== null && reachEvo.percent > 8) {
+        formatWeights.Reel = Math.max(formatWeights.Reel || 1, 1.3);
+        formatReasons.Reel = `Cette idée est proposée car la portée Instagram a progressé de ${formatSignedPercent(reachEvo.percent)} le mois précédent avec ${formatNumber(reels)} Reels publiés : ce format contribue à la dynamique et mérite d’être encore renforcé.`;
+      }
+    }
+  }
+
+  if (hv(ig.stories) && hv(ig.posts) && Number(ig.stories) < Number(ig.posts)) {
+    formatWeights.Story = Math.max(formatWeights.Story || 1, 1.4);
+    formatReasons.Story = `Cette idée est proposée car seulement ${formatNumber(ig.stories)} Story(ies) ont été publiées contre ${formatNumber(ig.posts)} publications le mois précédent : renforcer ce format permet de garder un contact quotidien avec la communauté.`;
+  }
+
+  if (hv(gb.googlePosts) && Number(gb.googlePosts) < 2) {
+    formatWeights['Publication Google Business'] = Math.max(formatWeights['Publication Google Business'] || 1, 1.6);
+    formatReasons['Publication Google Business'] = `Cette publication est recommandée car seulement ${formatNumber(gb.googlePosts)} publication(s) Google Business ont été postées le mois précédent : la fiche a besoin de davantage de publications pour améliorer la visibilité Google, conformément au plan d’action du Dashboard.`;
+  }
+  if (previousMonth) {
+    const ratingEvo = computeEvolution(previousMonth.googleBusiness.rating, gb.rating);
+    if (ratingEvo.percent !== null && ratingEvo.percent <= 0 && !formatReasons['Publication Google Business']) {
+      formatWeights['Publication Google Business'] = Math.max(formatWeights['Publication Google Business'] || 1, 1.4);
+      formatReasons['Publication Google Business'] = `Cette publication est recommandée car la note Google n’a pas progressé le mois précédent (${formatSignedPercent(ratingEvo.percent)}) : renforcer les publications Google Business afin d’améliorer la visibilité, conformément au plan d’action du Dashboard.`;
+    }
+  }
+
+  if (previousMonth) {
+    const reachEvo = computeEvolution(previousMonth.instagram.reach, ig.reach);
+    if (reachEvo.percent !== null && reachEvo.percent < 0) {
+      themeGoals.push(`Mettre en avant les offres et produits phares pour relancer la portée Instagram (recul de ${formatSignedPercent(reachEvo.percent)} le mois précédent, recommandation du Dashboard).`);
+    }
+    const bookingEvo = computeEvolution(previousMonth.beacons.bookingClicks, bc.bookingClicks);
+    if (bookingEvo.percent !== null && bookingEvo.percent < 0) {
+      themeGoals.push(`Mettre en avant les options de réservation en ligne, les clics de réservation Beacons ayant reculé de ${formatSignedPercent(bookingEvo.percent)} le mois précédent.`);
+    }
+  }
+
+  const objectivesRate = computeObjectivesRate(latestMonth);
+  if (objectivesRate !== null && objectivesRate < 50) {
+    const remaining = (latestMonth.monthlyObjectives || []).filter((objective) => !objective.done).map((objective) => objective.label);
+    if (remaining.length) {
+      themeGoals.push(`Générer du contenu adapté à l’objectif non atteint du Dashboard : ${remaining[0]}.`);
+    }
+  }
+
+  return { formatWeights, formatReasons, themeGoals };
+}
+
+function computeContentPlannerDashboardInsights(config) {
+  const bundle = getContentPlannerDashboardBundle(config);
+  if (!bundle) {
+    return { connected: false, hasData: false, bundle: null };
+  }
+  if (!bundle.latestMonthKey) {
+    return { connected: true, hasData: false, bundle };
+  }
+
+  const { latestMonth, previousMonth, clientData } = bundle;
+  const strengths = generateStrengths(latestMonth, previousMonth);
+  const weaknesses = generateWeaknesses(latestMonth, previousMonth);
+  const recommendations = generateRecommendations(latestMonth, previousMonth);
+  const priorities = buildNextMonthActionPlan(latestMonth, previousMonth);
+  const objectivesReached = (latestMonth.monthlyObjectives || []).filter((objective) => objective.done).map((objective) => objective.label);
+  const objectivesMissed = (latestMonth.monthlyObjectives || []).filter((objective) => !objective.done).map((objective) => objective.label);
+  const openActions = (latestMonth.actionPlan || []).filter((action) => action.status !== 'Terminé').map((action) => `${action.label} (${action.status})`);
+  const signals = computeContentPlannerDashboardSignals(latestMonth, previousMonth);
+
+  return {
+    connected: true,
+    hasData: true,
+    bundle,
+    monthLabel: latestMonth.label,
+    clientName: (clientData.general && clientData.general.name) || bundle.clientId,
+    strengths,
+    weaknesses,
+    recommendations,
+    priorities,
+    objectivesReached,
+    objectivesMissed,
+    openActions,
+    signals
+  };
+}
+
+function applyContentPlannerFormatWeight(base, weight, cap) {
+  if (!base || !weight || weight <= 1) {
+    return base;
+  }
+  const adjusted = Math.round(base * weight);
+  const capped = cap ? Math.min(adjusted, cap) : adjusted;
+  return Math.max(base, capped);
+}
+
+function buildContentPlannerDefaultJustification(objective, hasDashboard) {
+  if (hasDashboard) {
+    return `Contenu aligné sur l’objectif retenu pour ce mois, issu de la configuration et de l’analyse du Dashboard : ${objective || 'renforcer la présence de la marque'}.`;
+  }
+  return 'Contenu généré selon le rythme éditorial configuré (aucune donnée Dashboard connectée pour ce client pour affiner la stratégie).';
+}
+
+function createContentPlannerInsightList(items, tone, icon, emptyText) {
+  const list = document.createElement('div');
+  list.className = 'insight-list';
+  if (!items.length) {
+    const empty = document.createElement('p');
+    empty.className = 'insight-empty';
+    empty.textContent = emptyText;
+    list.appendChild(empty);
+    return list;
+  }
+  items.forEach((text) => {
+    const item = document.createElement('div');
+    item.className = `insight-item tone-${tone}`;
+    item.innerHTML = `<span class="insight-icon">${icon}</span><span class="insight-text">${escapeContentPlannerText(text)}</span>`;
+    list.appendChild(item);
+  });
+  return list;
+}
+
+function contentPlannerFormatLabel(type) {
+  return type === 'Publication Google Business' ? 'Publications Google Business' : `${type}s`;
+}
+
+function renderContentPlannerDashboardSection() {
+  const section = document.getElementById('contentPlannerDashboardSection');
+  if (!section) {
+    return;
+  }
+
+  const config = getContentPlannerConfig();
+  const options = getContentPlannerDashboardClientOptions();
+
+  section.innerHTML = `
+    <p class="eyebrow">Connexion Dashboard</p>
+    <h3>🔗 Analyse du mois précédent</h3>
+    <p>Le Planner récupère automatiquement les résultats du Dashboard du client pour construire la stratégie éditoriale du mois : chaque contenu généré est justifié par ces données.</p>
+  `;
+
+  if (!options.length) {
+    section.appendChild(createContentPlannerInsightList([], 'neutral', 'ℹ️', 'Aucun client n’existe encore dans le Dashboard Clients. Créez-le là-bas pour connecter automatiquement le Planner à ses résultats.'));
+    return;
+  }
+
+  const clientId = resolveContentPlannerDashboardClientId(config, options);
+
+  const linkRow = document.createElement('label');
+  linkRow.className = 'field-item';
+  const linkLabel = document.createElement('span');
+  linkLabel.textContent = 'Client Dashboard lié';
+  linkRow.appendChild(linkLabel);
+  const select = document.createElement('select');
+  select.className = 'field-input';
+  const noneOption = document.createElement('option');
+  noneOption.value = '';
+  noneOption.textContent = '— Aucun —';
+  select.appendChild(noneOption);
+  options.forEach((option) => {
+    const optionEl = document.createElement('option');
+    optionEl.value = option.id;
+    optionEl.textContent = option.name;
+    select.appendChild(optionEl);
+  });
+  select.value = clientId;
+  select.addEventListener('change', () => {
+    const freshConfig = getContentPlannerConfig();
+    freshConfig.dashboardClientId = select.value;
+    saveContentPlannerConfig(freshConfig);
+    renderContentPlannerDashboardSection();
+  });
+  linkRow.appendChild(select);
+  section.appendChild(linkRow);
+
+  if (!clientId) {
+    section.appendChild(createContentPlannerInsightList([], 'neutral', 'ℹ️', 'Sélectionnez le client Dashboard correspondant pour connecter automatiquement l’analyse du mois précédent (ou renseignez un nom de client identique dans la Configuration ci-dessus pour un rattachement automatique).'));
+    return;
+  }
+
+  const insights = computeContentPlannerDashboardInsights(config);
+
+  if (!insights.hasData) {
+    section.appendChild(createContentPlannerInsightList([], 'neutral', 'ℹ️', 'Aucune donnée mensuelle n’a encore été saisie dans le Dashboard pour ce client. Le Planner générera un calendrier standard tant qu’aucune donnée n’est disponible.'));
+    return;
+  }
+
+  const summary = document.createElement('p');
+  summary.className = 'notes-hint';
+  summary.textContent = `Analyse basée sur : ${insights.monthLabel} (${insights.clientName}).`;
+  section.appendChild(summary);
+
+  const kpiGrid = document.createElement('div');
+  kpiGrid.className = 'kpi-grid summary-grid';
+  const { latestMonth, previousMonth } = insights.bundle;
+  const googlePercent = averagePercentEvolution(googleScoreFields, latestMonth, previousMonth);
+  const instagramPercent = averagePercentEvolution(instagramScoreFields, latestMonth, previousMonth);
+  const beaconsPercent = averagePercentEvolution(beaconsScoreFields, latestMonth, previousMonth);
+  const objectivesDone = insights.objectivesReached.length;
+  const objectivesTotal = objectivesDone + insights.objectivesMissed.length;
+  const objectivesRate = computeObjectivesRate(latestMonth);
+  kpiGrid.appendChild(createEvolutionSummaryCard('Évolution Google Business', googlePercent));
+  kpiGrid.appendChild(createEvolutionSummaryCard('Évolution Instagram', instagramPercent));
+  kpiGrid.appendChild(createEvolutionSummaryCard('Évolution Beacons', beaconsPercent));
+  kpiGrid.appendChild(createObjectivesSummaryCard(objectivesDone, objectivesTotal, objectivesRate));
+  section.appendChild(kpiGrid);
+
+  const subGrid = document.createElement('div');
+
+  const strengthsBlock = document.createElement('div');
+  strengthsBlock.className = 'analysis-subsection';
+  strengthsBlock.innerHTML = '<h4>Meilleurs résultats du mois</h4>';
+  strengthsBlock.appendChild(createContentPlannerInsightList(insights.strengths, 'positive', '📈', 'Aucun résultat marquant identifié.'));
+  subGrid.appendChild(strengthsBlock);
+
+  const weaknessesBlock = document.createElement('div');
+  weaknessesBlock.className = 'analysis-subsection';
+  weaknessesBlock.innerHTML = '<h4>Résultats les plus faibles</h4>';
+  weaknessesBlock.appendChild(createContentPlannerInsightList(insights.weaknesses, 'high', '📉', 'Aucune faiblesse notable identifiée.'));
+  subGrid.appendChild(weaknessesBlock);
+
+  const objectivesBlock = document.createElement('div');
+  objectivesBlock.className = 'analysis-subsection';
+  objectivesBlock.innerHTML = '<h4>Objectifs du Dashboard</h4>';
+  const objectivesText = [
+    ...insights.objectivesReached.map((label) => `Atteint : ${label}`),
+    ...insights.objectivesMissed.map((label) => `Non atteint : ${label}`)
+  ];
+  objectivesBlock.appendChild(createContentPlannerInsightList(objectivesText, 'neutral', '🎯', 'Aucun objectif défini pour ce mois dans le Dashboard.'));
+  subGrid.appendChild(objectivesBlock);
+
+  const actionsBlock = document.createElement('div');
+  actionsBlock.className = 'analysis-subsection';
+  actionsBlock.innerHTML = '<h4>Plan d’action du Dashboard</h4>';
+  actionsBlock.appendChild(createContentPlannerInsightList(insights.openActions, 'medium', '🛠️', 'Aucune action en attente dans le Dashboard.'));
+  subGrid.appendChild(actionsBlock);
+
+  const recommendationsBlock = document.createElement('div');
+  recommendationsBlock.className = 'analysis-subsection';
+  recommendationsBlock.innerHTML = '<h4>Recommandations du Dashboard</h4>';
+  recommendationsBlock.appendChild(createContentPlannerInsightList(insights.recommendations, 'neutral', '💡', 'Aucune recommandation disponible.'));
+  subGrid.appendChild(recommendationsBlock);
+
+  const prioritiesBlock = document.createElement('div');
+  prioritiesBlock.className = 'analysis-subsection';
+  prioritiesBlock.innerHTML = '<h4>Priorités retenues pour le mois prochain</h4>';
+  prioritiesBlock.appendChild(createContentPlannerInsightList(insights.priorities, 'medium', '⭐', 'Aucune priorité identifiée.'));
+  subGrid.appendChild(prioritiesBlock);
+
+  section.appendChild(subGrid);
+
+  const strategyBlock = document.createElement('div');
+  strategyBlock.className = 'analysis-subsection';
+  strategyBlock.innerHTML = '<h4>Stratégie appliquée au calendrier</h4>';
+  const strategyTexts = Object.keys(insights.signals.formatReasons).map((type) => `${contentPlannerFormatLabel(type)} renforcés : ${insights.signals.formatReasons[type]}`);
+  if (insights.signals.themeGoals.length) {
+    strategyTexts.push(...insights.signals.themeGoals.map((goal) => `Thème prioritaire injecté dans les objectifs : ${goal}`));
+  }
+  strategyBlock.appendChild(createContentPlannerInsightList(strategyTexts, 'neutral', '🧭', 'Les formats actuels sont bien équilibrés : aucun ajustement automatique n’est nécessaire ce mois-ci.'));
+  section.appendChild(strategyBlock);
 }
 
 function getContentPlannerSeason(date) {
@@ -498,7 +838,7 @@ function buildContentPlannerCaption(hook, body, cta, type, seed) {
   return [hookLine, bodyLine, ctaLine].filter(Boolean).join('\n\n');
 }
 
-function scheduleContentPlannerItems(items, weekDays, count, platformKeys, type, goalCursorRef, goalPool, fallbackGoal, config, ideaCursorRef, usedSignatures) {
+function scheduleContentPlannerItems(items, weekDays, count, platformKeys, type, goalCursorRef, goalPool, fallbackGoal, config, ideaCursorRef, usedSignatures, dashboardReason, hasDashboard) {
   if (!count || !platformKeys.length || !weekDays.length) {
     return;
   }
@@ -527,24 +867,31 @@ function scheduleContentPlannerItems(items, weekDays, count, platformKeys, type,
       cta: idea.cta,
       captionBody,
       emojis: buildContentPlannerEmojiField(type, i),
-      caption: buildContentPlannerCaption(idea.hook, captionBody, idea.cta, type, i)
+      caption: buildContentPlannerCaption(idea.hook, captionBody, idea.cta, type, i),
+      justification: dashboardReason || buildContentPlannerDefaultJustification(objective, hasDashboard)
     });
   }
 }
 
-function generateContentPlannerItems(config, monthInfo) {
+function generateContentPlannerItems(config, monthInfo, strategy) {
   const items = [];
   const checkedPlatformKeys = contentPlannerPlatformOptions.filter((p) => config.platforms[p.key]).map((p) => p.key);
 
+  const weights = (strategy && strategy.formatWeights) || {};
+  const reasons = (strategy && strategy.formatReasons) || {};
+  const themeGoals = (strategy && strategy.themeGoals) || [];
+  const hasDashboard = Boolean(strategy);
+
   const postsPerWeek = Number(config.rhythm.postsPerWeek) || 0;
-  const reelsPerWeek = Number(config.rhythm.reelsPerWeek) || 0;
-  const storiesPerWeek = Number(config.rhythm.storiesPerWeek) || 0;
+  const reelsPerWeek = applyContentPlannerFormatWeight(Number(config.rhythm.reelsPerWeek) || 0, weights.Reel);
+  const storiesPerWeek = applyContentPlannerFormatWeight(Number(config.rhythm.storiesPerWeek) || 0, weights.Story);
+  const googleBusinessPerWeek = applyContentPlannerFormatWeight(1, weights['Publication Google Business'], 3);
 
   const feedPlatforms = contentPlannerFormatEligiblePlatforms.Publication.filter((key) => checkedPlatformKeys.includes(key));
   const reelsPlatforms = contentPlannerFormatEligiblePlatforms.Reel.filter((key) => checkedPlatformKeys.includes(key));
   const storiesPlatforms = contentPlannerFormatEligiblePlatforms.Story.filter((key) => checkedPlatformKeys.includes(key));
 
-  const goalPool = buildContentPlannerGoalPool(config);
+  const goalPool = buildContentPlannerGoalPool(config, themeGoals);
   const goalCursorRef = { value: 0 };
   const ideaCursors = {
     Publication: { value: 0 },
@@ -564,14 +911,14 @@ function generateContentPlannerItems(config, monthInfo) {
   const weeks = partitionContentPlannerDaysIntoWeeks(monthInfo.days);
 
   weeks.forEach((week) => {
-    scheduleContentPlannerItems(items, week.days, postsPerWeek, feedPlatforms, 'Publication', goalCursorRef, goalPool, 'Renforcer la notoriété et la préférence de marque.', config, ideaCursors.Publication, usedSignatures.Publication);
-    scheduleContentPlannerItems(items, week.days, reelsPerWeek, reelsPlatforms, 'Reel', goalCursorRef, goalPool, 'Augmenter la portée et l’engagement.', config, ideaCursors.Reel, usedSignatures.Reel);
-    scheduleContentPlannerItems(items, week.days, storiesPerWeek, storiesPlatforms, 'Story', goalCursorRef, goalPool, 'Maintenir le contact quotidien avec la communauté.', config, ideaCursors.Story, usedSignatures.Story);
+    scheduleContentPlannerItems(items, week.days, postsPerWeek, feedPlatforms, 'Publication', goalCursorRef, goalPool, 'Renforcer la notoriété et la préférence de marque.', config, ideaCursors.Publication, usedSignatures.Publication, reasons.Publication, hasDashboard);
+    scheduleContentPlannerItems(items, week.days, reelsPerWeek, reelsPlatforms, 'Reel', goalCursorRef, goalPool, 'Augmenter la portée et l’engagement.', config, ideaCursors.Reel, usedSignatures.Reel, reasons.Reel, hasDashboard);
+    scheduleContentPlannerItems(items, week.days, storiesPerWeek, storiesPlatforms, 'Story', goalCursorRef, goalPool, 'Maintenir le contact quotidien avec la communauté.', config, ideaCursors.Story, usedSignatures.Story, reasons.Story, hasDashboard);
     if (config.platforms.googleBusiness) {
-      scheduleContentPlannerItems(items, week.days, 1, ['googleBusiness'], 'Publication Google Business', goalCursorRef, goalPool, 'Améliorer la visibilité locale et le référencement.', config, ideaCursors['Publication Google Business'], usedSignatures['Publication Google Business']);
+      scheduleContentPlannerItems(items, week.days, googleBusinessPerWeek, ['googleBusiness'], 'Publication Google Business', goalCursorRef, goalPool, 'Améliorer la visibilité locale et le référencement.', config, ideaCursors['Publication Google Business'], usedSignatures['Publication Google Business'], reasons['Publication Google Business'], hasDashboard);
     }
     if (config.platforms.linkedin) {
-      scheduleContentPlannerItems(items, week.days, 2, ['linkedin'], 'Publication LinkedIn', goalCursorRef, goalPool, 'Renforcer la crédibilité professionnelle et la visibilité B2B.', config, ideaCursors['Publication LinkedIn'], usedSignatures['Publication LinkedIn']);
+      scheduleContentPlannerItems(items, week.days, 2, ['linkedin'], 'Publication LinkedIn', goalCursorRef, goalPool, 'Renforcer la crédibilité professionnelle et la visibilité B2B.', config, ideaCursors['Publication LinkedIn'], usedSignatures['Publication LinkedIn'], reasons['Publication LinkedIn'], hasDashboard);
     }
   });
 
@@ -802,6 +1149,9 @@ function createContentPlannerItemCard(item, checkedPlatforms) {
   const captionField = createContentPlannerIdeaField('Légende (prête à publier)', item.caption, item.id, 'caption', true, 5);
   captionField.classList.add('idea-field-full');
   ideaGrid.appendChild(captionField);
+  const justificationField = createContentPlannerIdeaField('Pourquoi ce contenu ?', item.justification, item.id, 'justification', true, 3);
+  justificationField.classList.add('idea-field-full');
+  ideaGrid.appendChild(justificationField);
   card.appendChild(ideaGrid);
 
   return card;
@@ -884,7 +1234,8 @@ function populateContentPlannerCalendarPanel(panel, checkedPlatforms, monthInfo,
       cta: idea.cta,
       captionBody,
       emojis: buildContentPlannerEmojiField(newItemType, ideaSeed),
-      caption: buildContentPlannerCaption(idea.hook, captionBody, idea.cta, newItemType, ideaSeed)
+      caption: buildContentPlannerCaption(idea.hook, captionBody, idea.cta, newItemType, ideaSeed),
+      justification: 'Publication ajoutée manuellement par le consultant, en dehors de l’analyse Dashboard.'
     });
     saveContentPlannerCalendar(freshCalendar);
     renderContentPlannerCalendarSection();
@@ -1016,7 +1367,11 @@ function renderContentPlannerCalendarSection() {
     }
     const freshConfig = getContentPlannerConfig();
     const freshMonthInfo = getContentPlannerMonthInfo();
-    const items = generateContentPlannerItems(freshConfig, freshMonthInfo);
+    const dashboardBundle = getContentPlannerDashboardBundle(freshConfig);
+    const strategy = (dashboardBundle && dashboardBundle.latestMonthKey)
+      ? computeContentPlannerDashboardSignals(dashboardBundle.latestMonth, dashboardBundle.previousMonth)
+      : null;
+    const items = generateContentPlannerItems(freshConfig, freshMonthInfo, strategy);
     saveContentPlannerCalendar({ monthKey: freshMonthInfo.monthKey, monthLabel: freshMonthInfo.monthLabel, items });
     renderContentPlannerCalendarSection();
   });
@@ -1409,7 +1764,7 @@ function generateContentPlannerPdf() {
     addCpPdfSubTitle(state, `Semaine ${index + 1} — ${formatContentPlannerWeekLabel(week.days)}`);
     addCpPdfBulletList(state, weekItems.map((item) => {
       const platform = getContentPlannerPlatformInfo(item.platformKey);
-      return `${dateLabelOf(item)} · ${platform.label} · ${item.type} — "${item.title || 'Sans titre'}" (média : ${item.mediaType || '—'}) — Objectif : ${item.objective || '—'} — Concept : ${item.concept || '—'}`;
+      return `${dateLabelOf(item)} · ${platform.label} · ${item.type} — "${item.title || 'Sans titre'}" (média : ${item.mediaType || '—'}) — Objectif : ${item.objective || '—'} — Concept : ${item.concept || '—'} — Pourquoi : ${item.justification || '—'}`;
     }));
   });
 
@@ -1479,7 +1834,7 @@ function generateContentPlannerPdf() {
 }
 
 function buildContentPlannerExcelPlanningRows(items) {
-  const header = ['Date', 'Jour', 'Plateforme', 'Type de contenu', 'Statut', 'Titre', 'Hook', 'Corps du texte', 'CTA recommandé', 'Emojis adaptés', 'Légende complète', 'Objectif marketing', 'Type de média'];
+  const header = ['Date', 'Jour', 'Plateforme', 'Type de contenu', 'Statut', 'Titre', 'Hook', 'Corps du texte', 'CTA recommandé', 'Emojis adaptés', 'Légende complète', 'Objectif marketing', 'Type de média', 'Pourquoi ce contenu ?'];
   const rows = items.map((item) => {
     const dateObj = new Date(`${item.date}T00:00:00`);
     const platform = getContentPlannerPlatformInfo(item.platformKey);
@@ -1496,7 +1851,8 @@ function buildContentPlannerExcelPlanningRows(items) {
       item.emojis || '',
       item.caption || '',
       item.objective || '',
-      item.mediaType || ''
+      item.mediaType || '',
+      item.justification || ''
     ];
   });
   return [header, ...rows];
@@ -1543,7 +1899,7 @@ function generateContentPlannerExcel() {
   planningSheet['!cols'] = [
     { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 24 }, { wch: 12 },
     { wch: 28 }, { wch: 32 }, { wch: 40 }, { wch: 28 }, { wch: 16 },
-    { wch: 50 }, { wch: 30 }, { wch: 18 }
+    { wch: 50 }, { wch: 30 }, { wch: 18 }, { wch: 50 }
   ];
   XLSX.utils.book_append_sheet(workbook, planningSheet, 'Planning éditorial');
 
@@ -1576,6 +1932,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderContentPlannerGoalsFields();
   renderContentPlannerPlatformChecklist();
   renderContentPlannerRhythmFields();
+  renderContentPlannerDashboardSection();
   renderContentPlannerCalendarSection();
 
   const pdfButton = document.getElementById('downloadContentPlannerPdfBtn');
