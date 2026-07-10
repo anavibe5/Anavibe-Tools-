@@ -1235,3 +1235,53 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+.optimization-plan-card {
+  padding: 20px 22px;
+  margin-top: 14px;
+  border-left: 4px solid var(--primary);
+}
+
+.optimization-plan-card.tone-high {
+  border-left-color: #c62828;
+}
+
+.optimization-plan-card.tone-medium {
+  border-left-color: #e08e2d;
+}
+
+.optimization-plan-card.tone-neutral {
+  border-left-color: var(--primary);
+}
+
+.optimization-plan-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.optimization-plan-step {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.optimization-plan-step .step-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--primary);
+}
+
+.optimization-plan-step .step-text {
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.optimization-plan-arrow {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  line-height: 1;
+  margin: 2px 0;
+}
