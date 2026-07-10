@@ -1285,3 +1285,10 @@ a {
   line-height: 1;
   margin: 2px 0;
 }
+
+.roadmap-item-header {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

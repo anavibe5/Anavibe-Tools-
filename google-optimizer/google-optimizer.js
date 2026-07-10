@@ -195,6 +195,7 @@ function renderGoogleOptimizerCompanyForm() {
       saveGoogleOptimizerData(freshData);
       refreshGoogleOptimizerWeaknessesSection();
       refreshGoogleOptimizerPlanSection();
+      refreshGoogleOptimizerRoadmapSection();
     });
     grid.appendChild(control);
   });
@@ -220,6 +221,7 @@ function renderGoogleOptimizerFicheForm() {
       refreshGoogleOptimizerScoreSection();
       refreshGoogleOptimizerWeaknessesSection();
       refreshGoogleOptimizerPlanSection();
+      refreshGoogleOptimizerRoadmapSection();
       refreshGoogleOptimizerPotentialSection();
     });
     grid.appendChild(control);
@@ -633,6 +635,76 @@ function refreshGoogleOptimizerPlanSection() {
   });
 }
 
+const googleOptimizerRoadmapPhaseConfig = [
+  { priorityKey: 'urgent', days: '30', title: '30 jours', subtitle: 'Actions urgentes' },
+  { priorityKey: 'important', days: '60', title: '60 jours', subtitle: 'Actions importantes' },
+  { priorityKey: 'optimisation', days: '90', title: '90 jours', subtitle: 'Optimisations' }
+];
+
+function createGoogleOptimizerRoadmapItem(weakness) {
+  const priorityInfo = googleOptimizerPriorityConfig.find((p) => p.key === weakness.priority);
+  const el = document.createElement('div');
+  el.className = `insight-item tone-${priorityInfo.tone}`;
+  el.innerHTML = `
+    <span class="insight-icon">📌</span>
+    <span class="insight-text">
+      <span class="roadmap-item-header">
+        <strong>${escapeGoogleOptimizerText(weakness.label)}</strong>
+        <span class="gauge-status-badge tone-${priorityInfo.tone}">${escapeGoogleOptimizerText(priorityInfo.title)}</span>
+      </span><br>
+      ${escapeGoogleOptimizerText(weakness.action)}<br>
+      <em>Impact attendu : ${escapeGoogleOptimizerText(weakness.expectedImpact)}</em>
+    </span>
+  `;
+  return el;
+}
+
+function createGoogleOptimizerRoadmapEmptyState() {
+  const empty = document.createElement('p');
+  empty.className = 'insight-empty';
+  empty.textContent = 'Aucune action nécessaire à cette échéance.';
+  return empty;
+}
+
+function refreshGoogleOptimizerRoadmapSection() {
+  const section = document.getElementById('googleOptimizerRoadmap');
+  if (!section) {
+    return;
+  }
+
+  const data = getGoogleOptimizerData();
+  const weaknesses = detectGoogleOptimizerWeaknesses(data.fiche, data.company);
+
+  section.innerHTML = `
+    <p class="eyebrow">Plan d’action</p>
+    <h3>🗺 Roadmap Google Business 30 / 60 / 90 jours</h3>
+    <p>Les actions sont réparties automatiquement selon leur degré d’urgence, du plus critique au plus long terme.</p>
+    <div class="roadmap-grid">
+      ${googleOptimizerRoadmapPhaseConfig.map((phase) => `
+        <div class="roadmap-column">
+          <p class="eyebrow">${phase.title}</p>
+          <h4>${escapeGoogleOptimizerText(phase.subtitle)}</h4>
+          <div class="insight-list" data-role="roadmap-list-${phase.days}"></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  googleOptimizerRoadmapPhaseConfig.forEach((phase) => {
+    const list = section.querySelector(`[data-role="roadmap-list-${phase.days}"]`);
+    const items = weaknesses.filter((weakness) => weakness.priority === phase.priorityKey);
+
+    if (!items.length) {
+      list.appendChild(createGoogleOptimizerRoadmapEmptyState());
+      return;
+    }
+
+    items.forEach((weakness) => {
+      list.appendChild(createGoogleOptimizerRoadmapItem(weakness));
+    });
+  });
+}
+
 const googleOptimizerFieldLabels = googleOptimizerFicheFieldsSchema.reduce((map, field) => {
   map[field.key] = field.label;
   return map;
@@ -835,5 +907,6 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshGoogleOptimizerScoreSection();
   refreshGoogleOptimizerWeaknessesSection();
   refreshGoogleOptimizerPlanSection();
+  refreshGoogleOptimizerRoadmapSection();
   refreshGoogleOptimizerPotentialSection();
 });
