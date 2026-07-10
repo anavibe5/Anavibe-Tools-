@@ -214,7 +214,72 @@ function renderContentPlannerRhythmFields() {
 const CONTENT_PLANNER_CALENDAR_KEY = 'anavibe-tools-content-planner-calendar';
 
 const contentPlannerContentTypes = ['Publication', 'Story', 'Reel', 'Publication Google Business', 'Publication LinkedIn'];
-const contentPlannerStatusOptions = ['À faire', 'En cours', 'Terminé'];
+const contentPlannerProductionStages = ['À tourner', 'Tourné', 'Monté', 'Programmé', 'Publié'];
+const contentPlannerLegacyStatusMap = { 'À faire': 'À tourner', 'En cours': 'Monté', 'Terminé': 'Publié' };
+
+function migrateContentPlannerItemStage(status) {
+  if (contentPlannerProductionStages.includes(status)) {
+    return status;
+  }
+  return contentPlannerLegacyStatusMap[status] || contentPlannerProductionStages[0];
+}
+
+function computeContentPlannerProductionStats(calendar) {
+  const items = (calendar && calendar.items) || [];
+  const total = items.length;
+  const stageIndex = (stage) => contentPlannerProductionStages.indexOf(stage);
+  const countAtLeast = (stage) => items.filter((item) => stageIndex(item.status) >= stageIndex(stage)).length;
+  return {
+    total,
+    tourne: countAtLeast('Tourné'),
+    monte: countAtLeast('Monté'),
+    programme: countAtLeast('Programmé'),
+    publie: countAtLeast('Publié')
+  };
+}
+
+function createContentPlannerProgressCard(icon, label, done, total) {
+  const card = document.createElement('div');
+  card.className = 'progress-card card';
+  const percent = total ? Math.round((done / total) * 100) : 0;
+  card.innerHTML = `
+    <span class="progress-label">${icon} ${escapeContentPlannerText(label)}</span>
+    <strong>${done} / ${total}</strong>
+    <div class="progress-track"><span class="progress-fill" style="width: ${percent}%"></span></div>
+  `;
+  return card;
+}
+
+function renderContentPlannerProductionProgress(calendar) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'section-block';
+  wrapper.dataset.cpProgressBlock = 'true';
+  wrapper.innerHTML = '<p class="eyebrow">Suivi de production</p><h3>Progression du mois</h3>';
+
+  const stats = computeContentPlannerProductionStats(calendar);
+  const grid = document.createElement('div');
+  grid.className = 'progress-grid';
+  grid.appendChild(createContentPlannerProgressCard('🎥', 'Tournage', stats.tourne, stats.total));
+  grid.appendChild(createContentPlannerProgressCard('✂️', 'Montage', stats.monte, stats.total));
+  grid.appendChild(createContentPlannerProgressCard('📅', 'Programmation', stats.programme, stats.total));
+  grid.appendChild(createContentPlannerProgressCard('✅', 'Publications', stats.publie, stats.total));
+  wrapper.appendChild(grid);
+
+  return wrapper;
+}
+
+function refreshContentPlannerProductionProgressDisplay() {
+  const section = document.getElementById('contentPlannerCalendarSection');
+  if (!section) {
+    return;
+  }
+  const existing = section.querySelector('[data-cp-progress-block="true"]');
+  const calendar = getContentPlannerCalendar();
+  if (!existing || !calendar) {
+    return;
+  }
+  existing.replaceWith(renderContentPlannerProductionProgress(calendar));
+}
 
 const contentPlannerFormatEligiblePlatforms = {
   Publication: ['instagram', 'facebook', 'tiktok'],
@@ -232,6 +297,9 @@ function getContentPlannerCalendar() {
     try {
       const parsed = JSON.parse(saved);
       if (parsed && Array.isArray(parsed.items)) {
+        parsed.items.forEach((item) => {
+          item.status = migrateContentPlannerItemStage(item.status);
+        });
         return parsed;
       }
     } catch (error) {
@@ -529,6 +597,12 @@ function renderContentPlannerDashboardSection() {
   }
 
   const clientId = resolveContentPlannerDashboardClientId(config, options);
+  if (clientId && config.dashboardClientId !== clientId) {
+    // Persists the auto-match so other pages reading raw localStorage (e.g. the Dashboard's
+    // production tracking) can resolve the same link without re-running the name-matching logic.
+    config.dashboardClientId = clientId;
+    saveContentPlannerConfig(config);
+  }
 
   const linkRow = document.createElement('label');
   linkRow.className = 'field-item';
@@ -859,7 +933,7 @@ function scheduleContentPlannerItems(items, weekDays, count, platformKeys, type,
       platformKey,
       type,
       objective,
-      status: contentPlannerStatusOptions[0],
+      status: contentPlannerProductionStages[0],
       title: idea.title,
       hook: idea.hook,
       concept: idea.concept,
@@ -1091,7 +1165,7 @@ function createContentPlannerItemCard(item, checkedPlatforms) {
 
   const statusSelect = document.createElement('select');
   statusSelect.className = 'status-select calendar-item-status';
-  contentPlannerStatusOptions.forEach((status) => {
+  contentPlannerProductionStages.forEach((status) => {
     const option = document.createElement('option');
     option.value = status;
     option.textContent = status;
@@ -1111,7 +1185,10 @@ function createContentPlannerItemCard(item, checkedPlatforms) {
   });
   platformSelect.addEventListener('change', () => updateContentPlannerItemField(item.id, 'platformKey', platformSelect.value));
   typeSelect.addEventListener('change', () => updateContentPlannerItemField(item.id, 'type', typeSelect.value));
-  statusSelect.addEventListener('change', () => updateContentPlannerItemField(item.id, 'status', statusSelect.value));
+  statusSelect.addEventListener('change', () => {
+    updateContentPlannerItemField(item.id, 'status', statusSelect.value);
+    refreshContentPlannerProductionProgressDisplay();
+  });
 
   removeButton.addEventListener('click', () => {
     const calendar = getContentPlannerCalendar();
@@ -1226,7 +1303,7 @@ function populateContentPlannerCalendarPanel(panel, checkedPlatforms, monthInfo,
       platformKey: checkedPlatforms[0].key,
       type: newItemType,
       objective: buildContentPlannerGoalPool(freshConfig)[0] || '',
-      status: contentPlannerStatusOptions[0],
+      status: contentPlannerProductionStages[0],
       title: idea.title,
       hook: idea.hook,
       concept: idea.concept,
@@ -1386,6 +1463,8 @@ function renderContentPlannerCalendarSection() {
     section.appendChild(empty);
     return;
   }
+
+  section.appendChild(renderContentPlannerProductionProgress(calendar));
 
   const tabNav = document.createElement('div');
   tabNav.className = 'planner-tab-nav';
