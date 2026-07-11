@@ -988,6 +988,49 @@ function populateRoadmapSection(section, platformKeys) {
   });
 }
 
+// Pousse la roadmap de l'audit dans le plan d'action du Dashboard du client lié, pour que le
+// consultant n'ait jamais à ressaisir les mêmes actions dans les deux modules.
+function sendAuditRoadmapToDashboard(platformKeys) {
+  const config = getAuditConfig();
+  const clientId = config.dashboardClientId || '';
+  if (!clientId || typeof getClientData !== 'function') {
+    window.alert('Reliez d’abord un client Dashboard dans la section « Profil Stratégique Client » ci-dessus.');
+    return;
+  }
+
+  const clientData = getClientData(clientId);
+  if (!clientData.monthOrder || !clientData.monthOrder.length) {
+    window.alert('Ce client n’a encore aucun mois créé dans le Dashboard. Créez d’abord un mois avant d’envoyer la roadmap.');
+    return;
+  }
+
+  const monthKey = clientData.selectedMonth && clientData.months[clientData.selectedMonth] ? clientData.selectedMonth : clientData.monthOrder[clientData.monthOrder.length - 1];
+  const monthData = clientData.months[monthKey];
+
+  const buckets = computeRoadmapBuckets(platformKeys);
+  const existingLabels = new Set((monthData.actionPlan || []).map((action) => action.label));
+  let added = 0;
+  buckets.forEach(({ phase, items }) => {
+    items.forEach((item) => {
+      const label = `[${phase.title}] ${item.platformTitle} — ${item.criterionLabel} : ${item.recommendation}`;
+      if (existingLabels.has(label)) {
+        return;
+      }
+      monthData.actionPlan.push({ id: generateId(), label, status: actionStatusOptions[0] });
+      existingLabels.add(label);
+      added += 1;
+    });
+  });
+
+  if (!added) {
+    window.alert('Toutes les actions de la roadmap sont déjà présentes dans le plan d’action de ce mois.');
+    return;
+  }
+
+  saveClientData(clientId, clientData);
+  window.alert(`${added} action(s) de la roadmap ajoutée(s) au plan d’action de ${monthData.label} pour ${clientData.general.name}.`);
+}
+
 function renderRoadmapSection(platformKeys) {
   const section = document.createElement('section');
   section.className = 'card audit-platform-card audit-roadmap-section';
@@ -996,6 +1039,9 @@ function renderRoadmapSection(platformKeys) {
     <p class="eyebrow">Plan d’action</p>
     <h3>🗺 Roadmap 30 / 60 / 90 jours</h3>
     <p>Les actions sont réparties automatiquement selon leur degré d’urgence, du plus critique au plus long terme.</p>
+    <div class="header-actions">
+      <button type="button" class="btn btn-secondary" data-role="send-roadmap-to-dashboard-btn">📤 Envoyer au plan d’action du Dashboard</button>
+    </div>
     <div class="roadmap-grid">
       ${roadmapPhaseConfig.map((phase) => `
         <div class="roadmap-column">
@@ -1007,6 +1053,7 @@ function renderRoadmapSection(platformKeys) {
     </div>
   `;
   populateRoadmapSection(section, platformKeys);
+  section.querySelector('[data-role="send-roadmap-to-dashboard-btn"]').addEventListener('click', () => sendAuditRoadmapToDashboard(platformKeys));
   return section;
 }
 

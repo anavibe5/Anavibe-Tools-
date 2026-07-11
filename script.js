@@ -2540,7 +2540,27 @@ function createDashboardCard(clientId) {
       return;
     }
 
-    freshData.months[key] = createEmptyMonthData(label);
+    const newMonth = createEmptyMonthData(label);
+
+    // Carries the previous month's open objectives and action plan (plus the
+    // recommendations its own analysis already produced) forward automatically,
+    // so closing a month and starting the next never requires retyping anything.
+    if (freshData.monthOrder.length) {
+      const previousKey = freshData.monthOrder[freshData.monthOrder.length - 1];
+      const previousMonth = freshData.months[previousKey];
+      const previousIndex = freshData.monthOrder.indexOf(previousKey);
+      const beforePreviousKey = previousIndex > 0 ? freshData.monthOrder[previousIndex - 1] : null;
+      const beforePreviousMonth = beforePreviousKey ? freshData.months[beforePreviousKey] : null;
+
+      newMonth.monthlyObjectives = (previousMonth.monthlyObjectives || [])
+        .filter((objective) => !objective.done)
+        .map((objective) => ({ id: generateId(), label: objective.label, done: false }));
+
+      newMonth.actionPlan = buildCarriedOverActionPlanItems(previousMonth, beforePreviousMonth)
+        .map((actionLabel) => ({ id: generateId(), label: actionLabel, status: actionStatusOptions[0] }));
+    }
+
+    freshData.months[key] = newMonth;
     freshData.monthOrder.push(key);
     freshData.selectedMonth = key;
     saveClientData(clientId, freshData);
@@ -3098,6 +3118,27 @@ function buildNextMonthActionPlan(monthData, previousMonthData) {
       return false;
     }
     seen.add(item);
+    return true;
+  });
+}
+
+// Seeds a brand-new month's action plan from the previous one, so closing a month and
+// opening the next never requires retyping open actions or the recommendations the
+// analysis already produced (unlike buildNextMonthActionPlan's narrative version above,
+// these are usable as-is as fresh action-plan item labels).
+function buildCarriedOverActionPlanItems(monthData, previousMonthData) {
+  const carriedLabels = (monthData.actionPlan || [])
+    .filter((action) => action.status !== 'Terminé')
+    .map((action) => action.label);
+
+  const recommendations = generateRecommendations(monthData, previousMonthData);
+
+  const seen = new Set();
+  return [...carriedLabels, ...recommendations].filter((label) => {
+    if (seen.has(label)) {
+      return false;
+    }
+    seen.add(label);
     return true;
   });
 }

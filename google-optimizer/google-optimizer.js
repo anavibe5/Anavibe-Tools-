@@ -792,6 +792,50 @@ function createGoogleOptimizerRoadmapEmptyState() {
   return empty;
 }
 
+// Pousse la roadmap Google Business dans le plan d'action du Dashboard du client lié, pour
+// que le consultant n'ait jamais à ressaisir les mêmes actions dans les deux modules.
+function sendGboRoadmapToDashboard(weaknesses) {
+  const data = getGoogleOptimizerData();
+  const clientId = data.dashboardClientId || '';
+  if (!clientId || typeof getClientData !== 'function') {
+    window.alert('Reliez d’abord un client Dashboard dans la section « Profil Stratégique Client » ci-dessus.');
+    return;
+  }
+
+  const clientData = getClientData(clientId);
+  if (!clientData.monthOrder || !clientData.monthOrder.length) {
+    window.alert('Ce client n’a encore aucun mois créé dans le Dashboard. Créez d’abord un mois avant d’envoyer la roadmap.');
+    return;
+  }
+
+  const monthKey = clientData.selectedMonth && clientData.months[clientData.selectedMonth] ? clientData.selectedMonth : clientData.monthOrder[clientData.monthOrder.length - 1];
+  const monthData = clientData.months[monthKey];
+
+  const existingLabels = new Set((monthData.actionPlan || []).map((action) => action.label));
+  let added = 0;
+  googleOptimizerRoadmapPhaseConfig.forEach((phase) => {
+    weaknesses
+      .filter((weakness) => weakness.priority === phase.priorityKey)
+      .forEach((weakness) => {
+        const label = `[${phase.title}] ${weakness.label} : ${weakness.action}`;
+        if (existingLabels.has(label)) {
+          return;
+        }
+        monthData.actionPlan.push({ id: generateId(), label, status: actionStatusOptions[0] });
+        existingLabels.add(label);
+        added += 1;
+      });
+  });
+
+  if (!added) {
+    window.alert('Toutes les actions de la roadmap sont déjà présentes dans le plan d’action de ce mois.');
+    return;
+  }
+
+  saveClientData(clientId, clientData);
+  window.alert(`${added} action(s) de la roadmap ajoutée(s) au plan d’action de ${monthData.label} pour ${clientData.general.name}.`);
+}
+
 function refreshGoogleOptimizerRoadmapSection() {
   const section = document.getElementById('googleOptimizerRoadmap');
   if (!section) {
@@ -805,6 +849,9 @@ function refreshGoogleOptimizerRoadmapSection() {
     <p class="eyebrow">Plan d’action</p>
     <h3>🗺 Roadmap Google Business 30 / 60 / 90 jours</h3>
     <p>Les actions sont réparties automatiquement selon leur degré d’urgence, du plus critique au plus long terme.</p>
+    <div class="header-actions">
+      <button type="button" class="btn btn-secondary" data-role="send-roadmap-to-dashboard-btn">📤 Envoyer au plan d’action du Dashboard</button>
+    </div>
     <div class="roadmap-grid">
       ${googleOptimizerRoadmapPhaseConfig.map((phase) => `
         <div class="roadmap-column">
@@ -829,6 +876,8 @@ function refreshGoogleOptimizerRoadmapSection() {
       list.appendChild(createGoogleOptimizerRoadmapItem(weakness));
     });
   });
+
+  section.querySelector('[data-role="send-roadmap-to-dashboard-btn"]').addEventListener('click', () => sendGboRoadmapToDashboard(weaknesses));
 }
 
 const googleOptimizerFieldLabels = googleOptimizerFicheFieldsSchema.reduce((map, field) => {
