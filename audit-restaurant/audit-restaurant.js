@@ -1028,6 +1028,9 @@ function sendAuditRoadmapToDashboard(platformKeys) {
   }
 
   saveClientData(clientId, clientData);
+  if (typeof appendClientHistoryEvent === 'function') {
+    appendClientHistoryEvent(clientId, 'roadmap', `Roadmap Audit Pro envoyée : ${added} action(s) ajoutée(s) au plan d’action de ${monthData.label}`);
+  }
   window.alert(`${added} action(s) de la roadmap ajoutée(s) au plan d’action de ${monthData.label} pour ${clientData.general.name}.`);
 }
 
@@ -1821,6 +1824,11 @@ function generateAuditPdf() {
 
   const dateStamp = new Date().toISOString().slice(0, 10);
   doc.save(`audit-pro-${slugifyAuditFilename(prospectName)}-${dateStamp}.pdf`);
+
+  const linkedClientId = config.dashboardClientId || '';
+  if (linkedClientId && typeof appendClientHistoryEvent === 'function') {
+    appendClientHistoryEvent(linkedClientId, 'audit', `Audit Pro : rapport PDF généré (score global ${globalScore}/100, ${platformNames})`);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

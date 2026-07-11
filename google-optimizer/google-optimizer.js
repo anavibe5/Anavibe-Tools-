@@ -833,6 +833,9 @@ function sendGboRoadmapToDashboard(weaknesses) {
   }
 
   saveClientData(clientId, clientData);
+  if (typeof appendClientHistoryEvent === 'function') {
+    appendClientHistoryEvent(clientId, 'roadmap', `Roadmap Google Business envoyée : ${added} action(s) ajoutée(s) au plan d’action de ${monthData.label}`);
+  }
   window.alert(`${added} action(s) de la roadmap ajoutée(s) au plan d’action de ${monthData.label} pour ${clientData.general.name}.`);
 }
 
@@ -1547,6 +1550,11 @@ function generateGoogleOptimizerPdf() {
 
   const dateStamp = new Date().toISOString().slice(0, 10);
   doc.save(`google-business-${slugifyGboFilename(data.company.name)}-${dateStamp}.pdf`);
+
+  const linkedClientId = data.dashboardClientId || '';
+  if (linkedClientId && typeof appendClientHistoryEvent === 'function') {
+    appendClientHistoryEvent(linkedClientId, 'audit', `Google Business Optimizer : rapport PDF généré (score ${Math.round(score)}/100)`);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

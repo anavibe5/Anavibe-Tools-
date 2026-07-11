@@ -154,6 +154,7 @@ function createEmptyInitialSituation() {
 function createEmptyMonthData(label) {
   return {
     label,
+    createdAt: new Date().toISOString(),
     googleBusiness: {
       rating: '',
       reviewsCount: '',
@@ -287,7 +288,9 @@ function createEmptyClientData(id, name) {
     monthOrder: [],
     selectedMonth: null,
     internalNotes: '',
-    caseStudyTestimonial: ''
+    caseStudyTestimonial: '',
+    history: [],
+    contentPlannerHistory: []
   };
 }
 
@@ -309,7 +312,9 @@ const clientSeedData = [
     monthOrder: [],
     selectedMonth: null,
     internalNotes: '',
-    caseStudyTestimonial: ''
+    caseStudyTestimonial: '',
+    history: [],
+    contentPlannerHistory: []
   },
   {
     id: 'toast-tea',
@@ -328,7 +333,9 @@ const clientSeedData = [
     monthOrder: [],
     selectedMonth: null,
     internalNotes: '',
-    caseStudyTestimonial: ''
+    caseStudyTestimonial: '',
+    history: [],
+    contentPlannerHistory: []
   }
 ];
 
@@ -383,7 +390,10 @@ function migrateLegacyClientData(data) {
     },
     monthOrder: [monthKey],
     selectedMonth: monthKey,
-    internalNotes: data.internalNotes || ''
+    internalNotes: data.internalNotes || '',
+    caseStudyTestimonial: data.caseStudyTestimonial || '',
+    history: data.history || [],
+    contentPlannerHistory: data.contentPlannerHistory || []
   };
 }
 
@@ -469,6 +479,12 @@ function getClientData(id) {
         delete parsed.clientDna;
         saveClientData(id, parsed);
       }
+      if (!Array.isArray(parsed.history)) {
+        parsed.history = [];
+      }
+      if (!Array.isArray(parsed.contentPlannerHistory)) {
+        parsed.contentPlannerHistory = [];
+      }
       return parsed;
     } catch (error) {
       // fall through to seed/empty
@@ -483,6 +499,43 @@ function getClientData(id) {
 
 function saveClientData(id, data) {
   localStorage.setItem(CLIENT_DATA_PREFIX + id, JSON.stringify(data));
+}
+
+const CLIENT_HISTORY_EVENT_TYPES = {
+  audit: { icon: '🔎', label: 'Audit' },
+  roadmap: { icon: '🗺', label: 'Roadmap' },
+  'report-pdf': { icon: '📄', label: 'Rapport PDF' },
+  'case-study': { icon: '📚', label: 'Étude de cas' },
+  planner: { icon: '📅', label: 'Content Planner' },
+  export: { icon: '📤', label: 'Export' }
+};
+
+const CLIENT_HISTORY_MAX_EVENTS = 200;
+
+// Shared, append-only activity log written by every module that touches a Dashboard
+// client (Audit Pro, Google Optimizer, Content Planner, Dashboard itself), read back by
+// the client's Historique timeline. Never modifies anything else on the client record.
+function appendClientHistoryEvent(clientId, type, label) {
+  if (typeof getClientData !== 'function' || typeof saveClientData !== 'function' || !clientId) {
+    return;
+  }
+  const data = getClientData(clientId);
+  if (!data) {
+    return;
+  }
+  if (!Array.isArray(data.history)) {
+    data.history = [];
+  }
+  data.history.push({
+    id: generateId(),
+    type,
+    label,
+    date: new Date().toISOString()
+  });
+  if (data.history.length > CLIENT_HISTORY_MAX_EVENTS) {
+    data.history = data.history.slice(data.history.length - CLIENT_HISTORY_MAX_EVENTS);
+  }
+  saveClientData(clientId, data);
 }
 
 function setupMobileMenu() {
@@ -2369,6 +2422,74 @@ function renderCaseStudySection(clientId) {
   return block;
 }
 
+// Merges every recorded milestone for this client - collaboration start, each Dashboard
+// month created, and every history event logged by any module (audits, roadmaps sent,
+// PDF reports, case studies, Content Planner generations/exports) - into one chronological
+// timeline. Months created before this feature existed have no createdAt timestamp: they
+// are placed in monthOrder sequence, before any dated event, as the best available guess.
+function renderClientHistoryTimeline(panel, clientId) {
+  const data = getClientData(clientId);
+
+  panel.innerHTML = `
+    <p class="eyebrow">Historique</p>
+    <h3>🕒 Timeline complète</h3>
+    <p>Tous les événements marquants de la collaboration avec ce client, dans l’ordre chronologique : audits, roadmaps, dashboards mensuels, rapports PDF, études de cas, Content Planner et exports.</p>
+  `;
+
+  const events = [];
+
+  if (data.general.startDate) {
+    events.push({
+      date: data.general.startDate,
+      icon: '🚀',
+      label: `Début de collaboration${data.general.offer ? ` — ${data.general.offer}` : ''}`
+    });
+  }
+
+  data.monthOrder.forEach((key, index) => {
+    const month = data.months[key];
+    if (!month) {
+      return;
+    }
+    events.push({
+      date: month.createdAt || null,
+      fallbackOrder: index,
+      icon: '📊',
+      label: `Dashboard mensuel créé : ${month.label}`
+    });
+  });
+
+  (data.history || []).forEach((entry) => {
+    const meta = CLIENT_HISTORY_EVENT_TYPES[entry.type] || { icon: '•' };
+    events.push({ date: entry.date, icon: meta.icon, label: entry.label });
+  });
+
+  events.sort((a, b) => {
+    const aTime = a.date ? new Date(a.date).getTime() : (a.fallbackOrder || 0) - 1000000;
+    const bTime = b.date ? new Date(b.date).getTime() : (b.fallbackOrder || 0) - 1000000;
+    return aTime - bTime;
+  });
+
+  if (!events.length) {
+    const empty = document.createElement('p');
+    empty.className = 'insight-empty';
+    empty.textContent = 'Aucun événement enregistré pour ce client pour le moment.';
+    panel.appendChild(empty);
+    return;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'insight-list';
+  events.forEach((event) => {
+    const item = document.createElement('div');
+    item.className = 'insight-item tone-neutral';
+    const dateLabel = event.date ? new Date(event.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Date non renseignée';
+    item.innerHTML = `<span class="insight-icon">${event.icon}</span><span class="insight-text"><strong>${escapeHtml(dateLabel)}</strong> — ${escapeHtml(event.label)}</span>`;
+    list.appendChild(item);
+  });
+  panel.appendChild(list);
+}
+
 function createDashboardCard(clientId) {
   const data = getClientData(clientId);
   const article = document.createElement('article');
@@ -2404,28 +2525,42 @@ function createDashboardCard(clientId) {
   dnaTabBtn.type = 'button';
   dnaTabBtn.className = 'planner-tab-btn';
   dnaTabBtn.textContent = '🧠 Profil Stratégique Client';
+  const historyTabBtn = document.createElement('button');
+  historyTabBtn.type = 'button';
+  historyTabBtn.className = 'planner-tab-btn';
+  historyTabBtn.textContent = '🕒 Historique';
   clientTabNav.appendChild(ficheTabBtn);
   clientTabNav.appendChild(dnaTabBtn);
+  clientTabNav.appendChild(historyTabBtn);
   article.appendChild(clientTabNav);
 
   const fichePanel = document.createElement('div');
   fichePanel.className = 'planner-tab-panel';
   const dnaPanel = document.createElement('div');
   dnaPanel.className = 'planner-tab-panel hidden';
+  const historyPanel = document.createElement('div');
+  historyPanel.className = 'planner-tab-panel hidden';
   article.appendChild(fichePanel);
   article.appendChild(dnaPanel);
+  article.appendChild(historyPanel);
 
-  ficheTabBtn.addEventListener('click', () => {
-    ficheTabBtn.classList.add('active');
-    dnaTabBtn.classList.remove('active');
-    fichePanel.classList.remove('hidden');
-    dnaPanel.classList.add('hidden');
-  });
-  dnaTabBtn.addEventListener('click', () => {
-    dnaTabBtn.classList.add('active');
-    ficheTabBtn.classList.remove('active');
-    dnaPanel.classList.remove('hidden');
-    fichePanel.classList.add('hidden');
+  const clientTabs = [
+    { button: ficheTabBtn, panel: fichePanel },
+    { button: dnaTabBtn, panel: dnaPanel },
+    { button: historyTabBtn, panel: historyPanel }
+  ];
+  const activateClientTab = (activeEntry) => {
+    clientTabs.forEach((entry) => {
+      const isActive = entry === activeEntry;
+      entry.button.classList.toggle('active', isActive);
+      entry.panel.classList.toggle('hidden', !isActive);
+    });
+  };
+  ficheTabBtn.addEventListener('click', () => activateClientTab(clientTabs[0]));
+  dnaTabBtn.addEventListener('click', () => activateClientTab(clientTabs[1]));
+  historyTabBtn.addEventListener('click', () => {
+    activateClientTab(clientTabs[2]);
+    renderClientHistoryTimeline(historyPanel, clientId);
   });
 
   dnaPanel.appendChild(renderFieldSection(clientStrategicProfileFieldsSchema));
@@ -3302,6 +3437,7 @@ function generateClientReportPdf(clientId) {
 
   const fileName = `Rapport-AnaVibe-${normalizeId(data.general.name || clientId)}-${selectedMonth}.pdf`;
   doc.save(fileName);
+  appendClientHistoryEvent(clientId, 'report-pdf', `Rapport PDF mensuel téléchargé (${monthData.label})`);
 }
 
 function createBeforeAfterBarChartImage(title, beforeValue, afterValue) {
@@ -3608,6 +3744,7 @@ function generateCaseStudyPdf(clientId) {
 
   const fileName = `Etude-de-cas-AnaVibe-${normalizeId(context.client.general.name || clientId)}.pdf`;
   doc.save(fileName);
+  appendClientHistoryEvent(clientId, 'case-study', 'Étude de cas PDF téléchargée');
 }
 
 function createNoSelectionCard() {

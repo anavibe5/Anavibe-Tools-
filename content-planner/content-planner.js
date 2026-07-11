@@ -600,8 +600,8 @@ function computeContentPlannerDashboardInsights(config) {
   };
 }
 
-function buildContentPlannerStrategyForGeneration(config) {
-  const bundle = getContentPlannerDashboardBundle(config);
+function buildContentPlannerStrategyForGeneration(config, prefetchedBundle) {
+  const bundle = prefetchedBundle || getContentPlannerDashboardBundle(config);
   if (!bundle) {
     return null;
   }
@@ -621,6 +621,141 @@ function buildContentPlannerStrategyForGeneration(config) {
     formatWeights: signals.formatWeights,
     formatReasons: signals.formatReasons,
     themeGoals: [...signals.themeGoals, ...profileSignals.themeGoals]
+  };
+}
+
+// --- Logique d'apprentissage : le Planner se souvient, par client, des mois déjà générés
+// (calendrier + stratégie appliquée) pour ne jamais reproposer les mêmes idées, détecter ce
+// qui fonctionne réellement (évolution des KPI après un renforcement de format), et éviter de
+// renforcer indéfiniment un format qui ne produit plus de résultat.
+
+function getContentPlannerArchivedSignatures(clientData) {
+  const signatures = {
+    Publication: new Set(),
+    Reel: new Set(),
+    Story: new Set(),
+    'Publication Google Business': new Set(),
+    'Publication LinkedIn': new Set()
+  };
+  const history = (clientData && clientData.contentPlannerHistory) || [];
+  history.forEach((entry) => {
+    (entry.items || []).forEach((item) => {
+      if (signatures[item.type]) {
+        signatures[item.type].add(`${item.title}|${item.hook}|${item.concept}`);
+      }
+    });
+  });
+  return signatures;
+}
+
+// Archives the calendar currently on screen into the linked client's own history the moment
+// generation moves to a genuinely new month (never on a same-month "Régénérer"), so next
+// month's generation can learn from it. Capped to the last 12 months.
+function archiveContentPlannerCalendarIfNeeded(bundle, newMonthKey) {
+  if (!bundle || !bundle.clientId) {
+    return;
+  }
+  const currentCalendar = getContentPlannerCalendar();
+  if (!currentCalendar || currentCalendar.monthKey === newMonthKey) {
+    return;
+  }
+
+  const clientData = getClientData(bundle.clientId);
+  if (!Array.isArray(clientData.contentPlannerHistory)) {
+    clientData.contentPlannerHistory = [];
+  }
+  clientData.contentPlannerHistory.push({
+    monthKey: currentCalendar.monthKey,
+    monthLabel: currentCalendar.monthLabel,
+    items: currentCalendar.items,
+    strategySnapshot: currentCalendar.strategySnapshot || null,
+    archivedAt: new Date().toISOString()
+  });
+
+  const maxEntries = 12;
+  if (clientData.contentPlannerHistory.length > maxEntries) {
+    clientData.contentPlannerHistory = clientData.contentPlannerHistory.slice(clientData.contentPlannerHistory.length - maxEntries);
+  }
+  saveClientData(bundle.clientId, clientData);
+}
+
+// Compares this month's proposed format boosts against the archived history: a format
+// boosted before and confirmed by a real KPI improvement is reinforced; a format boosted
+// for 2+ consecutive months with no improvement has its volume increase capped and is
+// redirected towards a different creative angle instead of "more of the same".
+function computeContentPlannerLearningAdjustments(bundle, baseStrategy) {
+  const insights = [];
+  if (!baseStrategy || !bundle || !bundle.latestMonthKey) {
+    return { strategy: baseStrategy, insights };
+  }
+
+  const history = (bundle.clientData && bundle.clientData.contentPlannerHistory) || [];
+  if (!history.length) {
+    return { strategy: baseStrategy, insights };
+  }
+
+  const lastEntry = history[history.length - 1];
+  const lastWeights = (lastEntry.strategySnapshot && lastEntry.strategySnapshot.formatWeights) || {};
+
+  const ig = bundle.latestMonth.instagram || {};
+  const gb = bundle.latestMonth.googleBusiness || {};
+  const prevIg = (bundle.previousMonth && bundle.previousMonth.instagram) || {};
+  const prevGb = (bundle.previousMonth && bundle.previousMonth.googleBusiness) || {};
+
+  const metricConfig = {
+    Reel: { label: 'la portée Instagram', percent: bundle.previousMonth ? computeEvolution(prevIg.reach, ig.reach).percent : null },
+    Story: { label: 'les visites de profil Instagram', percent: bundle.previousMonth ? computeEvolution(prevIg.profileVisits, ig.profileVisits).percent : null },
+    'Publication Google Business': { label: 'les vues de la fiche Google', percent: bundle.previousMonth ? computeEvolution(prevGb.profileViews, gb.profileViews).percent : null }
+  };
+
+  const adjustedWeights = { ...baseStrategy.formatWeights };
+  const extraReasons = {};
+  const extraThemeGoals = [];
+
+  Object.keys(baseStrategy.formatWeights).forEach((format) => {
+    const wasBoostedLastTime = (lastWeights[format] || 1) > 1;
+    if (!wasBoostedLastTime) {
+      return;
+    }
+
+    let streak = 0;
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+      const weights = (history[i].strategySnapshot && history[i].strategySnapshot.formatWeights) || {};
+      if ((weights[format] || 1) > 1) {
+        streak += 1;
+      } else {
+        break;
+      }
+    }
+
+    const metric = metricConfig[format];
+    const improved = metric && metric.percent !== null && metric.percent > 5;
+    const formatLabel = contentPlannerFormatLabel(format);
+
+    if (improved) {
+      insights.push({
+        tone: 'positive',
+        text: `${formatLabel} renforcés depuis ${streak} mois : ${metric.label} a progressé de ${formatSignedPercent(metric.percent)}, cette stratégie est confirmée.`
+      });
+    } else if (streak >= 2) {
+      adjustedWeights[format] = Math.min(adjustedWeights[format], 1.15);
+      const metricNote = metric && metric.percent !== null ? ` (${metric.label} : ${formatSignedPercent(metric.percent)})` : '';
+      extraReasons[format] = `Ce format a été renforcé ${streak} mois de suite sans progression nette${metricNote} : plutôt que d’augmenter encore le volume, cette idée explore un angle différent.`;
+      extraThemeGoals.push(`Tester un nouvel angle créatif sur les ${formatLabel.toLowerCase()} (nouveau sujet, nouvelle accroche) plutôt que d’augmenter encore le volume, sans progression depuis ${streak} mois.`);
+      insights.push({
+        tone: 'high',
+        text: `${formatLabel} renforcés ${streak} mois de suite sans progression${metricNote} : le Planner réduit l’augmentation de volume et propose un angle différent ce mois-ci plutôt que de répéter la même stratégie.`
+      });
+    }
+  });
+
+  return {
+    strategy: {
+      formatWeights: adjustedWeights,
+      formatReasons: { ...baseStrategy.formatReasons, ...extraReasons },
+      themeGoals: [...baseStrategy.themeGoals, ...extraThemeGoals]
+    },
+    insights
   };
 }
 
@@ -828,6 +963,30 @@ function renderContentPlannerDashboardSection() {
   }
   strategyBlock.appendChild(createContentPlannerInsightList(strategyTexts, 'neutral', '🧭', 'Les formats actuels sont bien équilibrés : aucun ajustement automatique n’est nécessaire ce mois-ci.'));
   section.appendChild(strategyBlock);
+
+  const currentCalendar = getContentPlannerCalendar();
+  const learningInsights = (currentCalendar && currentCalendar.learningInsights) || [];
+  const learningBlock = document.createElement('div');
+  learningBlock.className = 'analysis-subsection';
+  learningBlock.innerHTML = '<h4>🧠 Ce que le Planner a appris</h4>';
+  const learningList = document.createElement('div');
+  learningList.className = 'insight-list';
+  if (!learningInsights.length) {
+    const empty = document.createElement('p');
+    empty.className = 'insight-empty';
+    empty.textContent = 'Pas encore assez d’historique pour ce client : l’apprentissage se construira au fil des mois générés.';
+    learningList.appendChild(empty);
+  } else {
+    const learningIcons = { positive: '✅', high: '🔁', medium: '🔁', neutral: '💡' };
+    learningInsights.forEach((insight) => {
+      const item = document.createElement('div');
+      item.className = `insight-item tone-${insight.tone || 'neutral'}`;
+      item.innerHTML = `<span class="insight-icon">${learningIcons[insight.tone] || '💡'}</span><span class="insight-text">${escapeContentPlannerText(insight.text)}</span>`;
+      learningList.appendChild(item);
+    });
+  }
+  learningBlock.appendChild(learningList);
+  section.appendChild(learningBlock);
 }
 
 function getContentPlannerSeason(date) {
@@ -1059,7 +1218,7 @@ function scheduleContentPlannerItems(items, weekDays, count, platformKeys, type,
   }
 }
 
-function generateContentPlannerItems(config, monthInfo, strategy) {
+function generateContentPlannerItems(config, monthInfo, strategy, historicalSignatures) {
   const items = [];
   const checkedPlatformKeys = contentPlannerPlatformOptions.filter((p) => config.platforms[p.key]).map((p) => p.key);
 
@@ -1086,12 +1245,14 @@ function generateContentPlannerItems(config, monthInfo, strategy) {
     'Publication Google Business': { value: 0 },
     'Publication LinkedIn': { value: 0 }
   };
+  // Seeded with signatures from previously archived months (same client) so the same
+  // hook/title/concept is never proposed again across months, not just within one month.
   const usedSignatures = {
-    Publication: new Set(),
-    Reel: new Set(),
-    Story: new Set(),
-    'Publication Google Business': new Set(),
-    'Publication LinkedIn': new Set()
+    Publication: new Set(historicalSignatures ? historicalSignatures.Publication : undefined),
+    Reel: new Set(historicalSignatures ? historicalSignatures.Reel : undefined),
+    Story: new Set(historicalSignatures ? historicalSignatures.Story : undefined),
+    'Publication Google Business': new Set(historicalSignatures ? historicalSignatures['Publication Google Business'] : undefined),
+    'Publication LinkedIn': new Set(historicalSignatures ? historicalSignatures['Publication LinkedIn'] : undefined)
   };
 
   const weeks = partitionContentPlannerDaysIntoWeeks(monthInfo.days);
@@ -1556,9 +1717,27 @@ function renderContentPlannerCalendarSection() {
     }
     const freshConfig = getContentPlannerConfig();
     const freshMonthInfo = getContentPlannerMonthInfo();
-    const strategy = buildContentPlannerStrategyForGeneration(freshConfig);
-    const items = generateContentPlannerItems(freshConfig, freshMonthInfo, strategy);
-    saveContentPlannerCalendar({ monthKey: freshMonthInfo.monthKey, monthLabel: freshMonthInfo.monthLabel, items });
+    const bundle = getContentPlannerDashboardBundle(freshConfig);
+    const baseStrategy = buildContentPlannerStrategyForGeneration(freshConfig, bundle);
+    const learning = computeContentPlannerLearningAdjustments(bundle, baseStrategy);
+    const finalStrategy = learning.strategy;
+    const historicalSignatures = (bundle && bundle.clientData) ? getContentPlannerArchivedSignatures(bundle.clientData) : null;
+
+    archiveContentPlannerCalendarIfNeeded(bundle, freshMonthInfo.monthKey);
+
+    const items = generateContentPlannerItems(freshConfig, freshMonthInfo, finalStrategy, historicalSignatures);
+    saveContentPlannerCalendar({
+      monthKey: freshMonthInfo.monthKey,
+      monthLabel: freshMonthInfo.monthLabel,
+      items,
+      strategySnapshot: finalStrategy,
+      learningInsights: learning.insights
+    });
+
+    if (bundle && bundle.clientId) {
+      appendClientHistoryEvent(bundle.clientId, 'planner', `Calendrier éditorial généré pour ${freshMonthInfo.monthLabel} (${items.length} publications)`);
+    }
+
     renderContentPlannerCalendarSection();
   });
   actionsRow.appendChild(generateButton);
@@ -2019,6 +2198,10 @@ function generateContentPlannerPdf() {
 
   const dateStamp = new Date().toISOString().slice(0, 10);
   doc.save(`content-planner-${slugifyCpFilename(config.client.name)}-${monthInfo.monthKey}-${dateStamp}.pdf`);
+
+  if (config.dashboardClientId) {
+    appendClientHistoryEvent(config.dashboardClientId, 'export', `Export PDF du Content Planner téléchargé (${monthInfo.monthLabel})`);
+  }
 }
 
 function buildContentPlannerExcelPlanningRows(items) {
@@ -2113,6 +2296,10 @@ function generateContentPlannerExcel() {
 
   const dateStamp = new Date().toISOString().slice(0, 10);
   XLSX.writeFile(workbook, `content-planner-${slugifyCpFilename(config.client.name)}-${monthInfo.monthKey}-${dateStamp}.xlsx`);
+
+  if (config.dashboardClientId) {
+    appendClientHistoryEvent(config.dashboardClientId, 'export', `Export Excel du Content Planner téléchargé (${monthInfo.monthLabel})`);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
