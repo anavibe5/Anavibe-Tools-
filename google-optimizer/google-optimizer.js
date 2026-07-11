@@ -1431,6 +1431,17 @@ function buildGboPdfConclusion(company, score, level, globalPotential) {
 }
 
 function generateGoogleOptimizerPdf() {
+  try {
+    generateGoogleOptimizerPdfUnsafe();
+  } catch (error) {
+    // A silent failure here used to leave the button looking clickable but doing nothing;
+    // always surface what went wrong instead.
+    console.error('Échec de la génération du rapport Google Business Optimizer :', error);
+    window.alert('La génération du PDF a échoué. Rechargez la page et réessayez ; si le problème persiste, signalez ce message : ' + (error && error.message ? error.message : error));
+  }
+}
+
+function generateGoogleOptimizerPdfUnsafe() {
   if (!window.jspdf || !window.jspdf.jsPDF) {
     window.alert('Le module de génération PDF n’a pas pu se charger. Rechargez la page et réessayez.');
     return;
@@ -1569,17 +1580,28 @@ function generateGoogleOptimizerPdf() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  renderGoogleOptimizerCompanyForm();
-  renderGboDashboardSection();
-  renderGoogleOptimizerFicheForm();
-  refreshGoogleOptimizerScoreSection();
-  refreshGoogleOptimizerWeaknessesSection();
-  refreshGoogleOptimizerPlanSection();
-  refreshGoogleOptimizerRoadmapSection();
-  refreshGoogleOptimizerPotentialSection();
-
+  // Wired first and unconditionally: a failure in any of the render steps below must never
+  // leave this button looking clickable while silently doing nothing.
   const pdfButton = document.getElementById('downloadGoogleOptimizerPdfBtn');
   if (pdfButton) {
     pdfButton.addEventListener('click', generateGoogleOptimizerPdf);
   }
+
+  const initSteps = [
+    renderGoogleOptimizerCompanyForm,
+    renderGboDashboardSection,
+    renderGoogleOptimizerFicheForm,
+    refreshGoogleOptimizerScoreSection,
+    refreshGoogleOptimizerWeaknessesSection,
+    refreshGoogleOptimizerPlanSection,
+    refreshGoogleOptimizerRoadmapSection,
+    refreshGoogleOptimizerPotentialSection
+  ];
+  initSteps.forEach((step) => {
+    try {
+      step();
+    } catch (error) {
+      console.error(`Google Business Optimizer : échec de l’initialisation de "${step.name}"`, error);
+    }
+  });
 });

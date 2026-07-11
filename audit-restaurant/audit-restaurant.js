@@ -1651,6 +1651,15 @@ function drawAuditPdfCoverPage(doc, config, platformKeys, prospectName, consulta
 }
 
 function generateAuditPdf() {
+  try {
+    generateAuditPdfUnsafe();
+  } catch (error) {
+    console.error('Échec de la génération du rapport Audit Pro :', error);
+    window.alert('La génération du PDF a échoué. Rechargez la page et réessayez ; si le problème persiste, signalez ce message : ' + (error && error.message ? error.message : error));
+  }
+}
+
+function generateAuditPdfUnsafe() {
   if (!window.jspdf || !window.jspdf.jsPDF) {
     window.alert('Le module de génération PDF n’a pas pu se charger. Rechargez la page et réessayez.');
     return;
@@ -1834,13 +1843,19 @@ function generateAuditPdf() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  renderActivityTypeGrid();
-  renderPlatformChecklist();
-  renderAuditDashboardSection();
-  renderPlatformAudits();
-
+  // Wired first and unconditionally: a failure in any of the render steps below must never
+  // leave this button looking clickable while silently doing nothing.
   const pdfButton = document.getElementById('downloadAuditPdfBtn');
   if (pdfButton) {
     pdfButton.addEventListener('click', generateAuditPdf);
   }
+
+  const initSteps = [renderActivityTypeGrid, renderPlatformChecklist, renderAuditDashboardSection, renderPlatformAudits];
+  initSteps.forEach((step) => {
+    try {
+      step();
+    } catch (error) {
+      console.error(`Audit Pro : échec de l’initialisation de "${step.name}"`, error);
+    }
+  });
 });

@@ -2069,6 +2069,15 @@ function drawCpPdfCoverPage(doc, config, monthInfo, calendar, consultantName) {
 }
 
 function generateContentPlannerPdf() {
+  try {
+    generateContentPlannerPdfUnsafe();
+  } catch (error) {
+    console.error('Échec de la génération du rapport Content Planner :', error);
+    window.alert('La génération du PDF a échoué. Rechargez la page et réessayez ; si le problème persiste, signalez ce message : ' + (error && error.message ? error.message : error));
+  }
+}
+
+function generateContentPlannerPdfUnsafe() {
   if (!window.jspdf || !window.jspdf.jsPDF) {
     window.alert('Le module de génération PDF n’a pas pu se charger. Rechargez la page et réessayez.');
     return;
@@ -2257,6 +2266,15 @@ function buildContentPlannerExcelShootingRows(videoItems) {
 }
 
 function generateContentPlannerExcel() {
+  try {
+    generateContentPlannerExcelUnsafe();
+  } catch (error) {
+    console.error('Échec de la génération de l’export Excel Content Planner :', error);
+    window.alert('La génération de l’Excel a échoué. Rechargez la page et réessayez ; si le problème persiste, signalez ce message : ' + (error && error.message ? error.message : error));
+  }
+}
+
+function generateContentPlannerExcelUnsafe() {
   if (!window.XLSX) {
     window.alert('Le module d’export Excel n’a pas pu se charger. Rechargez la page et réessayez.');
     return;
@@ -2311,13 +2329,8 @@ function generateContentPlannerExcel() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  renderContentPlannerClientFields();
-  renderContentPlannerGoalsFields();
-  renderContentPlannerPlatformChecklist();
-  renderContentPlannerRhythmFields();
-  renderContentPlannerDashboardSection();
-  renderContentPlannerCalendarSection();
-
+  // Wired first and unconditionally: a failure in any of the render steps below must never
+  // leave these buttons looking clickable while silently doing nothing.
   const pdfButton = document.getElementById('downloadContentPlannerPdfBtn');
   if (pdfButton) {
     pdfButton.addEventListener('click', generateContentPlannerPdf);
@@ -2327,4 +2340,20 @@ document.addEventListener('DOMContentLoaded', () => {
   if (excelButton) {
     excelButton.addEventListener('click', generateContentPlannerExcel);
   }
+
+  const initSteps = [
+    renderContentPlannerClientFields,
+    renderContentPlannerGoalsFields,
+    renderContentPlannerPlatformChecklist,
+    renderContentPlannerRhythmFields,
+    renderContentPlannerDashboardSection,
+    renderContentPlannerCalendarSection
+  ];
+  initSteps.forEach((step) => {
+    try {
+      step();
+    } catch (error) {
+      console.error(`Content Planner : échec de l’initialisation de "${step.name}"`, error);
+    }
+  });
 });
