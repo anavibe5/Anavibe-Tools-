@@ -824,12 +824,12 @@ function renderContentPlannerDashboardSection() {
 
   section.innerHTML = `
     <p class="eyebrow">Connexion Dashboard</p>
-    <h3>🔗 Analyse du mois précédent</h3>
-    <p>Le Planner récupère automatiquement les résultats du Dashboard du client pour construire la stratégie éditoriale du mois : chaque contenu généré est justifié par ces données.</p>
+    <h3>🔗 Associer un client existant</h3>
+    <p>Choisissez ci-dessous à quel client du Dashboard ce Planner correspond. Une fois associé, le Planner récupère automatiquement ses résultats du mois précédent pour construire la stratégie éditoriale : chaque contenu généré est justifié par ces données.</p>
   `;
 
   if (!options.length) {
-    section.appendChild(createContentPlannerInsightList([], 'neutral', 'ℹ️', 'Aucun client n’existe encore dans le Dashboard Clients. Créez-le là-bas pour connecter automatiquement le Planner à ses résultats.'));
+    section.appendChild(createContentPlannerInsightList([], 'neutral', 'ℹ️', 'Aucun client n’existe encore dans le Dashboard Clients. Créez-le là-bas (bouton « + Ajouter un client »), puis revenez ici pour l’associer.'));
     return;
   }
 
@@ -842,15 +842,15 @@ function renderContentPlannerDashboardSection() {
   }
 
   const linkRow = document.createElement('label');
-  linkRow.className = 'field-item';
+  linkRow.className = 'field-item content-planner-client-picker';
   const linkLabel = document.createElement('span');
-  linkLabel.textContent = 'Client Dashboard lié';
+  linkLabel.innerHTML = '<strong>Client à associer</strong>';
   linkRow.appendChild(linkLabel);
   const select = document.createElement('select');
   select.className = 'field-input';
   const noneOption = document.createElement('option');
   noneOption.value = '';
-  noneOption.textContent = '— Aucun —';
+  noneOption.textContent = '— Choisir un client —';
   select.appendChild(noneOption);
   options.forEach((option) => {
     const optionEl = document.createElement('option');
@@ -869,17 +869,14 @@ function renderContentPlannerDashboardSection() {
   section.appendChild(linkRow);
 
   if (!clientId) {
-    section.appendChild(createContentPlannerInsightList([], 'neutral', 'ℹ️', 'Sélectionnez le client Dashboard correspondant pour connecter automatiquement l’analyse du mois précédent (ou renseignez un nom de client identique dans la Configuration ci-dessus pour un rattachement automatique).'));
+    section.appendChild(createContentPlannerInsightList([], 'neutral', 'ℹ️', 'Aucun client associé pour l’instant : choisissez-le dans la liste ci-dessus pour connecter automatiquement l’analyse du mois précédent.'));
     return;
   }
 
-  const openInDashboardLink = document.createElement('a');
-  openInDashboardLink.className = 'btn btn-secondary';
-  openInDashboardLink.style.marginBottom = '18px';
-  openInDashboardLink.style.display = 'inline-block';
-  openInDashboardLink.href = `../dashboard/index.html#${clientId}`;
-  openInDashboardLink.textContent = '📊 Voir la fiche de ce client dans le Dashboard';
-  section.appendChild(openInDashboardLink);
+  const associatedNote = document.createElement('p');
+  associatedNote.className = 'notes-hint';
+  associatedNote.textContent = `✅ Ce Planner est associé à : ${escapeContentPlannerText(options.find((option) => option.id === clientId)?.name || clientId)}.`;
+  section.appendChild(associatedNote);
 
   const insights = computeContentPlannerDashboardInsights(config);
 
@@ -2328,6 +2325,36 @@ function generateContentPlannerExcelUnsafe() {
   }
 }
 
+// Lets the Dashboard's "Ouvrir dans le Content Planner" button on a client card associate
+// that client here in one click, instead of requiring the consultant to come back to this
+// page and pick it again from the selector.
+function applyContentPlannerClientFromUrl() {
+  const requestedClientId = new URLSearchParams(window.location.search).get('client');
+  if (!requestedClientId || typeof getClientData !== 'function') {
+    return;
+  }
+  const options = getContentPlannerDashboardClientOptions();
+  if (!options.some((option) => option.id === requestedClientId)) {
+    return;
+  }
+
+  const clientData = getClientData(requestedClientId);
+  const config = getContentPlannerConfig();
+  config.dashboardClientId = requestedClientId;
+  if (clientData.general) {
+    if (clientData.general.name) {
+      config.client.name = clientData.general.name;
+    }
+    if (clientData.general.city && !config.client.city) {
+      config.client.city = clientData.general.city;
+    }
+    if (clientData.general.type && !config.client.sector) {
+      config.client.sector = clientData.general.type;
+    }
+  }
+  saveContentPlannerConfig(config);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Wired first and unconditionally: a failure in any of the render steps below must never
   // leave these buttons looking clickable while silently doing nothing.
@@ -2339,6 +2366,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const excelButton = document.getElementById('downloadContentPlannerExcelBtn');
   if (excelButton) {
     excelButton.addEventListener('click', generateContentPlannerExcel);
+  }
+
+  try {
+    applyContentPlannerClientFromUrl();
+  } catch (error) {
+    console.error('Content Planner : échec de l’association du client depuis l’URL', error);
   }
 
   const initSteps = [

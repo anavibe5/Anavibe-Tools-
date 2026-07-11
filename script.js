@@ -2515,6 +2515,14 @@ function createDashboardCard(clientId) {
   heading.textContent = data.general.name;
   article.appendChild(heading);
 
+  const openInPlannerLink = document.createElement('a');
+  openInPlannerLink.className = 'btn btn-secondary';
+  openInPlannerLink.style.margin = '10px 0 18px';
+  openInPlannerLink.style.display = 'inline-block';
+  openInPlannerLink.href = `../content-planner/index.html?client=${encodeURIComponent(clientId)}`;
+  openInPlannerLink.textContent = '📅 Ouvrir dans le Content Planner';
+  article.appendChild(openInPlannerLink);
+
   const clientTabNav = document.createElement('div');
   clientTabNav.className = 'planner-tab-nav';
   const ficheTabBtn = document.createElement('button');
