@@ -873,6 +873,14 @@ function renderContentPlannerDashboardSection() {
     return;
   }
 
+  const openInDashboardLink = document.createElement('a');
+  openInDashboardLink.className = 'btn btn-secondary';
+  openInDashboardLink.style.marginBottom = '18px';
+  openInDashboardLink.style.display = 'inline-block';
+  openInDashboardLink.href = `../dashboard/index.html#${clientId}`;
+  openInDashboardLink.textContent = '📊 Voir la fiche de ce client dans le Dashboard';
+  section.appendChild(openInDashboardLink);
+
   const insights = computeContentPlannerDashboardInsights(config);
 
   section.appendChild(renderContentPlannerStrategicProfileBlock(insights.strategicProfile));

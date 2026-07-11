@@ -737,6 +737,8 @@ function refreshGoogleOptimizerPlanSection() {
     <p>Une recommandation concrète pour chaque point faible détecté, adaptée au contexte de l’entreprise.</p>
   `;
 
+  const GOOGLE_OPTIMIZER_PLAN_MAX_PER_PRIORITY = 3;
+
   googleOptimizerPriorityConfig.forEach((priority) => {
     const subsection = document.createElement('div');
     subsection.className = 'analysis-subsection';
@@ -752,9 +754,18 @@ function refreshGoogleOptimizerPlanSection() {
       empty.textContent = `Aucune recommandation « ${priority.title} » nécessaire.`;
       subsection.appendChild(empty);
     } else {
-      items.forEach((weakness) => {
+      // Only the most impactful points get the full Problème/Pourquoi/Comment/Impact card;
+      // the rest are already covered, more concisely, in the Roadmap and the PDF report.
+      items.slice(0, GOOGLE_OPTIMIZER_PLAN_MAX_PER_PRIORITY).forEach((weakness) => {
         subsection.appendChild(createGoogleOptimizerPlanCard(weakness));
       });
+      const remaining = items.length - GOOGLE_OPTIMIZER_PLAN_MAX_PER_PRIORITY;
+      if (remaining > 0) {
+        const note = document.createElement('p');
+        note.className = 'notes-hint';
+        note.textContent = `+ ${remaining} autre${remaining > 1 ? 's' : ''} point${remaining > 1 ? 's' : ''} « ${priority.title} » (voir la roadmap ci-dessous et le rapport PDF complet).`;
+        subsection.appendChild(note);
+      }
     }
 
     section.appendChild(subsection);

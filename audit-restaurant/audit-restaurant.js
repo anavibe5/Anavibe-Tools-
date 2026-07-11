@@ -34,9 +34,7 @@ const platformAuditDefinitions = {
     criteria: [
       { key: 'rating', label: 'Note Google', dimension: 'acquisition', recommendation: 'Travailler l’expérience client pour faire remonter la note Google au-dessus de 4,5/5.' },
       { key: 'reviewsCount', label: 'Nombre d’avis', dimension: 'acquisition', recommendation: 'Mettre en place une stratégie active de collecte d’avis (QR code, relance après visite, etc.).' },
-      { key: 'reviewsFrequency', label: 'Fréquence des avis', dimension: 'fidelisation', recommendation: 'Solliciter régulièrement de nouveaux avis pour maintenir un flux constant et rassurer les prospects.' },
       { key: 'reviewsResponse', label: 'Réponses aux avis', dimension: 'fidelisation', recommendation: 'Répondre systématiquement à tous les avis, positifs comme négatifs.' },
-      { key: 'reviewsResponseQuality', label: 'Qualité des réponses', dimension: 'fidelisation', recommendation: 'Personnaliser les réponses aux avis plutôt que d’utiliser des réponses génériques.' },
       { key: 'description', label: 'Description', dimension: 'visibilite', recommendation: 'Rédiger une description complète et optimisée mettant en avant l’activité et ses points forts.' },
       { key: 'categories', label: 'Catégories', dimension: 'visibilite', recommendation: 'Ajouter toutes les catégories pertinentes pour améliorer la visibilité sur les recherches associées.' },
       { key: 'services', label: 'Services', dimension: 'acquisition', recommendation: 'Renseigner l’ensemble des services proposés dans la fiche.' },
@@ -47,8 +45,6 @@ const platformAuditDefinitions = {
       { key: 'booking', label: 'Réservation', dimension: 'acquisition', recommendation: 'Activer un lien de réservation en ligne directement accessible depuis la fiche.' },
       { key: 'posts', label: 'Publications', dimension: 'visibilite', recommendation: 'Publier régulièrement des actualités, offres ou événements via Google Posts.' },
       { key: 'photos', label: 'Photos', dimension: 'visibilite', recommendation: 'Ajouter davantage de photos récentes et de qualité (extérieur, intérieur, produits, équipe).' },
-      { key: 'videos', label: 'Vidéos', dimension: 'visibilite', recommendation: 'Ajouter des vidéos courtes pour dynamiser la fiche et renforcer l’engagement.' },
-      { key: 'faq', label: 'FAQ', dimension: 'acquisition', recommendation: 'Compléter la section Questions & Réponses avec les questions les plus fréquentes.' },
       { key: 'attributes', label: 'Attributs', dimension: 'visibilite', recommendation: 'Renseigner tous les attributs pertinents (accessibilité, terrasse, options, etc.).' }
     ]
   },
@@ -84,8 +80,6 @@ const platformAuditDefinitions = {
       { key: 'videoQuality', label: 'Qualité des vidéos', dimension: 'visibilite', recommendation: 'Soigner la qualité des vidéos (stabilité, montage, son).' },
       { key: 'frequency', label: 'Fréquence', dimension: 'visibilite', recommendation: 'Publier plus régulièrement pour rester visible dans l’algorithme.' },
       { key: 'cta', label: 'CTA', dimension: 'acquisition', recommendation: 'Ajouter des appels à l’action clairs dans les publications (réserver, venir, découvrir).' },
-      { key: 'hashtags', label: 'Hashtags', dimension: 'visibilite', recommendation: 'Utiliser des hashtags pertinents et variés pour élargir la portée.' },
-      { key: 'geolocation', label: 'Géolocalisation', dimension: 'visibilite', recommendation: 'Géolocaliser systématiquement les publications et stories.' },
       { key: 'engagement', label: 'Engagement', dimension: 'fidelisation', recommendation: 'Interagir davantage avec la communauté (réponses aux commentaires et messages).' }
     ]
   },
@@ -105,7 +99,6 @@ const platformAuditDefinitions = {
       { key: 'frequency', label: 'Fréquence', dimension: 'visibilite', recommendation: 'Publier plus régulièrement pour maintenir la visibilité de la page.' },
       { key: 'cta', label: 'CTA', dimension: 'acquisition', recommendation: 'Ajouter des appels à l’action clairs dans les publications.' },
       { key: 'reviews', label: 'Avis Facebook', dimension: 'acquisition', recommendation: 'Activer et solliciter les avis/recommandations Facebook.' },
-      { key: 'geolocation', label: 'Géolocalisation', dimension: 'visibilite', recommendation: 'Géolocaliser systématiquement les publications.' },
       { key: 'engagement', label: 'Engagement', dimension: 'fidelisation', recommendation: 'Interagir davantage avec la communauté (commentaires, messages).' }
     ]
   },
@@ -334,6 +327,8 @@ function computePlatformScore(platformKey) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
 }
 
+const PLATFORM_RECOMMENDATIONS_MAX = 5;
+
 function getPlatformRecommendations(platformKey) {
   const definition = platformAuditDefinitions[platformKey];
   const ratings = getPlatformRatings(platformKey);
@@ -341,6 +336,13 @@ function getPlatformRecommendations(platformKey) {
     .filter((criterion) => (ratings[criterion.key] ?? 50) < 75)
     .sort((a, b) => (ratings[a.key] ?? 50) - (ratings[b.key] ?? 50))
     .map((criterion) => criterion.recommendation);
+}
+
+// Only the most impactful points (worst-rated first), so the list stays quick to scan
+// instead of listing every criterion under 75/100.
+function getTopPlatformRecommendations(platformKey) {
+  const all = getPlatformRecommendations(platformKey);
+  return { visible: all.slice(0, PLATFORM_RECOMMENDATIONS_MAX), remaining: Math.max(0, all.length - PLATFORM_RECOMMENDATIONS_MAX) };
 }
 
 function escapeAuditText(value) {
@@ -631,7 +633,7 @@ function refreshPlatformAuditSection(platformKey, section) {
   `;
 
   const recoContainer = section.querySelector('[data-role="recommendations"]');
-  const recommendations = getPlatformRecommendations(platformKey);
+  const { visible: recommendations, remaining } = getTopPlatformRecommendations(platformKey);
   recoContainer.innerHTML = '';
 
   if (!recommendations.length) {
@@ -648,6 +650,13 @@ function refreshPlatformAuditSection(platformKey, section) {
     item.innerHTML = `<span class="insight-icon">💡</span><span class="insight-text">${escapeAuditText(text)}</span>`;
     recoContainer.appendChild(item);
   });
+
+  if (remaining > 0) {
+    const note = document.createElement('p');
+    note.className = 'notes-hint';
+    note.textContent = `+ ${remaining} autre${remaining > 1 ? 's' : ''} point${remaining > 1 ? 's' : ''} à améliorer (voir le rapport PDF complet).`;
+    recoContainer.appendChild(note);
+  }
 }
 
 function renderPlatformAuditSection(platformKey) {
@@ -932,20 +941,13 @@ const roadmapPhaseConfig = [
   { days: '90', title: '90 jours', subtitle: 'Optimisations' }
 ];
 
-function buildRoadmapActionExplanation(item, phase) {
-  const dimensionLabelWithArticle = dimensionLabelsWithArticle[item.dimension] || 'de performance globale';
-  const levelLabel = getRatingLabel(item.rating);
-  return `${item.recommendation} — Ce point est noté « ${levelLabel} » (${item.rating}/100) sur ${item.platformTitle} : il est classé dans les ${phase.days} premiers jours selon son niveau de priorité, pour renforcer le potentiel ${dimensionLabelWithArticle}.`;
-}
-
-function createRoadmapItem(item, phase) {
+function createRoadmapItem(item) {
   const el = document.createElement('div');
   el.className = 'insight-item tone-neutral roadmap-item';
   el.innerHTML = `
-    <span class="insight-icon">📌</span>
+    <span class="insight-icon">${item.platformIcon}</span>
     <span class="insight-text">
-      <strong>${item.platformIcon} ${escapeAuditText(item.platformTitle)} — ${escapeAuditText(item.criterionLabel)}</strong><br>
-      ${escapeAuditText(buildRoadmapActionExplanation(item, phase))}
+      <strong>${escapeAuditText(item.criterionLabel)}</strong> — ${escapeAuditText(item.recommendation)}
     </span>
   `;
   return el;
@@ -983,7 +985,7 @@ function populateRoadmapSection(section, platformKeys) {
     }
 
     items.forEach((item) => {
-      columnList.appendChild(createRoadmapItem(item, phase));
+      columnList.appendChild(createRoadmapItem(item));
     });
   });
 }
