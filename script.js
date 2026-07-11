@@ -39,7 +39,11 @@ const initialSituationSchema = {
     { key: 'instagramViews', label: 'Vues Instagram initiales', type: 'number' },
     { key: 'instagramInteractions', label: 'Interactions initiales', type: 'number' },
     { key: 'instagramProfileVisits', label: 'Visites profil initiales', type: 'number' },
-    { key: 'instagramLinkClicks', label: 'Clics lien initiaux', type: 'number' }
+    { key: 'instagramLinkClicks', label: 'Clics lien initiaux', type: 'number' },
+    { key: 'facebookFollowers', label: 'Abonnés Facebook initiaux', type: 'number' },
+    { key: 'facebookPageVisits', label: 'Visites de la page Facebook initiales', type: 'number' },
+    { key: 'facebookViews', label: 'Vues Facebook initiales', type: 'number' },
+    { key: 'facebookInteractions', label: 'Interactions Facebook initiales', type: 'number' }
   ]
 };
 
@@ -56,7 +60,11 @@ const baselineFieldMap = {
   instagramViews: { section: 'instagram', field: 'views' },
   instagramInteractions: { section: 'instagram', field: 'interactions' },
   instagramProfileVisits: { section: 'instagram', field: 'profileVisits' },
-  instagramLinkClicks: { section: 'instagram', field: 'linkClicks' }
+  instagramLinkClicks: { section: 'instagram', field: 'linkClicks' },
+  facebookFollowers: { section: 'facebook', field: 'followers' },
+  facebookPageVisits: { section: 'facebook', field: 'reach' },
+  facebookViews: { section: 'facebook', field: 'impressions' },
+  facebookInteractions: { section: 'facebook', field: 'interactions' }
 };
 
 const monthlySectionSchema = [
@@ -147,7 +155,11 @@ function createEmptyInitialSituation() {
     instagramViews: '',
     instagramInteractions: '',
     instagramProfileVisits: '',
-    instagramLinkClicks: ''
+    instagramLinkClicks: '',
+    facebookFollowers: '',
+    facebookPageVisits: '',
+    facebookViews: '',
+    facebookInteractions: ''
   };
 }
 

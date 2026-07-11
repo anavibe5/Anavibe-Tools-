@@ -27,7 +27,8 @@ function createDefaultContentPlannerConfig() {
       sector: '',
       city: '',
       mainGoal: '',
-      secondaryGoals: ''
+      secondaryGoals: '',
+      trends: ''
     },
     platforms: {
       instagram: false,
@@ -150,6 +151,17 @@ function renderContentPlannerGoalsFields() {
     secondaryGoalsInput.addEventListener('input', () => {
       const freshConfig = getContentPlannerConfig();
       freshConfig.client.secondaryGoals = secondaryGoalsInput.value;
+      saveContentPlannerConfig(freshConfig);
+      flashContentPlannerSavedHint();
+    });
+  }
+
+  const trendsInput = document.getElementById('contentPlannerTrends');
+  if (trendsInput) {
+    trendsInput.value = config.client.trends ?? '';
+    trendsInput.addEventListener('input', () => {
+      const freshConfig = getContentPlannerConfig();
+      freshConfig.client.trends = trendsInput.value;
       saveContentPlannerConfig(freshConfig);
       flashContentPlannerSavedHint();
     });
@@ -509,6 +521,39 @@ function computeContentPlannerDashboardSignals(latestMonth, previousMonth) {
   }
 
   return { formatWeights, formatReasons, themeGoals };
+}
+
+// Trends are entered directly in the Configuration (no live scraping: this app is fully
+// client-side with no backend, so it cannot pull real-time trending sounds/hashtags from
+// Instagram/TikTok). The consultant is the source of truth for what they're currently
+// seeing trend; this turns that note into a Reel-weighted boost and a themed goal so the
+// whole calendar leans into it, not just the one dedicated Reel template.
+function computeContentPlannerTrendSignals(config) {
+  const trendsText = String((config.client && config.client.trends) || '').trim();
+  if (!trendsText) {
+    return { formatWeights: {}, formatReasons: {}, themeGoals: [] };
+  }
+  const reason = `Cette idée est proposée pour exploiter la tendance actuelle repérée par le consultant : ${trendsText}. Coller aux tendances du moment augmente les chances de portée et de viralité.`;
+  return {
+    formatWeights: { Reel: 1.3 },
+    formatReasons: { Reel: reason },
+    themeGoals: [`Exploiter la tendance repérée sur les réseaux : ${trendsText}`, `Exploiter la tendance repérée sur les réseaux : ${trendsText}`]
+  };
+}
+
+function mergeContentPlannerStrategies(base, extra) {
+  if (!extra.themeGoals.length && !Object.keys(extra.formatWeights).length) {
+    return base;
+  }
+  const formatWeights = { ...(base && base.formatWeights) };
+  Object.keys(extra.formatWeights).forEach((format) => {
+    formatWeights[format] = Math.max(formatWeights[format] || 1, extra.formatWeights[format]);
+  });
+  return {
+    formatWeights,
+    formatReasons: { ...(base && base.formatReasons), ...extra.formatReasons },
+    themeGoals: [...((base && base.themeGoals) || []), ...extra.themeGoals]
+  };
 }
 
 // Profil Stratégique Client (Dashboard) is the single source of truth for the client's
@@ -1026,7 +1071,8 @@ function buildContentPlannerIdeaContext(config, date) {
     companyLabel: String(config.client.name || '').trim() || 'l’entreprise',
     city: String(config.client.city || '').trim(),
     season: getContentPlannerSeason(date),
-    moment: getContentPlannerMonthMoment(date)
+    moment: getContentPlannerMonthMoment(date),
+    trend: String((config.client && config.client.trends) || '').trim()
   };
 }
 
@@ -1052,7 +1098,7 @@ const contentPlannerIdeaPools = {
     (ctx) => ({ title: '3 secondes pour tout comprendre', hook: 'Le conseil que personne ne vous donne.', concept: `Un format ultra rapide et rythmé qui délivre une astuce concrète et actionnable liée à ${ctx.sector}.`, body: 'Une astuce concrète, testée et approuvée, à appliquer dès aujourd’hui.', mediaType: 'Vidéo verticale', cta: 'Suivez-nous pour plus d’astuces comme celle-ci.' }),
     (ctx) => ({ title: 'Une journée dans les coulisses', hook: 'Ce que vous ne voyez jamais.', concept: `Un montage dynamique montrant les coulisses de ${ctx.companyLabel} en accéléré ou en time-lapse.`, body: `Une immersion rapide dans le quotidien de ${ctx.companyLabel}, sans filtre.`, mediaType: 'Vidéo verticale', cta: 'Dites-nous en commentaire ce que vous voulez voir ensuite.' }),
     (ctx) => ({ title: 'La transformation en quelques secondes', hook: 'Vous n’allez pas croire la différence.', concept: 'Un avant/après visuel percutant qui démontre l’impact concret de votre offre.', body: 'La preuve en images que le changement peut être spectaculaire.', mediaType: 'Vidéo verticale', cta: 'Envoyez ce Reel à quelqu’un qui en a besoin.' }),
-    (ctx) => ({ title: 'On a testé la tendance du moment', hook: 'Ça devait arriver.', concept: 'Reprenez un format ou un son tendance pour l’adapter à votre univers et gagner en visibilité.', body: 'On adore s’amuser avec les tendances tout en restant fidèles à notre univers.', mediaType: 'Vidéo verticale', cta: 'Likez si vous voulez qu’on recommence !' }),
+    (ctx) => ({ title: ctx.trend ? `On a testé la tendance : ${ctx.trend}` : 'On a testé la tendance du moment', hook: 'Ça devait arriver.', concept: ctx.trend ? `Reprenez la tendance repérée par votre équipe (${ctx.trend}) et adaptez-la à votre univers pour maximiser la portée et les chances de viralité.` : 'Reprenez un format ou un son tendance pour l’adapter à votre univers et gagner en visibilité.', body: 'On adore s’amuser avec les tendances tout en restant fidèles à notre univers.', mediaType: 'Vidéo verticale', cta: 'Likez si vous voulez qu’on recommence !' }),
     (ctx) => ({ title: 'La question qu’on nous pose tout le temps', hook: 'On y répond enfin.', concept: 'Répondez en vidéo courte à une question fréquente de vos clients pour informer tout en engageant.', body: 'LA question qu’on nous pose presque tous les jours, enfin expliquée simplement.', mediaType: 'Vidéo verticale', cta: 'Posez votre question en commentaire, on y répondra.' }),
     (ctx) => ({ title: 'Comment bien profiter de nos services', hook: 'Suivez le guide en 15 secondes.', concept: 'Un mini-tutoriel visuel rapide qui montre comment utiliser ou profiter au mieux de votre offre.', body: 'En quelques secondes, vous saurez exactement comment en profiter au mieux.', mediaType: 'Vidéo verticale', cta: 'Enregistrez ce Reel pour le revoir plus tard.' }),
     (ctx) => ({ title: ctx.moment ? `${ctx.moment}, version Reel` : `L’ambiance ${ctx.season} en vidéo`, hook: 'L’ambiance du moment, capturée en quelques secondes.', concept: 'Un Reel rythmé qui capture l’énergie de la saison ou d’un moment commercial fort.', body: 'L’ambiance du moment, capturée comme on l’aime : vivante et authentique.', mediaType: 'Vidéo verticale', cta: 'Venez vivre ça avec nous !' }),
@@ -1223,14 +1269,14 @@ function scheduleContentPlannerItems(items, weekDays, count, platformKeys, type,
   }
 }
 
-function generateContentPlannerItems(config, monthInfo, strategy, historicalSignatures) {
+function generateContentPlannerItems(config, monthInfo, strategy, historicalSignatures, hasDashboard) {
   const items = [];
   const checkedPlatformKeys = contentPlannerPlatformOptions.filter((p) => config.platforms[p.key]).map((p) => p.key);
 
   const weights = (strategy && strategy.formatWeights) || {};
   const reasons = (strategy && strategy.formatReasons) || {};
   const themeGoals = (strategy && strategy.themeGoals) || [];
-  const hasDashboard = Boolean(strategy);
+  hasDashboard = hasDashboard === undefined ? Boolean(strategy) : hasDashboard;
 
   const postsPerWeek = Number(config.rhythm.postsPerWeek) || 0;
   const reelsPerWeek = applyContentPlannerFormatWeight(Number(config.rhythm.reelsPerWeek) || 0, weights.Reel);
@@ -1725,12 +1771,14 @@ function renderContentPlannerCalendarSection() {
     const bundle = getContentPlannerDashboardBundle(freshConfig);
     const baseStrategy = buildContentPlannerStrategyForGeneration(freshConfig, bundle);
     const learning = computeContentPlannerLearningAdjustments(bundle, baseStrategy);
-    const finalStrategy = learning.strategy;
+    const hasDashboardStrategy = Boolean(baseStrategy);
+    const trendSignals = computeContentPlannerTrendSignals(freshConfig);
+    const finalStrategy = mergeContentPlannerStrategies(learning.strategy, trendSignals);
     const historicalSignatures = (bundle && bundle.clientData) ? getContentPlannerArchivedSignatures(bundle.clientData) : null;
 
     archiveContentPlannerCalendarIfNeeded(bundle, freshMonthInfo.monthKey);
 
-    const items = generateContentPlannerItems(freshConfig, freshMonthInfo, finalStrategy, historicalSignatures);
+    const items = generateContentPlannerItems(freshConfig, freshMonthInfo, finalStrategy, historicalSignatures, hasDashboardStrategy);
     saveContentPlannerCalendar({
       monthKey: freshMonthInfo.monthKey,
       monthLabel: freshMonthInfo.monthLabel,
