@@ -441,6 +441,7 @@ function computeContentPlannerDashboardSignals(latestMonth, previousMonth) {
   const formatWeights = {};
   const formatReasons = {};
   const themeGoals = [];
+  const monthLabel = latestMonth.label || 'le mois précédent';
 
   const hv = (value) => value !== '' && value !== null && value !== undefined && !Number.isNaN(Number(value));
   const gb = latestMonth.googleBusiness || {};
@@ -452,41 +453,41 @@ function computeContentPlannerDashboardSignals(latestMonth, previousMonth) {
     const reels = Number(ig.reels);
     if (reels < posts / 3) {
       formatWeights.Reel = Math.max(formatWeights.Reel || 1, 1.6);
-      formatReasons.Reel = `Cette idée est proposée car seulement ${formatNumber(reels)} Reel(s) ont été publiés contre ${formatNumber(posts)} publications le mois précédent : ce format, habituellement plus performant en portée, est sous-exploité et mérite d’être renforcé.`;
+      formatReasons.Reel = `Cette idée est proposée car seulement ${formatNumber(reels)} Reel(s) ont été publiés contre ${formatNumber(posts)} publications en ${monthLabel} : ce format, habituellement plus performant en portée, est sous-exploité et mérite d’être renforcé.`;
     } else if (previousMonth) {
       const reachEvo = computeEvolution(previousMonth.instagram.reach, ig.reach);
       if (reachEvo.percent !== null && reachEvo.percent > 8) {
         formatWeights.Reel = Math.max(formatWeights.Reel || 1, 1.3);
-        formatReasons.Reel = `Cette idée est proposée car la portée Instagram a progressé de ${formatSignedPercent(reachEvo.percent)} le mois précédent avec ${formatNumber(reels)} Reels publiés : ce format contribue à la dynamique et mérite d’être encore renforcé.`;
+        formatReasons.Reel = `Cette idée est proposée car les Reels ont contribué à une portée Instagram en hausse de ${formatSignedPercent(reachEvo.percent)} en ${monthLabel} (${formatNumber(reels)} Reels publiés) : ce format contribue à la dynamique et mérite d’être encore renforcé.`;
       }
     }
   }
 
   if (hv(ig.stories) && hv(ig.posts) && Number(ig.stories) < Number(ig.posts)) {
     formatWeights.Story = Math.max(formatWeights.Story || 1, 1.4);
-    formatReasons.Story = `Cette idée est proposée car seulement ${formatNumber(ig.stories)} Story(ies) ont été publiées contre ${formatNumber(ig.posts)} publications le mois précédent : renforcer ce format permet de garder un contact quotidien avec la communauté.`;
+    formatReasons.Story = `Cette idée est proposée car seulement ${formatNumber(ig.stories)} Story(ies) ont été publiées contre ${formatNumber(ig.posts)} publications en ${monthLabel} : renforcer ce format permet de garder un contact quotidien avec la communauté.`;
   }
 
   if (hv(gb.googlePosts) && Number(gb.googlePosts) < 2) {
     formatWeights['Publication Google Business'] = Math.max(formatWeights['Publication Google Business'] || 1, 1.6);
-    formatReasons['Publication Google Business'] = `Cette publication est recommandée car seulement ${formatNumber(gb.googlePosts)} publication(s) Google Business ont été postées le mois précédent : la fiche a besoin de davantage de publications pour améliorer la visibilité Google, conformément au plan d’action du Dashboard.`;
+    formatReasons['Publication Google Business'] = `Cette publication est recommandée car seulement ${formatNumber(gb.googlePosts)} publication(s) Google Business ont été postées en ${monthLabel} : la fiche a besoin de davantage de publications pour améliorer la visibilité Google, conformément au plan d’action du Dashboard.`;
   }
   if (previousMonth) {
     const ratingEvo = computeEvolution(previousMonth.googleBusiness.rating, gb.rating);
     if (ratingEvo.percent !== null && ratingEvo.percent <= 0 && !formatReasons['Publication Google Business']) {
       formatWeights['Publication Google Business'] = Math.max(formatWeights['Publication Google Business'] || 1, 1.4);
-      formatReasons['Publication Google Business'] = `Cette publication est recommandée car la note Google n’a pas progressé le mois précédent (${formatSignedPercent(ratingEvo.percent)}) : renforcer les publications Google Business afin d’améliorer la visibilité, conformément au plan d’action du Dashboard.`;
+      formatReasons['Publication Google Business'] = `Cette publication est recommandée car la note Google n’a pas progressé en ${monthLabel} (${formatSignedPercent(ratingEvo.percent)}) : renforcer les publications Google Business afin d’améliorer la visibilité, conformément au plan d’action du Dashboard.`;
     }
   }
 
   if (previousMonth) {
     const reachEvo = computeEvolution(previousMonth.instagram.reach, ig.reach);
     if (reachEvo.percent !== null && reachEvo.percent < 0) {
-      themeGoals.push(`Mettre en avant les offres et produits phares pour relancer la portée Instagram (recul de ${formatSignedPercent(reachEvo.percent)} le mois précédent, recommandation du Dashboard).`);
+      themeGoals.push(`Mettre en avant les offres et produits phares pour relancer la portée Instagram (recul de ${formatSignedPercent(reachEvo.percent)} en ${monthLabel}, recommandation du Dashboard).`);
     }
     const bookingEvo = computeEvolution(previousMonth.beacons.bookingClicks, bc.bookingClicks);
     if (bookingEvo.percent !== null && bookingEvo.percent < 0) {
-      themeGoals.push(`Mettre en avant les options de réservation en ligne, les clics de réservation Beacons ayant reculé de ${formatSignedPercent(bookingEvo.percent)} le mois précédent.`);
+      themeGoals.push(`Mettre en avant les options de réservation en ligne, les clics de réservation Beacons ayant reculé de ${formatSignedPercent(bookingEvo.percent)} en ${monthLabel}.`);
     }
   }
 
@@ -496,6 +497,15 @@ function computeContentPlannerDashboardSignals(latestMonth, previousMonth) {
     if (remaining.length) {
       themeGoals.push(`Générer du contenu adapté à l’objectif non atteint du Dashboard : ${remaining[0]}.`);
     }
+  }
+
+  // Actions de la Roadmap / plan d'action du Dashboard : les mêmes priorités retenues pour
+  // le mois prochain (actions ouvertes + recommandations) doivent aussi orienter les
+  // contenus générés, pas seulement apparaître en lecture seule dans l'analyse.
+  if (typeof buildCarriedOverActionPlanItems === 'function') {
+    buildCarriedOverActionPlanItems(latestMonth, previousMonth).forEach((label) => {
+      themeGoals.push(`Action du plan d’action Dashboard à soutenir par ce contenu : ${label}`);
+    });
   }
 
   return { formatWeights, formatReasons, themeGoals };
@@ -510,6 +520,18 @@ function computeContentPlannerStrategicProfileSignals(config, strategicProfile) 
 
   if (!strategicProfile) {
     return { themeGoals, warnings };
+  }
+
+  const permanentGoals = String(strategicProfile.permanentGoals || '').trim();
+  if (permanentGoals) {
+    // Weighted like the consultant's own mainGoal (pushed twice): a permanent business
+    // objective should be at least as present in the rotation as a single month's goal.
+    themeGoals.push(permanentGoals, permanentGoals);
+  }
+
+  const monthlyGoals = String(strategicProfile.monthlyGoals || '').trim();
+  if (monthlyGoals) {
+    themeGoals.push(monthlyGoals, monthlyGoals);
   }
 
   const highlighted = String(strategicProfile.highlightedOfferings || '').trim();
