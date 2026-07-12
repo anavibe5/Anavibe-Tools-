@@ -19,7 +19,9 @@ const generalFieldsSchema = {
       label: 'Statut du mois',
       type: 'select',
       options: ['À définir', 'En bonne voie', 'Objectif atteint', 'En retard']
-    }
+    },
+    { key: 'averageBasket', label: 'Panier moyen (€)', type: 'number' },
+    { key: 'monthlyFee', label: 'Prix payé pour la prestation AnaVibe (€/mois)', type: 'number' }
   ]
 };
 
@@ -131,9 +133,6 @@ const monthlySectionSchema = [
     eyebrow: 'Performance',
     title: 'Résultats business',
     fields: [
-      { key: 'bookingsGenerated', label: 'Réservations générées', type: 'number' },
-      { key: 'estimatedRevenue', label: 'Chiffre d’affaires estimé', type: 'number', unit: '€' },
-      { key: 'roi', label: 'ROI', type: 'number', step: '0.1', unit: 'x' },
       { key: 'goalReached', label: 'Objectif atteint', type: 'select', options: ['Non', 'Partiel', 'Oui'] },
       { key: 'remainingPotential', label: 'Potentiel restant', type: 'number', unit: '€' }
     ]
@@ -204,9 +203,6 @@ function createEmptyMonthData(label) {
       directionsClicks: ''
     },
     businessResults: {
-      bookingsGenerated: '',
-      estimatedRevenue: '',
-      roi: '',
       goalReached: 'Non',
       remainingPotential: ''
     },
@@ -288,7 +284,9 @@ function createEmptyClientData(id, name) {
       offer: '',
       startDate: '',
       mainGoal: '',
-      monthStatus: 'À définir'
+      monthStatus: 'À définir',
+      averageBasket: '',
+      monthlyFee: ''
     },
     initialSituation: createEmptyInitialSituation(),
     strategicProfile: createEmptyClientStrategicProfile(),
@@ -312,7 +310,9 @@ const clientSeedData = [
       offer: 'Pack Visibilité Locale',
       startDate: '2026-01-08',
       mainGoal: 'Booster la visibilité locale et structurer le suivi mensuel.',
-      monthStatus: 'En bonne voie'
+      monthStatus: 'En bonne voie',
+      averageBasket: '',
+      monthlyFee: ''
     },
     initialSituation: createEmptyInitialSituation(),
     strategicProfile: createEmptyClientStrategicProfile(),
@@ -333,7 +333,9 @@ const clientSeedData = [
       offer: 'Pack Contenu & Notoriété',
       startDate: '2026-02-01',
       mainGoal: 'Améliorer la notoriété et accélérer la production éditoriale.',
-      monthStatus: 'Objectif atteint'
+      monthStatus: 'Objectif atteint',
+      averageBasket: '',
+      monthlyFee: ''
     },
     initialSituation: createEmptyInitialSituation(),
     strategicProfile: createEmptyClientStrategicProfile(),
@@ -481,6 +483,10 @@ function getClientData(id) {
       }
       if (parsed.caseStudyTestimonial === undefined) {
         parsed.caseStudyTestimonial = '';
+      }
+      if (parsed.general && parsed.general.averageBasket === undefined) {
+        parsed.general.averageBasket = '';
+        parsed.general.monthlyFee = '';
       }
       if (!parsed.strategicProfile) {
         parsed.strategicProfile = migrateClientDnaToStrategicProfile(parsed.clientDna) || createEmptyClientStrategicProfile();
@@ -818,6 +824,33 @@ function computeEngagementRateFromInitial(initialSituation) {
   return (Number(interactions) / Number(reach)) * 100;
 }
 
+// Réservations générées / CA estimé / ROI ne sont plus saisis à la main : le consultant ne
+// sait pas toujours les calculer lui-même, donc le Dashboard les déduit des données déjà
+// suivies (réservations Google + Beacons, panier moyen et prix de la prestation renseignés
+// une fois dans "Informations générales").
+function computeBookingsGenerated(monthData) {
+  if (!monthData) {
+    return null;
+  }
+  return sumOrNull([monthData.googleBusiness.bookings, monthData.beacons.bookingClicks]);
+}
+
+function computeEstimatedRevenue(monthData, generalData) {
+  const bookings = computeBookingsGenerated(monthData);
+  if (bookings === null || !generalData || !hasValue(generalData.averageBasket)) {
+    return null;
+  }
+  return bookings * Number(generalData.averageBasket);
+}
+
+function computeRoi(monthData, generalData) {
+  const revenue = computeEstimatedRevenue(monthData, generalData);
+  if (revenue === null || !generalData || !hasValue(generalData.monthlyFee) || Number(generalData.monthlyFee) === 0) {
+    return null;
+  }
+  return revenue / Number(generalData.monthlyFee);
+}
+
 function computeObjectivesRate(monthData) {
   if (!monthData || !monthData.monthlyObjectives.length) {
     return null;
@@ -962,6 +995,55 @@ function createScoreSummaryCard(score, badge) {
     <span class="evolution-badge ${badge.badgeClass}">${escapeHtml(badge.label)}</span>
   `;
   return card;
+}
+
+function createBusinessResultComputedCard(label, value, unit) {
+  const card = document.createElement('div');
+  card.className = 'kpi-card card summary-card';
+  const hasVal = value !== null && value !== undefined && !Number.isNaN(value);
+  const valueText = hasVal ? `${formatNumber(value)}${unit ? ` ${unit}` : ''}` : '—';
+  card.innerHTML = `
+    <span class="kpi-label">${escapeHtml(label)}</span>
+    <strong>${valueText}</strong>
+    <span class="evolution-badge neutral">Calculé automatiquement</span>
+  `;
+  return card;
+}
+
+function renderBusinessResultsComputedSection(monthData, generalData) {
+  const block = document.createElement('div');
+  block.className = 'section-block';
+  block.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Performance</p>
+        <h3>Résultats business calculés</h3>
+      </div>
+    </div>
+  `;
+
+  const grid = document.createElement('div');
+  grid.className = 'kpi-grid summary-grid';
+  grid.appendChild(createBusinessResultComputedCard('Réservations générées', computeBookingsGenerated(monthData), ''));
+  grid.appendChild(createBusinessResultComputedCard('Chiffre d’affaires estimé', computeEstimatedRevenue(monthData, generalData), '€'));
+  grid.appendChild(createBusinessResultComputedCard('ROI', computeRoi(monthData, generalData), 'x'));
+  block.appendChild(grid);
+
+  const missingParts = [];
+  if (!generalData || !hasValue(generalData.averageBasket)) {
+    missingParts.push('le panier moyen');
+  }
+  if (!generalData || !hasValue(generalData.monthlyFee)) {
+    missingParts.push('le prix payé pour la prestation');
+  }
+  if (missingParts.length) {
+    const hint = document.createElement('p');
+    hint.className = 'notes-hint';
+    hint.textContent = `Renseignez ${joinWithAnd(missingParts)} dans « Informations générales » pour activer ce calcul.`;
+    block.appendChild(hint);
+  }
+
+  return block;
 }
 
 function renderSummaryCards(monthData, previousMonthData, initialSituation) {
@@ -1572,8 +1654,7 @@ const recordCheckFields = [
   { section: 'instagram', field: 'reach', label: 'Portée Instagram' },
   { section: 'instagram', field: 'interactions', label: 'Interactions Instagram' },
   { section: 'facebook', field: 'pageVisits', label: 'Visites de la page Facebook' },
-  { section: 'beacons', field: 'bookingClicks', label: 'Clics réservation Beacons' },
-  { section: 'businessResults', field: 'bookingsGenerated', label: 'Réservations générées' }
+  { section: 'beacons', field: 'bookingClicks', label: 'Clics réservation Beacons' }
 ];
 
 function findRecords(clientData, monthKey) {
@@ -2658,6 +2739,7 @@ function createDashboardCard(clientId) {
     monthlySectionSchema.forEach((section) => {
       monthContent.appendChild(renderMonthlyFieldSection(section, selectedMonth, monthData));
     });
+    monthContent.appendChild(renderBusinessResultsComputedSection(monthData, freshData.general));
 
     monthContent.appendChild(renderSummaryCards(monthData, previousMonthData, freshData.initialSituation));
     monthContent.appendChild(renderSynthesisSection(monthData, previousMonthData, freshData.initialSituation));
@@ -2993,6 +3075,40 @@ function buildKpiTableRows(section, monthData, previousMonthData) {
     const color =
       evoFmt.badgeClass === 'positive' ? PDF_COLORS.positive : evoFmt.badgeClass === 'negative' ? PDF_COLORS.negative : PDF_COLORS.textSoft;
     return [{ text: field.label }, { text: formatValue(current, field.unit) }, { text: evoFmt.text, color }];
+  });
+}
+
+function buildComputedBusinessResultsPdfRows(monthData, previousMonthData, generalData) {
+  const rows = [
+    {
+      label: 'Réservations générées',
+      unit: '',
+      current: computeBookingsGenerated(monthData),
+      previous: previousMonthData ? computeBookingsGenerated(previousMonthData) : null
+    },
+    {
+      label: 'Chiffre d’affaires estimé',
+      unit: '€',
+      current: computeEstimatedRevenue(monthData, generalData),
+      previous: previousMonthData ? computeEstimatedRevenue(previousMonthData, generalData) : null
+    },
+    {
+      label: 'ROI',
+      unit: 'x',
+      current: computeRoi(monthData, generalData),
+      previous: previousMonthData ? computeRoi(previousMonthData, generalData) : null
+    }
+  ];
+
+  return rows.map((row) => {
+    if (row.current === null) {
+      return [{ text: row.label }, { text: '—' }, { text: '—' }];
+    }
+    const evolution = row.previous !== null ? computeEvolution(row.previous, row.current) : { diff: null, percent: null };
+    const evoFmt = formatEvolution(evolution, row.unit);
+    const color =
+      evoFmt.badgeClass === 'positive' ? PDF_COLORS.positive : evoFmt.badgeClass === 'negative' ? PDF_COLORS.negative : PDF_COLORS.textSoft;
+    return [{ text: row.label }, { text: formatValue(row.current, row.unit) }, { text: evoFmt.text, color }];
   });
 }
 
@@ -3379,6 +3495,16 @@ function generateClientReportPdf(clientId) {
       buildKpiTableRows(section, monthData, previousMonthData)
     );
   });
+  addPdfSubTitle(state, 'Résultats business calculés');
+  addPdfTable(
+    state,
+    [
+      { header: 'Indicateur', width: 76 },
+      { header: 'Valeur du mois', width: 34 },
+      { header: 'Évolution vs mois précédent', width: 64 }
+    ],
+    buildComputedBusinessResultsPdfRows(monthData, previousMonthData, data.general)
+  );
 
   doc.addPage();
   state.cursorY = state.marginTop;
