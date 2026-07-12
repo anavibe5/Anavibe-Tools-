@@ -62,8 +62,8 @@ const baselineFieldMap = {
   instagramProfileVisits: { section: 'instagram', field: 'profileVisits' },
   instagramLinkClicks: { section: 'instagram', field: 'linkClicks' },
   facebookFollowers: { section: 'facebook', field: 'followers' },
-  facebookPageVisits: { section: 'facebook', field: 'reach' },
-  facebookViews: { section: 'facebook', field: 'impressions' },
+  facebookPageVisits: { section: 'facebook', field: 'pageVisits' },
+  facebookViews: { section: 'facebook', field: 'views' },
   facebookInteractions: { section: 'facebook', field: 'interactions' }
 };
 
@@ -92,9 +92,7 @@ const monthlySectionSchema = [
     title: 'Instagram',
     fields: [
       { key: 'followers', label: 'Abonnés', type: 'number' },
-      { key: 'newFollowers', label: 'Nouveaux abonnés', type: 'number' },
       { key: 'reach', label: 'Portée', type: 'number' },
-      { key: 'impressions', label: 'Impressions', type: 'number' },
       { key: 'views', label: 'Vues', type: 'number' },
       { key: 'interactions', label: 'Interactions', type: 'number' },
       { key: 'engagementRate', label: 'Taux d’engagement', type: 'number', step: '0.1', unit: '%' },
@@ -111,8 +109,8 @@ const monthlySectionSchema = [
     title: 'Facebook',
     fields: [
       { key: 'followers', label: 'Abonnés', type: 'number' },
-      { key: 'reach', label: 'Portée', type: 'number' },
-      { key: 'impressions', label: 'Impressions', type: 'number' },
+      { key: 'pageVisits', label: 'Visites de la page', type: 'number' },
+      { key: 'views', label: 'Vues', type: 'number' },
       { key: 'interactions', label: 'Interactions', type: 'number' },
       { key: 'linkClicks', label: 'Clics lien', type: 'number' },
       { key: 'posts', label: 'Publications', type: 'number' }
@@ -182,9 +180,7 @@ function createEmptyMonthData(label) {
     },
     instagram: {
       followers: '',
-      newFollowers: '',
       reach: '',
-      impressions: '',
       views: '',
       interactions: '',
       engagementRate: '',
@@ -196,8 +192,8 @@ function createEmptyMonthData(label) {
     },
     facebook: {
       followers: '',
-      reach: '',
-      impressions: '',
+      pageVisits: '',
+      views: '',
       interactions: '',
       linkClicks: '',
       posts: ''
@@ -1120,8 +1116,8 @@ function describeTrend(percent) {
 
 const facebookFieldsForInsights = [
   ['facebook', 'followers'],
-  ['facebook', 'reach'],
-  ['facebook', 'impressions'],
+  ['facebook', 'pageVisits'],
+  ['facebook', 'views'],
   ['facebook', 'interactions'],
   ['facebook', 'linkClicks'],
   ['facebook', 'posts']
@@ -1142,8 +1138,8 @@ const insightFieldLabels = {
   'instagram.profileVisits': 'Les visites de profil Instagram',
   'instagram.linkClicks': 'Les clics sur le lien Instagram',
   'facebook.followers': 'Les abonnés Facebook',
-  'facebook.reach': 'La portée Facebook',
-  'facebook.impressions': 'Les impressions Facebook',
+  'facebook.pageVisits': 'Les visites de la page Facebook',
+  'facebook.views': 'Les vues Facebook',
   'facebook.interactions': 'Les interactions Facebook',
   'facebook.linkClicks': 'Les clics lien Facebook',
   'facebook.posts': 'Les publications Facebook',
@@ -1258,7 +1254,7 @@ function generateInstagramAnalysis(monthData, previousMonthData) {
 
   if (hasValue(ig.followers)) {
     sentences.push(
-      `La communauté Instagram est ${describeTrend(followersEvo.percent)}${followersEvo.percent !== null ? ` (${formatSignedPercent(followersEvo.percent)})` : ''}, avec ${formatNumber(ig.followers)} abonnés${hasValue(ig.newFollowers) ? ` dont ${ig.newFollowers} nouveaux ce mois-ci` : ''}.`
+      `La communauté Instagram est ${describeTrend(followersEvo.percent)}${followersEvo.percent !== null ? ` (${formatSignedPercent(followersEvo.percent)})` : ''}, avec ${formatNumber(ig.followers)} abonnés.`
     );
   }
 
@@ -1310,7 +1306,8 @@ function generateFacebookAnalysis(monthData, previousMonthData) {
   const sentences = [];
 
   const followersEvo = prevFb ? computeEvolution(prevFb.followers, fb.followers) : { percent: null };
-  const reachEvo = prevFb ? computeEvolution(prevFb.reach, fb.reach) : { percent: null };
+  const pageVisitsEvo = prevFb ? computeEvolution(prevFb.pageVisits, fb.pageVisits) : { percent: null };
+  const viewsEvo = prevFb ? computeEvolution(prevFb.views, fb.views) : { percent: null };
   const interactionsEvo = prevFb ? computeEvolution(prevFb.interactions, fb.interactions) : { percent: null };
 
   if (hasValue(fb.followers)) {
@@ -1318,8 +1315,11 @@ function generateFacebookAnalysis(monthData, previousMonthData) {
       `La page Facebook compte ${formatNumber(fb.followers)} abonnés, ${describeTrend(followersEvo.percent)}${followersEvo.percent !== null ? ` (${formatSignedPercent(followersEvo.percent)})` : ''}.`
     );
   }
-  if (hasValue(fb.reach)) {
-    sentences.push(`La portée est ${describeTrend(reachEvo.percent)}${reachEvo.percent !== null ? ` (${formatSignedPercent(reachEvo.percent)})` : ''}.`);
+  if (hasValue(fb.pageVisits)) {
+    sentences.push(`Les visites de la page sont ${describeTrend(pageVisitsEvo.percent)}${pageVisitsEvo.percent !== null ? ` (${formatSignedPercent(pageVisitsEvo.percent)})` : ''}, pour ${formatNumber(fb.pageVisits)} visites.`);
+  }
+  if (hasValue(fb.views)) {
+    sentences.push(`Les vues sont ${describeTrend(viewsEvo.percent)}${viewsEvo.percent !== null ? ` (${formatSignedPercent(viewsEvo.percent)})` : ''}, pour ${formatNumber(fb.views)} vues.`);
   }
   if (hasValue(fb.interactions)) {
     sentences.push(
@@ -1571,7 +1571,7 @@ const recordCheckFields = [
   { section: 'instagram', field: 'followers', label: 'Abonnés Instagram' },
   { section: 'instagram', field: 'reach', label: 'Portée Instagram' },
   { section: 'instagram', field: 'interactions', label: 'Interactions Instagram' },
-  { section: 'facebook', field: 'reach', label: 'Portée Facebook' },
+  { section: 'facebook', field: 'pageVisits', label: 'Visites de la page Facebook' },
   { section: 'beacons', field: 'bookingClicks', label: 'Clics réservation Beacons' },
   { section: 'businessResults', field: 'bookingsGenerated', label: 'Réservations générées' }
 ];
@@ -3387,7 +3387,7 @@ function generateClientReportPdf(clientId) {
   const chartDefinitions = [
     { title: 'Google Business — Vues de la fiche', getSeries: () => getMonthlySeries(data, 'googleBusiness', 'profileViews') },
     { title: 'Instagram — Portée', getSeries: () => getMonthlySeries(data, 'instagram', 'reach') },
-    { title: 'Facebook — Portée', getSeries: () => getMonthlySeries(data, 'facebook', 'reach') },
+    { title: 'Facebook — Visites de la page', getSeries: () => getMonthlySeries(data, 'facebook', 'pageVisits') },
     { title: 'Intentions clients (Google + Beacons)', getSeries: () => getMonthlyIntentionsSeries(data) }
   ];
 
