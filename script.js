@@ -30,22 +30,22 @@ const initialSituationSchema = {
   eyebrow: 'Point de départ',
   title: 'Situation initiale',
   fields: [
-    { key: 'googleRating', label: 'Note Google initiale', type: 'number', step: '0.1' },
-    { key: 'googleReviews', label: 'Avis Google initiaux', type: 'number' },
-    { key: 'googleViews', label: 'Vues Google initiales', type: 'number' },
-    { key: 'googleCalls', label: 'Appels Google initiaux', type: 'number' },
-    { key: 'googleDirections', label: 'Itinéraires initiaux', type: 'number' },
-    { key: 'googleWebsiteClicks', label: 'Clics site initiaux', type: 'number' },
-    { key: 'instagramFollowers', label: 'Abonnés Instagram initiaux', type: 'number' },
-    { key: 'instagramReach', label: 'Portée Instagram initiale', type: 'number' },
-    { key: 'instagramViews', label: 'Vues Instagram initiales', type: 'number' },
-    { key: 'instagramInteractions', label: 'Interactions initiales', type: 'number' },
-    { key: 'instagramProfileVisits', label: 'Visites profil initiales', type: 'number' },
-    { key: 'instagramLinkClicks', label: 'Clics lien initiaux', type: 'number' },
-    { key: 'facebookFollowers', label: 'Abonnés Facebook initiaux', type: 'number' },
-    { key: 'facebookPageVisits', label: 'Visites de la page Facebook initiales', type: 'number' },
-    { key: 'facebookViews', label: 'Vues Facebook initiales', type: 'number' },
-    { key: 'facebookInteractions', label: 'Interactions Facebook initiales', type: 'number' }
+    { key: 'googleRating', label: 'Note Google initiale', type: 'metric', step: '0.1' },
+    { key: 'googleReviews', label: 'Avis Google initiaux', type: 'metric' },
+    { key: 'googleViews', label: 'Vues Google initiales', type: 'metric' },
+    { key: 'googleCalls', label: 'Appels Google initiaux', type: 'metric' },
+    { key: 'googleDirections', label: 'Itinéraires initiaux', type: 'metric' },
+    { key: 'googleWebsiteClicks', label: 'Clics site initiaux', type: 'metric' },
+    { key: 'instagramFollowers', label: 'Abonnés Instagram initiaux', type: 'metric' },
+    { key: 'instagramReach', label: 'Portée Instagram initiale', type: 'metric' },
+    { key: 'instagramViews', label: 'Vues Instagram initiales', type: 'metric' },
+    { key: 'instagramInteractions', label: 'Interactions initiales', type: 'metric' },
+    { key: 'instagramProfileVisits', label: 'Visites profil initiales', type: 'metric' },
+    { key: 'instagramLinkClicks', label: 'Clics lien initiaux', type: 'metric' },
+    { key: 'facebookFollowers', label: 'Abonnés Facebook initiaux', type: 'metric' },
+    { key: 'facebookPageVisits', label: 'Visites de la page Facebook initiales', type: 'metric' },
+    { key: 'facebookViews', label: 'Vues Facebook initiales', type: 'metric' },
+    { key: 'facebookInteractions', label: 'Interactions Facebook initiales', type: 'metric' }
   ]
 };
 
@@ -75,17 +75,18 @@ const monthlySectionSchema = [
     eyebrow: 'Réseaux & visibilité',
     title: 'Google Business',
     fields: [
-      { key: 'rating', label: 'Note Google', type: 'number', step: '0.1' },
-      { key: 'reviewsCount', label: 'Nombre d’avis', type: 'number' },
-      { key: 'newReviews', label: 'Nouveaux avis', type: 'number' },
-      { key: 'reviewsAnswered', label: 'Avis répondus', type: 'number' },
-      { key: 'profileViews', label: 'Vues de la fiche', type: 'number' },
-      { key: 'calls', label: 'Appels', type: 'number' },
-      { key: 'directions', label: 'Itinéraires', type: 'number' },
-      { key: 'websiteClicks', label: 'Clics vers le site', type: 'number' },
-      { key: 'bookings', label: 'Réservations', type: 'number' },
-      { key: 'photosPublished', label: 'Photos publiées', type: 'number' },
-      { key: 'googlePosts', label: 'Publications Google', type: 'number' }
+      { key: 'rating', label: 'Note Google', type: 'metric', step: '0.1' },
+      { key: 'reviewsCount', label: 'Nombre total d’avis', type: 'metric' },
+      { key: 'newReviews', label: 'Nouveaux avis reçus (période)', type: 'metric' },
+      { key: 'reviewsAnswered', label: 'Nombre total d’avis répondus', type: 'metric' },
+      { key: 'newReviewsAnswered', label: 'Nouveaux avis répondus (période)', type: 'metric' },
+      { key: 'profileViews', label: 'Vues de la fiche', type: 'metric' },
+      { key: 'calls', label: 'Appels', type: 'metric' },
+      { key: 'directions', label: 'Itinéraires', type: 'metric' },
+      { key: 'websiteClicks', label: 'Clics vers le site', type: 'metric' },
+      { key: 'bookings', label: 'Réservations', type: 'metric' },
+      { key: 'photosPublished', label: 'Photos publiées', type: 'metric' },
+      { key: 'googlePosts', label: 'Publications Google', type: 'metric' }
     ]
   },
   {
@@ -93,16 +94,16 @@ const monthlySectionSchema = [
     eyebrow: 'Réseaux & visibilité',
     title: 'Instagram',
     fields: [
-      { key: 'followers', label: 'Abonnés', type: 'number' },
-      { key: 'reach', label: 'Portée', type: 'number' },
-      { key: 'views', label: 'Vues', type: 'number' },
-      { key: 'interactions', label: 'Interactions', type: 'number' },
-      { key: 'engagementRate', label: 'Taux d’engagement', type: 'number', step: '0.1', unit: '%' },
-      { key: 'profileVisits', label: 'Visites du profil', type: 'number' },
-      { key: 'linkClicks', label: 'Clics sur le lien', type: 'number' },
-      { key: 'posts', label: 'Publications', type: 'number' },
-      { key: 'reels', label: 'Reels', type: 'number' },
-      { key: 'stories', label: 'Stories', type: 'number' }
+      { key: 'followers', label: 'Abonnés', type: 'metric' },
+      { key: 'reach', label: 'Portée', type: 'metric' },
+      { key: 'views', label: 'Vues', type: 'metric' },
+      { key: 'interactions', label: 'Interactions', type: 'metric' },
+      { key: 'engagementRate', label: 'Taux d’engagement', type: 'metric', unit: '%' },
+      { key: 'profileVisits', label: 'Visites du profil', type: 'metric' },
+      { key: 'linkClicks', label: 'Clics sur le lien', type: 'metric' },
+      { key: 'posts', label: 'Publications', type: 'metric' },
+      { key: 'reels', label: 'Reels', type: 'metric' },
+      { key: 'stories', label: 'Stories', type: 'metric' }
     ]
   },
   {
@@ -110,12 +111,12 @@ const monthlySectionSchema = [
     eyebrow: 'Réseaux & visibilité',
     title: 'Facebook',
     fields: [
-      { key: 'followers', label: 'Abonnés', type: 'number' },
-      { key: 'pageVisits', label: 'Visites de la page', type: 'number' },
-      { key: 'views', label: 'Vues', type: 'number' },
-      { key: 'interactions', label: 'Interactions', type: 'number' },
-      { key: 'linkClicks', label: 'Clics lien', type: 'number' },
-      { key: 'posts', label: 'Publications', type: 'number' }
+      { key: 'followers', label: 'Abonnés', type: 'metric' },
+      { key: 'pageVisits', label: 'Visites de la page', type: 'metric' },
+      { key: 'views', label: 'Vues', type: 'metric' },
+      { key: 'interactions', label: 'Interactions', type: 'metric' },
+      { key: 'linkClicks', label: 'Clics lien', type: 'metric' },
+      { key: 'posts', label: 'Publications', type: 'metric' }
     ]
   },
   {
@@ -123,9 +124,9 @@ const monthlySectionSchema = [
     eyebrow: 'Réseaux & visibilité',
     title: 'Beacons',
     fields: [
-      { key: 'bookingClicks', label: 'Clics réservation', type: 'number' },
-      { key: 'phoneClicks', label: 'Clics téléphone', type: 'number' },
-      { key: 'directionsClicks', label: 'Clics itinéraire', type: 'number' }
+      { key: 'bookingClicks', label: 'Clics réservation', type: 'metric' },
+      { key: 'phoneClicks', label: 'Clics téléphone', type: 'metric' },
+      { key: 'directionsClicks', label: 'Clics itinéraire', type: 'metric' }
     ]
   },
   {
@@ -169,6 +170,7 @@ function createEmptyMonthData(label) {
       reviewsCount: '',
       newReviews: '',
       reviewsAnswered: '',
+      newReviewsAnswered: '',
       profileViews: '',
       calls: '',
       directions: '',
@@ -625,9 +627,23 @@ function createFieldControl(sectionKey, field, monthKey) {
   } else {
     input = document.createElement('input');
     input.className = 'field-input';
-    input.type = field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text';
-    if (field.step) {
-      input.step = field.step;
+    if (field.type === 'date') {
+      input.type = 'date';
+    } else if (field.type === 'number') {
+      input.type = 'number';
+      if (field.step) {
+        input.step = field.step;
+      }
+    } else if (field.type === 'metric') {
+      // Texte plutôt que <input type="number"> : un champ number natif refuse les abréviations
+      // comme "4,1k" ou "8.5K", que le consultant doit pouvoir saisir directement. La valeur est
+      // ensuite interprétée par parseMetricValue() partout où elle est utilisée (calculs, textes,
+      // tableaux) au lieu d'être lue comme le nombre littéral.
+      input.type = 'text';
+      input.inputMode = 'decimal';
+      input.placeholder = 'Ex : 4100 ou 4,1k';
+    } else {
+      input.type = 'text';
     }
   }
 
@@ -672,10 +688,53 @@ function fillFieldValues(scopeEl, dataScope) {
   });
 }
 
+// Interprète une saisie de KPI en nombre, en tolérant la virgule décimale française et les
+// suffixes abrégés « k »/« K » (milliers) et « m »/« M » (millions), pour qu'une saisie comme
+// « 4,1k » ou « 8.5K » soit convertie en 4100 / 8500 avant tout calcul ou affichage, plutôt que
+// d'être lue comme le nombre littéral 4,1 ou 8,5.
+function parseMetricValue(raw) {
+  if (raw === '' || raw === null || raw === undefined) {
+    return null;
+  }
+  if (typeof raw === 'number') {
+    return Number.isNaN(raw) ? null : raw;
+  }
+  const str = String(raw).trim();
+  if (!str) {
+    return null;
+  }
+  const match = str.match(/^(-?[\d\s.,]+)\s*(k|m)?$/i);
+  if (!match) {
+    const direct = Number(str.replace(',', '.'));
+    return Number.isNaN(direct) ? null : direct;
+  }
+  let numberPart = match[1].replace(/\s/g, '');
+  const suffix = match[2] ? match[2].toLowerCase() : '';
+  if (numberPart.includes(',') && !numberPart.includes('.')) {
+    numberPart = numberPart.replace(',', '.');
+  } else {
+    numberPart = numberPart.replace(/,(?=\d{3}(\D|$))/g, '');
+  }
+  let value = Number(numberPart);
+  if (Number.isNaN(value)) {
+    return null;
+  }
+  if (suffix === 'k') {
+    value *= 1000;
+  } else if (suffix === 'm') {
+    value *= 1000000;
+  }
+  return value;
+}
+
 function formatNumber(value) {
   // Uses a plain space rather than toLocaleString's narrow no-break space (U+202F),
   // which the PDF export's core font cannot render.
-  const rounded = Math.round(Number(value) * 100) / 100;
+  const parsed = parseMetricValue(value);
+  if (parsed === null) {
+    return '—';
+  }
+  const rounded = Math.round(parsed * 100) / 100;
   const [integerPart, decimalPart] = Math.abs(rounded).toString().split('.');
   const groupedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   const sign = rounded < 0 ? '-' : '';
@@ -696,22 +755,21 @@ function unitSuffix(unit) {
 }
 
 function formatValue(value, unit) {
-  if (value === '' || value === null || value === undefined || Number.isNaN(Number(value))) {
+  const parsed = parseMetricValue(value);
+  if (parsed === null) {
     return '—';
   }
-  return `${formatNumber(value)}${unitSuffix(unit)}`;
+  return `${formatNumber(parsed)}${unitSuffix(unit)}`;
 }
 
 function computeEvolution(reference, current) {
-  const refValid = reference !== '' && reference !== null && reference !== undefined && !Number.isNaN(Number(reference));
-  const curValid = current !== '' && current !== null && current !== undefined && !Number.isNaN(Number(current));
+  const refNum = parseMetricValue(reference);
+  const curNum = parseMetricValue(current);
 
-  if (!refValid || !curValid) {
+  if (refNum === null || curNum === null) {
     return { diff: null, percent: null };
   }
 
-  const refNum = Number(reference);
-  const curNum = Number(current);
   const diff = curNum - refNum;
   const percent = refNum !== 0 ? (diff / Math.abs(refNum)) * 100 : null;
   return { diff, percent };
@@ -765,13 +823,13 @@ function clamp(value, min, max) {
 }
 
 function sumOrNull(values) {
-  const provided = values.filter((value) => value !== '' && value !== null && value !== undefined);
+  const provided = values.filter((value) => hasValue(value));
   if (!provided.length) {
     return null;
   }
   return values.reduce((total, value) => {
-    const numeric = value === '' || value === null || value === undefined || Number.isNaN(Number(value)) ? 0 : Number(value);
-    return total + numeric;
+    const numeric = parseMetricValue(value);
+    return total + (numeric === null ? 0 : numeric);
   }, 0);
 }
 
@@ -801,27 +859,80 @@ function computeEngagementRate(monthData) {
   if (!monthData) {
     return null;
   }
-  const interactions = monthData.instagram.interactions;
-  const reach = monthData.instagram.reach;
-  if (interactions === '' || interactions === null || interactions === undefined) {
+  const interactions = parseMetricValue(monthData.instagram.interactions);
+  const reach = parseMetricValue(monthData.instagram.reach);
+  if (interactions === null || reach === null || reach === 0) {
     return null;
   }
-  if (reach === '' || reach === null || reach === undefined || Number(reach) === 0) {
-    return null;
-  }
-  return (Number(interactions) / Number(reach)) * 100;
+  return (interactions / reach) * 100;
 }
 
 function computeEngagementRateFromInitial(initialSituation) {
-  const interactions = initialSituation.instagramInteractions;
-  const reach = initialSituation.instagramReach;
-  if (interactions === '' || interactions === null || interactions === undefined) {
+  const interactions = parseMetricValue(initialSituation.instagramInteractions);
+  const reach = parseMetricValue(initialSituation.instagramReach);
+  if (interactions === null || reach === null || reach === 0) {
     return null;
   }
-  if (reach === '' || reach === null || reach === undefined || Number(reach) === 0) {
+  return (interactions / reach) * 100;
+}
+
+// Portée / abonnés : une communauté importante avec une portée proportionnellement faible
+// indique un problème de distribution (algorithme, formats peu partagés) plutôt qu'un problème
+// de volume de contenu.
+function computeInstagramReachRatio(monthData) {
+  if (!monthData) {
     return null;
   }
-  return (Number(interactions) / Number(reach)) * 100;
+  const reach = parseMetricValue(monthData.instagram.reach);
+  const followers = parseMetricValue(monthData.instagram.followers);
+  if (reach === null || followers === null || followers === 0) {
+    return null;
+  }
+  return reach / followers;
+}
+
+// Visites de profil / clics lien : beaucoup de visites mais peu de clics indique un problème de
+// conversion du profil (bio, lien en avant, CTA) plutôt qu'un manque de trafic.
+function computeInstagramProfileConversionRatio(monthData) {
+  if (!monthData) {
+    return null;
+  }
+  const profileVisits = parseMetricValue(monthData.instagram.profileVisits);
+  const linkClicks = parseMetricValue(monthData.instagram.linkClicks);
+  if (profileVisits === null || linkClicks === null || profileVisits === 0) {
+    return null;
+  }
+  return linkClicks / profileVisits;
+}
+
+function computeInstagramContentVolume(monthData) {
+  if (!monthData) {
+    return null;
+  }
+  return sumOrNull([monthData.instagram.posts, monthData.instagram.reels, monthData.instagram.stories]);
+}
+
+// Actions clients directement attribuables à la fiche Google (hors Beacons) : un volume élevé
+// identifie Google Business comme un levier d'intention fort à exploiter davantage.
+function computeGoogleIntentions(monthData) {
+  if (!monthData) {
+    return null;
+  }
+  return sumOrNull([monthData.googleBusiness.calls, monthData.googleBusiness.directions, monthData.googleBusiness.websiteClicks]);
+}
+
+// Taux de réponse aux NOUVEAUX avis reçus sur LA période (jamais un total cumulé rapporté à un
+// chiffre mensuel) : borné à 100%, et null (non applicable) si aucun nouvel avis sur la période.
+function computeReviewResponseRate(monthData) {
+  if (!monthData) {
+    return null;
+  }
+  const newReviews = parseMetricValue(monthData.googleBusiness.newReviews);
+  const newReviewsAnswered = parseMetricValue(monthData.googleBusiness.newReviewsAnswered);
+  if (newReviews === null || newReviews === 0 || newReviewsAnswered === null) {
+    return null;
+  }
+  return Math.min(100, Math.max(0, (newReviewsAnswered / newReviews) * 100));
 }
 
 // Réservations générées / CA estimé / ROI ne sont plus saisis à la main : le consultant ne
@@ -837,18 +948,20 @@ function computeBookingsGenerated(monthData) {
 
 function computeEstimatedRevenue(monthData, generalData) {
   const bookings = computeBookingsGenerated(monthData);
-  if (bookings === null || !generalData || !hasValue(generalData.averageBasket)) {
+  const averageBasket = generalData ? parseMetricValue(generalData.averageBasket) : null;
+  if (bookings === null || averageBasket === null) {
     return null;
   }
-  return bookings * Number(generalData.averageBasket);
+  return bookings * averageBasket;
 }
 
 function computeRoi(monthData, generalData) {
   const revenue = computeEstimatedRevenue(monthData, generalData);
-  if (revenue === null || !generalData || !hasValue(generalData.monthlyFee) || Number(generalData.monthlyFee) === 0) {
+  const monthlyFee = generalData ? parseMetricValue(generalData.monthlyFee) : null;
+  if (revenue === null || monthlyFee === null || monthlyFee === 0) {
     return null;
   }
-  return revenue / Number(generalData.monthlyFee);
+  return revenue / monthlyFee;
 }
 
 function computeObjectivesRate(monthData) {
@@ -1077,6 +1190,7 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation) {
 
 const synthesisRowConfigs = [
   { label: 'Avis Google', section: 'googleBusiness', field: 'reviewsCount' },
+  { label: 'Taux de réponse aux nouveaux avis', unit: '%', compute: computeReviewResponseRate },
   { label: 'Note Google', section: 'googleBusiness', field: 'rating' },
   { label: 'Vues Google', section: 'googleBusiness', field: 'profileViews' },
   { label: 'Appels Google', section: 'googleBusiness', field: 'calls' },
@@ -1154,7 +1268,7 @@ function renderSynthesisSection(monthData, previousMonthData, initialSituation) 
 }
 
 function hasValue(value) {
-  return value !== '' && value !== null && value !== undefined && !Number.isNaN(Number(value));
+  return parseMetricValue(value) !== null;
 }
 
 function monthHasAnyData(monthData) {
@@ -1242,6 +1356,16 @@ function collectFieldEvolutions(monthData, previousMonthData, fieldPairs) {
     .filter((item) => item.percent !== null && !Number.isNaN(item.percent));
 }
 
+// Formate une clause de tendance ("en forte progression (+12.0%)") pour l'insérer dans une
+// phrase, ou une chaîne vide quand il n'y a pas de mois précédent à comparer — plutôt que de
+// répéter "sans comparaison disponible pour ce mois" dans chaque phrase du rapport.
+function trendClause(percent) {
+  if (percent === null || percent === undefined || Number.isNaN(percent)) {
+    return '';
+  }
+  return `${describeTrend(percent)} (${formatSignedPercent(percent)})`;
+}
+
 function generateExecutiveSummary(ctx) {
   const name = ctx.generalData?.name || 'Ce client';
   const sentences = [];
@@ -1250,14 +1374,18 @@ function generateExecutiveSummary(ctx) {
     `En ${ctx.monthLabel}, ${name} obtient un score global de ${ctx.score}/100, ce qui correspond à un mois « ${ctx.scoreBadge.label.toLowerCase()} ».`
   );
 
+  if (!ctx.hasPreviousMonth) {
+    sentences.push(
+      `${ctx.monthLabel} constitue le premier mois de référence enregistré dans le Dashboard. Les évolutions pourront être analysées à partir du prochain reporting.`
+    );
+  }
+
   const { best, worst } = ctx.evolutions;
   if (best) {
-    sentences.push(`Le point fort du mois est : ${best.label}, ${describeTrend(best.percent)} (${formatSignedPercent(best.percent)}).`);
+    sentences.push(`Le point fort du mois est : ${best.label}, ${trendClause(best.percent)}.`);
   }
   if (worst && worst.percent < 0 && (!best || worst.field !== best.field)) {
-    sentences.push(
-      `À l’inverse, un point de vigilance : ${worst.label}, ${describeTrend(worst.percent)} (${formatSignedPercent(worst.percent)}), qui mérite une attention particulière.`
-    );
+    sentences.push(`À l’inverse, un point de vigilance : ${worst.label}, ${trendClause(worst.percent)}, qui mérite une attention particulière.`);
   }
 
   sentences.push(ctx.objectivesSentence);
@@ -1278,44 +1406,61 @@ function generateGoogleAnalysis(monthData, previousMonthData) {
   const clicksEvo = prevGb ? computeEvolution(prevGb.websiteClicks, gb.websiteClicks) : { percent: null };
 
   if (hasValue(gb.rating)) {
-    sentences.push(
-      `La note Google est ${describeTrend(ratingEvo.percent)}${ratingEvo.percent !== null ? ` (${formatSignedPercent(ratingEvo.percent)})` : ''}, actuellement à ${gb.rating}/5.`
-    );
+    const trend = trendClause(ratingEvo.percent);
+    sentences.push(`La note Google est${trend ? ` ${trend},` : ''} actuellement à ${formatNumber(gb.rating)}/5.`);
   }
 
   if (hasValue(gb.reviewsCount)) {
-    let reviewSentence = `Le volume d’avis est ${describeTrend(reviewsEvo.percent)}${reviewsEvo.percent !== null ? ` (${formatSignedPercent(reviewsEvo.percent)})` : ''}, avec ${gb.reviewsCount} avis au total`;
+    const trend = trendClause(reviewsEvo.percent);
+    let reviewSentence = trend
+      ? `Le volume d’avis est ${trend}, avec ${formatNumber(gb.reviewsCount)} avis au total`
+      : `Le volume d’avis s’élève à ${formatNumber(gb.reviewsCount)} avis au total`;
     if (hasValue(gb.newReviews)) {
-      reviewSentence += ` dont ${gb.newReviews} nouveaux ce mois-ci`;
+      reviewSentence += ` dont ${formatNumber(gb.newReviews)} nouveaux ce mois-ci`;
     }
     sentences.push(`${reviewSentence}.`);
   }
 
-  if (hasValue(gb.newReviews) && hasValue(gb.reviewsAnswered) && Number(gb.newReviews) > 0) {
-    const responseRate = (Number(gb.reviewsAnswered) / Number(gb.newReviews)) * 100;
-    sentences.push(`Le taux de réponse aux nouveaux avis est de ${Math.round(responseRate)}% (${gb.reviewsAnswered}/${gb.newReviews}).`);
+  // Taux de réponse : uniquement nouveaux avis répondus / nouveaux avis reçus sur LA MÊME
+  // période (jamais un total cumulé rapporté à un chiffre mensuel, ce qui produisait des taux
+  // absurdes du type 16175%). Capé à 100%, et pas de "0%" auto quand il n'y a aucun nouvel avis.
+  if (hasValue(gb.newReviews)) {
+    const newReviewsCount = parseMetricValue(gb.newReviews);
+    if (newReviewsCount === 0) {
+      sentences.push('Aucun nouvel avis reçu sur la période, le taux de réponse n’est pas applicable.');
+    } else if (hasValue(gb.newReviewsAnswered)) {
+      const rawRate = (parseMetricValue(gb.newReviewsAnswered) / newReviewsCount) * 100;
+      const responseRate = Math.min(100, Math.max(0, rawRate));
+      sentences.push(
+        `Le taux de réponse aux nouveaux avis est de ${Math.round(responseRate)}% (${formatNumber(gb.newReviewsAnswered)}/${formatNumber(gb.newReviews)}).`
+      );
+    }
   }
 
   const visibilityParts = [];
-  if (viewsEvo.percent !== null) {
-    visibilityParts.push(`les vues de la fiche sont ${describeTrend(viewsEvo.percent)} (${formatSignedPercent(viewsEvo.percent)})`);
+  if (hasValue(gb.profileViews)) {
+    const trend = trendClause(viewsEvo.percent);
+    visibilityParts.push(trend ? `les vues de la fiche sont ${trend}` : `${formatNumber(gb.profileViews)} vues de la fiche`);
   }
-  if (callsEvo.percent !== null) {
-    visibilityParts.push(`les appels sont ${describeTrend(callsEvo.percent)} (${formatSignedPercent(callsEvo.percent)})`);
+  if (hasValue(gb.calls)) {
+    const trend = trendClause(callsEvo.percent);
+    visibilityParts.push(trend ? `les appels sont ${trend}` : `${formatNumber(gb.calls)} appels`);
   }
-  if (directionsEvo.percent !== null) {
-    visibilityParts.push(`les demandes d’itinéraire sont ${describeTrend(directionsEvo.percent)} (${formatSignedPercent(directionsEvo.percent)})`);
+  if (hasValue(gb.directions)) {
+    const trend = trendClause(directionsEvo.percent);
+    visibilityParts.push(trend ? `les demandes d’itinéraire sont ${trend}` : `${formatNumber(gb.directions)} demandes d’itinéraire`);
   }
-  if (clicksEvo.percent !== null) {
-    visibilityParts.push(`les clics vers le site sont ${describeTrend(clicksEvo.percent)} (${formatSignedPercent(clicksEvo.percent)})`);
+  if (hasValue(gb.websiteClicks)) {
+    const trend = trendClause(clicksEvo.percent);
+    visibilityParts.push(trend ? `les clics vers le site sont ${trend}` : `${formatNumber(gb.websiteClicks)} clics vers le site`);
   }
   if (visibilityParts.length) {
-    sentences.push(`Sur le plan de la visibilité, ${joinWithAnd(visibilityParts)}.`);
+    sentences.push(`Sur le plan de la visibilité : ${joinWithAnd(visibilityParts)}.`);
   }
 
   if (hasValue(gb.bookings)) {
-    const count = Number(gb.bookings);
-    sentences.push(`${count} réservation${count > 1 ? 's ont' : ' a'} été enregistrée${count > 1 ? 's' : ''} via Google Business ce mois-ci.`);
+    const count = parseMetricValue(gb.bookings);
+    sentences.push(`${formatNumber(count)} réservation${count > 1 ? 's ont' : ' a'} été enregistrée${count > 1 ? 's' : ''} via Google Business ce mois-ci.`);
   }
 
   if (!sentences.length) {
@@ -1335,43 +1480,63 @@ function generateInstagramAnalysis(monthData, previousMonthData) {
   const linkClicksEvo = prevIg ? computeEvolution(prevIg.linkClicks, ig.linkClicks) : { percent: null };
 
   if (hasValue(ig.followers)) {
-    sentences.push(
-      `La communauté Instagram est ${describeTrend(followersEvo.percent)}${followersEvo.percent !== null ? ` (${formatSignedPercent(followersEvo.percent)})` : ''}, avec ${formatNumber(ig.followers)} abonnés.`
-    );
+    const trend = trendClause(followersEvo.percent);
+    sentences.push(`La communauté Instagram${trend ? ` est ${trend}, avec` : ' compte'} ${formatNumber(ig.followers)} abonnés.`);
   }
 
-  if (hasValue(ig.reach)) {
-    sentences.push(
-      `La portée est ${describeTrend(reachEvo.percent)}${reachEvo.percent !== null ? ` (${formatSignedPercent(reachEvo.percent)})` : ''}, pour ${formatNumber(ig.reach)} comptes touchés.`
-    );
+  const reachTrend = hasValue(ig.reach) ? trendClause(reachEvo.percent) : '';
+  const contentParts = [];
+  if (hasValue(ig.views)) {
+    contentParts.push(`généré ${formatNumber(ig.views)} vues`);
+  }
+  if (hasValue(ig.interactions)) {
+    contentParts.push(`${contentParts.length ? '' : 'généré '}${formatNumber(ig.interactions)} interactions`);
+  }
+
+  if (hasValue(ig.reach) && reachTrend) {
+    sentences.push(`La portée est ${reachTrend}, pour ${formatNumber(ig.reach)} comptes touchés.`);
+    if (contentParts.length) {
+      sentences.push(`Les contenus ont ${joinWithAnd(contentParts)}.`);
+    }
+  } else {
+    const touchedParts = [];
+    if (hasValue(ig.reach)) {
+      touchedParts.push(`touché ${formatNumber(ig.reach)} comptes`);
+    }
+    touchedParts.push(...contentParts);
+    if (touchedParts.length) {
+      sentences.push(`Les contenus ont ${joinWithAnd(touchedParts)}.`);
+    }
   }
 
   const engagementRate = computeEngagementRate(monthData);
   const prevEngagementRate = previousMonthData ? computeEngagementRate(previousMonthData) : null;
   if (engagementRate !== null) {
     const engagementEvo = computeEvolution(prevEngagementRate, engagementRate);
-    sentences.push(
-      `Le taux d’engagement calculé (interactions / portée) est de ${engagementRate.toFixed(1)}%${engagementEvo.percent !== null ? `, ${describeTrend(engagementEvo.percent)} par rapport au mois précédent (${formatSignedPercent(engagementEvo.percent)})` : ''}.`
-    );
+    const trend = trendClause(engagementEvo.percent);
+    sentences.push(`Le taux d’engagement calculé (interactions / portée) est de ${engagementRate.toFixed(1)}%${trend ? `, ${trend} par rapport au mois précédent` : ''}.`);
   }
 
   const volumeParts = [];
   if (hasValue(ig.posts)) {
-    volumeParts.push(`${ig.posts} publication${Number(ig.posts) > 1 ? 's' : ''}`);
+    volumeParts.push(`${formatNumber(ig.posts)} publication${parseMetricValue(ig.posts) > 1 ? 's' : ''}`);
   }
   if (hasValue(ig.reels)) {
-    volumeParts.push(`${ig.reels} reel${Number(ig.reels) > 1 ? 's' : ''}`);
+    volumeParts.push(`${formatNumber(ig.reels)} reel${parseMetricValue(ig.reels) > 1 ? 's' : ''}`);
   }
   if (hasValue(ig.stories)) {
-    volumeParts.push(`${ig.stories} story/stories`);
+    volumeParts.push(`${formatNumber(ig.stories)} story/stories`);
   }
   if (volumeParts.length) {
     sentences.push(`Le rythme de publication du mois représente ${joinWithAnd(volumeParts)}.`);
   }
 
   if (hasValue(ig.linkClicks)) {
+    const trend = trendClause(linkClicksEvo.percent);
     sentences.push(
-      `Les clics sur le lien de la bio sont ${describeTrend(linkClicksEvo.percent)}${linkClicksEvo.percent !== null ? ` (${formatSignedPercent(linkClicksEvo.percent)})` : ''}, avec ${ig.linkClicks} clics enregistrés.`
+      trend
+        ? `Les clics sur le lien de la bio sont ${trend}, avec ${formatNumber(ig.linkClicks)} clics enregistrés.`
+        : `${formatNumber(ig.linkClicks)} clics ont été enregistrés sur le lien de la bio.`
     );
   }
 
@@ -1382,6 +1547,9 @@ function generateInstagramAnalysis(monthData, previousMonthData) {
   return sentences.join(' ');
 }
 
+// Chaque indicateur Facebook (abonnés, vues, interactions, publications, visites de page) utilise
+// exclusivement sa propre variable : ne jamais réutiliser "publications" pour décrire les
+// interactions ni l'inverse, quelle que soit la phrase générée.
 function generateFacebookAnalysis(monthData, previousMonthData) {
   const fb = monthData.facebook;
   const prevFb = previousMonthData ? previousMonthData.facebook : null;
@@ -1389,23 +1557,34 @@ function generateFacebookAnalysis(monthData, previousMonthData) {
 
   const followersEvo = prevFb ? computeEvolution(prevFb.followers, fb.followers) : { percent: null };
   const pageVisitsEvo = prevFb ? computeEvolution(prevFb.pageVisits, fb.pageVisits) : { percent: null };
-  const viewsEvo = prevFb ? computeEvolution(prevFb.views, fb.views) : { percent: null };
-  const interactionsEvo = prevFb ? computeEvolution(prevFb.interactions, fb.interactions) : { percent: null };
 
   if (hasValue(fb.followers)) {
-    sentences.push(
-      `La page Facebook compte ${formatNumber(fb.followers)} abonnés, ${describeTrend(followersEvo.percent)}${followersEvo.percent !== null ? ` (${formatSignedPercent(followersEvo.percent)})` : ''}.`
-    );
+    const trend = trendClause(followersEvo.percent);
+    sentences.push(`La page Facebook compte ${formatNumber(fb.followers)} abonnés${trend ? `, ${trend}` : ''}.`);
   }
-  if (hasValue(fb.pageVisits)) {
-    sentences.push(`Les visites de la page sont ${describeTrend(pageVisitsEvo.percent)}${pageVisitsEvo.percent !== null ? ` (${formatSignedPercent(pageVisitsEvo.percent)})` : ''}, pour ${formatNumber(fb.pageVisits)} visites.`);
-  }
+
+  const contentParts = [];
   if (hasValue(fb.views)) {
-    sentences.push(`Les vues sont ${describeTrend(viewsEvo.percent)}${viewsEvo.percent !== null ? ` (${formatSignedPercent(viewsEvo.percent)})` : ''}, pour ${formatNumber(fb.views)} vues.`);
+    contentParts.push(`${formatNumber(fb.views)} vues`);
   }
   if (hasValue(fb.interactions)) {
+    contentParts.push(`${formatNumber(fb.interactions)} interactions`);
+  }
+  if (contentParts.length) {
+    sentences.push(`Les contenus ont généré ${joinWithAnd(contentParts)} sur la période.`);
+  }
+
+  if (hasValue(fb.posts)) {
+    const count = parseMetricValue(fb.posts);
+    sentences.push(`${formatNumber(count)} publication${count > 1 ? 's ont' : ' a'} été diffusée${count > 1 ? 's' : ''} ce mois-ci.`);
+  }
+
+  if (hasValue(fb.pageVisits)) {
+    const trend = trendClause(pageVisitsEvo.percent);
     sentences.push(
-      `Les interactions sont ${describeTrend(interactionsEvo.percent)}${interactionsEvo.percent !== null ? ` (${formatSignedPercent(interactionsEvo.percent)})` : ''}, pour ${hasValue(fb.posts) ? fb.posts : 0} publication(s) ce mois-ci.`
+      trend
+        ? `La page a enregistré ${formatNumber(fb.pageVisits)} visites, ${trend}.`
+        : `La page a enregistré ${formatNumber(fb.pageVisits)} visites.`
     );
   }
 
@@ -1430,13 +1609,16 @@ function generateBeaconsAnalysis(monthData, previousMonthData) {
     sentences.push(`Les Beacons ont généré ${formatNumber(total)} clics d’intention ce mois-ci (réservation, téléphone, itinéraire confondus).`);
   }
   if (hasValue(bc.bookingClicks)) {
-    sentences.push(`Les clics de réservation sont ${describeTrend(bookingEvo.percent)}${bookingEvo.percent !== null ? ` (${formatSignedPercent(bookingEvo.percent)})` : ''}.`);
+    const trend = trendClause(bookingEvo.percent);
+    sentences.push(trend ? `Les clics de réservation sont ${trend}.` : `${formatNumber(bc.bookingClicks)} clics de réservation ont été enregistrés.`);
   }
   if (hasValue(bc.phoneClicks)) {
-    sentences.push(`Les clics téléphone sont ${describeTrend(phoneEvo.percent)}${phoneEvo.percent !== null ? ` (${formatSignedPercent(phoneEvo.percent)})` : ''}.`);
+    const trend = trendClause(phoneEvo.percent);
+    sentences.push(trend ? `Les clics téléphone sont ${trend}.` : `${formatNumber(bc.phoneClicks)} clics téléphone ont été enregistrés.`);
   }
   if (hasValue(bc.directionsClicks)) {
-    sentences.push(`Les clics itinéraire sont ${describeTrend(directionsEvo.percent)}${directionsEvo.percent !== null ? ` (${formatSignedPercent(directionsEvo.percent)})` : ''}.`);
+    const trend = trendClause(directionsEvo.percent);
+    sentences.push(trend ? `Les clics itinéraire sont ${trend}.` : `${formatNumber(bc.directionsClicks)} clics itinéraire ont été enregistrés.`);
   }
 
   if (!sentences.length) {
@@ -1489,6 +1671,43 @@ function generateStrengths(monthData, previousMonthData) {
   return positives.map((item) => `${item.label} : ${formatSignedPercent(item.percent)} vs mois précédent.`);
 }
 
+// Seuils utilisés pour transformer des relations entre KPI en constats mesurables (portée
+// faible pour la taille de la communauté, conversion profil → clic faible, volume de contenu
+// déjà élevé) plutôt que des formulations génériques déconnectées des données réelles.
+const INSTAGRAM_MEANINGFUL_COMMUNITY = 500;
+const INSTAGRAM_LOW_REACH_RATIO = 0.3;
+const INSTAGRAM_MEANINGFUL_PROFILE_VISITS = 50;
+const INSTAGRAM_LOW_CONVERSION_RATIO = 0.1;
+const INSTAGRAM_HIGH_CONTENT_VOLUME = 15;
+const GOOGLE_STRONG_INTENTIONS_THRESHOLD = 200;
+
+function isInstagramHighVolumeLowReach(monthData) {
+  const ig = monthData.instagram;
+  const contentVolume = computeInstagramContentVolume(monthData);
+  const reachRatio = computeInstagramReachRatio(monthData);
+  const followers = parseMetricValue(ig.followers);
+  return (
+    contentVolume !== null &&
+    contentVolume >= INSTAGRAM_HIGH_CONTENT_VOLUME &&
+    reachRatio !== null &&
+    followers !== null &&
+    followers >= INSTAGRAM_MEANINGFUL_COMMUNITY &&
+    reachRatio < INSTAGRAM_LOW_REACH_RATIO
+  );
+}
+
+function isInstagramLowProfileConversion(monthData) {
+  const ig = monthData.instagram;
+  const conversionRatio = computeInstagramProfileConversionRatio(monthData);
+  const profileVisits = parseMetricValue(ig.profileVisits);
+  return (
+    conversionRatio !== null &&
+    profileVisits !== null &&
+    profileVisits >= INSTAGRAM_MEANINGFUL_PROFILE_VISITS &&
+    conversionRatio < INSTAGRAM_LOW_CONVERSION_RATIO
+  );
+}
+
 function generateWeaknesses(monthData, previousMonthData) {
   const evolutions = collectFieldEvolutions(monthData, previousMonthData, allInsightFields);
   const negatives = evolutions
@@ -1497,6 +1716,23 @@ function generateWeaknesses(monthData, previousMonthData) {
     .slice(0, 3);
 
   const items = negatives.map((item) => `${item.label} : ${formatSignedPercent(item.percent)} vs mois précédent.`);
+
+  const ig = monthData.instagram;
+  const reachRatio = computeInstagramReachRatio(monthData);
+  const followers = parseMetricValue(ig.followers);
+  if (reachRatio !== null && followers !== null && followers >= INSTAGRAM_MEANINGFUL_COMMUNITY && reachRatio < INSTAGRAM_LOW_REACH_RATIO) {
+    items.push(
+      `La portée Instagram (${formatNumber(ig.reach)} comptes touchés) reste faible par rapport à la taille de la communauté (${formatNumber(ig.followers)} abonnés, soit ${Math.round(reachRatio * 100)}% de portée) : un problème de distribution plutôt qu’un manque de volume de publication.`
+    );
+  }
+
+  const conversionRatio = computeInstagramProfileConversionRatio(monthData);
+  const profileVisits = parseMetricValue(ig.profileVisits);
+  if (conversionRatio !== null && profileVisits !== null && profileVisits >= INSTAGRAM_MEANINGFUL_PROFILE_VISITS && conversionRatio < INSTAGRAM_LOW_CONVERSION_RATIO) {
+    items.push(
+      `Les visites de profil Instagram (${formatNumber(ig.profileVisits)}) se convertissent peu en clics sur le lien (${formatNumber(ig.linkClicks)}, soit ${Math.round(conversionRatio * 100)}%) : un problème de conversion du profil vers l’action.`
+    );
+  }
 
   const objectivesRate = computeObjectivesRate(monthData);
   if (objectivesRate !== null && objectivesRate < 50) {
@@ -1515,15 +1751,30 @@ function generateOpportunities(monthData, previousMonthData) {
   const ig = monthData.instagram;
   const gb = monthData.googleBusiness;
 
-  if (hasValue(ig.posts) && hasValue(ig.reels) && Number(ig.posts) > 0 && Number(ig.reels) < Number(ig.posts) / 3) {
+  const highVolumeLowReach = isInstagramHighVolumeLowReach(monthData);
+  if (
+    !highVolumeLowReach &&
+    hasValue(ig.posts) &&
+    hasValue(ig.reels) &&
+    parseMetricValue(ig.posts) > 0 &&
+    parseMetricValue(ig.reels) < parseMetricValue(ig.posts) / 3
+  ) {
     opportunities.push('Le format Reels est sous-exploité par rapport au volume de publications : c’est un levier de portée disponible.');
   }
-  if (hasValue(gb.newReviews) && hasValue(gb.reviewsAnswered) && Number(gb.newReviews) > Number(gb.reviewsAnswered)) {
+  if (hasValue(gb.newReviews) && hasValue(gb.newReviewsAnswered) && parseMetricValue(gb.newReviews) > parseMetricValue(gb.newReviewsAnswered)) {
     opportunities.push('Des avis Google récents restent sans réponse : une opportunité rapide d’améliorer la relation client.');
   }
-  if (hasValue(gb.googlePosts) && Number(gb.googlePosts) < 2) {
+  if (hasValue(gb.googlePosts) && parseMetricValue(gb.googlePosts) < 2) {
     opportunities.push('La fréquence de publication sur Google Business est faible : publier plus régulièrement renforcerait la visibilité locale.');
   }
+
+  const googleIntentions = computeGoogleIntentions(monthData);
+  if (googleIntentions !== null && googleIntentions >= GOOGLE_STRONG_INTENTIONS_THRESHOLD) {
+    opportunities.push(
+      `Google Business génère un fort volume d’actions clients (${formatNumber(googleIntentions)} appels, itinéraires et clics site cumulés ce mois-ci) : un levier d’intention à exploiter davantage (avis, offres, publications régulières).`
+    );
+  }
+
   const reachEvo = previousMonthData ? computeEvolution(previousMonthData.instagram.reach, ig.reach) : { percent: null };
   if (reachEvo.percent !== null && reachEvo.percent < 0) {
     opportunities.push('La portée Instagram recule : mettre en avant les offres et produits phares dans les prochains contenus peut relancer la dynamique.');
@@ -1543,10 +1794,25 @@ function generateRecommendations(monthData, previousMonthData) {
   const fb = monthData.facebook;
   const bc = monthData.beacons;
 
-  if (hasValue(ig.posts) && hasValue(ig.reels) && Number(ig.posts) > 0 && Number(ig.reels) < Number(ig.posts) / 3) {
+  const highVolumeLowReach = isInstagramHighVolumeLowReach(monthData);
+  if (highVolumeLowReach) {
+    // Le volume est déjà conséquent : ne jamais recommander d'en publier davantage. Le vrai
+    // levier est la qualité de découverte (hooks, formats, partage), pas le volume.
+    const reachRatio = computeInstagramReachRatio(monthData);
+    const contentVolume = computeInstagramContentVolume(monthData);
+    recommendations.push(
+      `Le volume de contenu est déjà conséquent (${formatNumber(contentVolume)} publications/Reels/Stories ce mois-ci) mais la portée reste faible par rapport à la communauté (${Math.round(reachRatio * 100)}%) : prioriser l’amélioration des hooks, des formats partageables et des contenus de découverte plutôt que d’augmenter encore le volume.`
+    );
+  } else if (hasValue(ig.posts) && hasValue(ig.reels) && parseMetricValue(ig.posts) > 0 && parseMetricValue(ig.reels) < parseMetricValue(ig.posts) / 3) {
     recommendations.push('Publier davantage de Reels pour dynamiser la portée Instagram.');
   }
-  if (hasValue(gb.newReviews) && hasValue(gb.reviewsAnswered) && Number(gb.newReviews) > Number(gb.reviewsAnswered)) {
+
+  const lowProfileConversion = isInstagramLowProfileConversion(monthData);
+  if (lowProfileConversion) {
+    recommendations.push('Travailler la conversion du profil Instagram vers le site (bio, lien mis en avant, appel à l’action dans les contenus) : les visites de profil se transforment trop peu en clics.');
+  }
+
+  if (hasValue(gb.newReviews) && hasValue(gb.newReviewsAnswered) && parseMetricValue(gb.newReviews) > parseMetricValue(gb.newReviewsAnswered)) {
     recommendations.push('Améliorer les réponses aux avis Google : des avis récents restent sans réponse.');
   }
 
@@ -1554,10 +1820,10 @@ function generateRecommendations(monthData, previousMonthData) {
   if (reviewsEvo.percent !== null && reviewsEvo.percent < 8) {
     recommendations.push('Demander plus d’avis Google auprès des clients satisfaits pour accélérer la collecte.');
   }
-  if (hasValue(gb.googlePosts) && Number(gb.googlePosts) < 2) {
+  if (hasValue(gb.googlePosts) && parseMetricValue(gb.googlePosts) < 2) {
     recommendations.push('Publier plus de Google Posts pour dynamiser la fiche Google Business.');
   }
-  if (hasValue(ig.stories) && hasValue(ig.posts) && Number(ig.stories) < Number(ig.posts)) {
+  if (hasValue(ig.stories) && hasValue(ig.posts) && parseMetricValue(ig.stories) < parseMetricValue(ig.posts)) {
     recommendations.push('Travailler davantage les Stories pour garder un contact régulier avec la communauté.');
   }
 
@@ -1570,7 +1836,7 @@ function generateRecommendations(monthData, previousMonthData) {
   if (ratingEvo.percent !== null && ratingEvo.percent <= 0) {
     recommendations.push('Améliorer la fiche Google Business (photos récentes, informations à jour) pour soutenir la note.');
   }
-  if (hasValue(fb.posts) && Number(fb.posts) < 2) {
+  if (hasValue(fb.posts) && parseMetricValue(fb.posts) < 2) {
     recommendations.push('Maintenir une publication régulière sur Facebook pour ne pas perdre le lien avec cette audience.');
   }
 
@@ -1581,7 +1847,11 @@ function generateRecommendations(monthData, previousMonthData) {
 
   const objectivesRate = computeObjectivesRate(monthData);
   if (objectivesRate !== null && objectivesRate < 50) {
-    recommendations.push('Prioriser les objectifs du mois en retard pour sécuriser les résultats.');
+    recommendations.push(
+      highVolumeLowReach || lowProfileConversion
+        ? 'Prioriser les objectifs du mois en retard, en particulier ceux liés à la portée et à la conversion Instagram identifiées ci-dessus.'
+        : 'Prioriser les objectifs du mois en retard pour sécuriser les résultats.'
+    );
   }
 
   if (!recommendations.length) {
@@ -1676,12 +1946,12 @@ function findRecords(clientData, monthKey) {
     const priorValues = priorKeys
       .map((key) => clientData.months[key][section][field])
       .filter((value) => hasValue(value))
-      .map(Number);
+      .map(parseMetricValue);
     if (!priorValues.length) {
       return;
     }
     const maxPrior = Math.max(...priorValues);
-    if (Number(currentValue) > maxPrior) {
+    if (parseMetricValue(currentValue) > maxPrior) {
       records.push(`${label} : nouveau record à ${formatNumber(currentValue)} (précédent record : ${formatNumber(maxPrior)}).`);
     }
   });
@@ -1747,7 +2017,8 @@ function renderAnalysisSection(clientData, monthKey, monthData, previousMonthDat
     score,
     scoreBadge,
     evolutions: { best, worst },
-    objectivesSentence
+    objectivesSentence,
+    hasPreviousMonth: Boolean(previousMonthData)
   });
 
   const sections = [
@@ -3065,7 +3336,7 @@ function addPdfTable(state, columns, rows) {
 function buildKpiTableRows(section, monthData, previousMonthData) {
   return section.fields.map((field) => {
     const current = monthData[section.key][field.key];
-    if (field.type !== 'number') {
+    if (field.type !== 'number' && field.type !== 'metric') {
       return [{ text: field.label }, { text: current || '—' }, { text: '—' }];
     }
     const evolution = previousMonthData
@@ -3297,7 +3568,7 @@ function createCompactLineChartImage(title, labels, values) {
 function getMonthlySeries(clientData, section, field) {
   return clientData.monthOrder.map((key) => {
     const value = clientData.months[key][section][field];
-    return hasValue(value) ? Number(value) : null;
+    return hasValue(value) ? parseMetricValue(value) : null;
   });
 }
 
@@ -3478,7 +3749,8 @@ function generateClientReportPdf(clientId) {
       score,
       scoreBadge,
       evolutions: { best: bestForSummary, worst: worstForSummary },
-      objectivesSentence: objectivesSentenceForSummary
+      objectivesSentence: objectivesSentenceForSummary,
+      hasPreviousMonth: Boolean(previousMonthData)
     })
   );
 
@@ -3607,7 +3879,7 @@ function createBeforeAfterBarChartImage(title, beforeValue, afterValue) {
   const chartBottom = height - paddingBottom;
   const chartHeight = chartBottom - chartTop;
 
-  const values = [beforeValue, afterValue].map((value) => (hasValue(value) ? Number(value) : 0));
+  const values = [beforeValue, afterValue].map((value) => (hasValue(value) ? parseMetricValue(value) : 0));
   const maxValue = Math.max(...values, 1);
 
   const barWidth = 160;
@@ -3629,7 +3901,7 @@ function createBeforeAfterBarChartImage(title, beforeValue, afterValue) {
     ctx.fillStyle = '#161616';
     ctx.font = 'bold 22px Arial';
     ctx.textAlign = 'center';
-    const valueText = hasValue(bar.rawValue) ? Number(bar.rawValue).toLocaleString('fr-FR') : '—';
+    const valueText = hasValue(bar.rawValue) ? formatNumber(bar.rawValue) : '—';
     ctx.fillText(valueText, bar.x + barWidth / 2, y - 12);
 
     ctx.font = '14px Arial';
