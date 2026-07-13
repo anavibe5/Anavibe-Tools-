@@ -698,6 +698,32 @@ a {
   min-width: 180px;
 }
 
+.objective-add-form select,
+.objective-add-form input[name="baseline"],
+.objective-add-form input[name="target"],
+.objective-add-form input[name="deadline"] {
+  flex: 1;
+  min-width: 140px;
+}
+
+.objective-item {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.objective-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.objective-meta {
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  padding-left: 26px;
+}
+
 .notes-textarea {
   width: 100%;
   min-height: 140px;

@@ -3,6 +3,71 @@ const CLIENT_DATA_PREFIX = 'anavibe-tools-client-data-';
 
 const actionStatusOptions = ['À faire', 'En cours', 'Terminé'];
 
+// KPI qu'un objectif mensuel peut cibler. Un objectif qui associe un de ces KPI + une valeur
+// cible est "quantitatif" (mesurable) ; un objectif texte libre sans KPI reste "qualitatif" et
+// n'entre jamais dans le calcul du taux d'objectifs atteints (cf. computeObjectivesRate).
+const objectiveKpiOptions = [
+  { section: 'instagram', field: 'reach', label: 'Portée Instagram' },
+  { section: 'instagram', field: 'profileVisits', label: 'Visites de profil Instagram' },
+  { section: 'instagram', field: 'linkClicks', label: 'Clics sur le lien Instagram' },
+  { section: 'instagram', field: 'followers', label: 'Abonnés Instagram' },
+  { section: 'instagram', field: 'interactions', label: 'Interactions Instagram' },
+  { section: 'googleBusiness', field: 'calls', label: 'Appels Google' },
+  { section: 'googleBusiness', field: 'websiteClicks', label: 'Clics site Google' },
+  { section: 'googleBusiness', field: 'bookings', label: 'Réservations Google' },
+  { section: 'googleBusiness', field: 'reviewsCount', label: 'Avis Google' },
+  { section: 'facebook', field: 'pageVisits', label: 'Visites de la page Facebook' },
+  { section: 'beacons', field: 'bookingClicks', label: 'Clics réservation Beacons' }
+];
+
+function findObjectiveKpiOption(section, field) {
+  return objectiveKpiOptions.find((option) => option.section === section && option.field === field) || null;
+}
+
+function buildObjectivePdfLabel(objective, monthData) {
+  if (!isObjectiveQuantitative(objective)) {
+    return `${objective.label} (objectif qualitatif — non mesurable en l’état)`;
+  }
+  const kpiOption = findObjectiveKpiOption(objective.kpiSection, objective.kpiField);
+  const progress = computeObjectiveProgress(objective, monthData);
+  const parts = [`${kpiOption ? kpiOption.label : objective.kpiField} → cible ${formatNumber(objective.targetValue)}`];
+  if (progress !== null) {
+    parts.push(`${Math.round(progress)}% de la cible`);
+  }
+  if (objective.deadline) {
+    parts.push(`échéance ${objective.deadline}`);
+  }
+  return `${objective.label} (${parts.join(', ')})`;
+}
+
+// Un objectif est "quantitatif" seulement s'il possède un KPI associé ET une valeur cible :
+// un objectif texte libre (ancien format ou nouveau sans KPI choisi) reste "qualitatif".
+function isObjectiveQuantitative(objective) {
+  return Boolean(objective && objective.kpiSection && objective.kpiField && hasValue(objective.targetValue));
+}
+
+// Progression vers la cible en %, calculée sur (valeur actuelle - référence) / (cible - référence).
+// Sans référence exploitable (ou référence = cible), on retombe sur un simple ratio actuel/cible.
+function computeObjectiveProgress(objective, monthData) {
+  if (!isObjectiveQuantitative(objective) || !monthData) {
+    return null;
+  }
+  const section = monthData[objective.kpiSection];
+  if (!section) {
+    return null;
+  }
+  const current = parseMetricValue(section[objective.kpiField]);
+  const target = parseMetricValue(objective.targetValue);
+  if (current === null || target === null) {
+    return null;
+  }
+  const baseline = parseMetricValue(objective.baselineValue);
+  if (baseline === null || baseline === target) {
+    return target !== 0 ? clamp((current / target) * 100, 0, 150) : null;
+  }
+  return clamp(((current - baseline) / (target - baseline)) * 100, 0, 150);
+}
+
 const generalFieldsSchema = {
   key: 'general',
   eyebrow: 'Fiche client',
@@ -98,7 +163,7 @@ const monthlySectionSchema = [
       { key: 'reach', label: 'Portée', type: 'metric' },
       { key: 'views', label: 'Vues', type: 'metric' },
       { key: 'interactions', label: 'Interactions', type: 'metric' },
-      { key: 'engagementRate', label: 'Taux d’engagement', type: 'metric', unit: '%' },
+      { key: 'engagementRate', label: 'Taux d’engagement déclaré (source Instagram, méthode propre à la plateforme)', type: 'metric', unit: '%' },
       { key: 'profileVisits', label: 'Visites du profil', type: 'metric' },
       { key: 'linkClicks', label: 'Clics sur le lien', type: 'metric' },
       { key: 'posts', label: 'Publications', type: 'metric' },
@@ -912,13 +977,64 @@ function computeInstagramContentVolume(monthData) {
   return sumOrNull([monthData.instagram.posts, monthData.instagram.reels, monthData.instagram.stories]);
 }
 
-// Actions clients directement attribuables à la fiche Google (hors Beacons) : un volume élevé
-// identifie Google Business comme un levier d'intention fort à exploiter davantage.
+// « Actions à forte intention » Google Business : appels + itinéraires + clics site + réservations.
+// Ce sont des actions observées, pas un nombre de clients uniques (un même client peut générer
+// plusieurs actions) — ne jamais présenter cette somme comme des « clients générés ». Les 4
+// champs sommés sont chacun une métrique Google Business distincte et mutuellement exclusive
+// (un appel n'est pas comptabilisé comme un itinéraire, etc.), donc aucun double comptage.
 function computeGoogleIntentions(monthData) {
   if (!monthData) {
     return null;
   }
-  return sumOrNull([monthData.googleBusiness.calls, monthData.googleBusiness.directions, monthData.googleBusiness.websiteClicks]);
+  return sumOrNull([
+    monthData.googleBusiness.calls,
+    monthData.googleBusiness.directions,
+    monthData.googleBusiness.websiteClicks,
+    monthData.googleBusiness.bookings
+  ]);
+}
+
+// Ratios de conversion Google Business : quelle part des vues de la fiche se transforme en
+// chaque type d'action. Permet de distinguer visibilité (vues) et conversion (actions).
+function computeGoogleConversionRatios(monthData) {
+  if (!monthData) {
+    return null;
+  }
+  const views = parseMetricValue(monthData.googleBusiness.profileViews);
+  if (views === null || views === 0) {
+    return null;
+  }
+  const ratio = (field) => {
+    const value = parseMetricValue(monthData.googleBusiness[field]);
+    return value === null ? null : value / views;
+  };
+  return {
+    calls: ratio('calls'),
+    directions: ratio('directions'),
+    websiteClicks: ratio('websiteClicks'),
+    bookings: ratio('bookings')
+  };
+}
+
+// Ratios de conversion Beacons : quelle part des clics totaux correspond à chaque intention
+// (réservation, téléphone, itinéraire).
+function computeBeaconsConversionRatios(monthData) {
+  if (!monthData) {
+    return null;
+  }
+  const total = sumOrNull([monthData.beacons.bookingClicks, monthData.beacons.phoneClicks, monthData.beacons.directionsClicks]);
+  if (total === null || total === 0) {
+    return null;
+  }
+  const ratio = (field) => {
+    const value = parseMetricValue(monthData.beacons[field]);
+    return value === null ? null : value / total;
+  };
+  return {
+    bookingClicks: ratio('bookingClicks'),
+    phoneClicks: ratio('phoneClicks'),
+    directionsClicks: ratio('directionsClicks')
+  };
 }
 
 // Taux de réponse aux NOUVEAUX avis reçus sur LA période (jamais un total cumulé rapporté à un
@@ -964,12 +1080,18 @@ function computeRoi(monthData, generalData) {
   return revenue / monthlyFee;
 }
 
+// Un objectif qualitatif (texte libre, sans KPI/cible) n'est jamais compté ici : un objectif
+// non mesurable ne doit pas pouvoir faire baisser artificiellement un taux d'atteinte.
 function computeObjectivesRate(monthData) {
   if (!monthData || !monthData.monthlyObjectives.length) {
     return null;
   }
-  const done = monthData.monthlyObjectives.filter((objective) => objective.done).length;
-  return (done / monthData.monthlyObjectives.length) * 100;
+  const quantitative = monthData.monthlyObjectives.filter(isObjectiveQuantitative);
+  if (!quantitative.length) {
+    return null;
+  }
+  const done = quantitative.filter((objective) => objective.done).length;
+  return (done / quantitative.length) * 100;
 }
 
 function computeActionCompletionRate(monthData) {
@@ -1024,30 +1146,181 @@ function scoreFromEvolutionPercent(percent) {
   return clamp(50 + percent, 0, 100);
 }
 
-function computeGlobalScore(monthData, previousMonthData) {
-  const googlePercent = averagePercentEvolution(googleScoreFields, monthData, previousMonthData);
-  const instagramPercent = averagePercentEvolution(instagramScoreFields, monthData, previousMonthData);
+// --- Scoring en piliers explicables ------------------------------------------------------
+//
+// Chaque pilier est noté selon cette cascade, jamais un benchmark universel arbitraire :
+//   1. par rapport à un objectif quantifié du client (KPI + cible) qui touche ce pilier ;
+//   2. par rapport au mois précédent (évolution) ;
+//   3. sinon : "non évalué — manque de recul" (score = null), jamais une note inventée.
+// Le pilier Progression est spécifique : il n'a de sens qu'en présence d'un mois précédent, et
+// n'est jamais compté comme un "recul" quand il n'y a pas encore d'historique.
 
-  const intentionsCurrent = computeIntentionsFromMonth(monthData);
-  const intentionsPrevious = previousMonthData ? computeIntentionsFromMonth(previousMonthData) : null;
-  const intentionsPercent = computeEvolution(intentionsPrevious, intentionsCurrent).percent;
+const scorePillarDefinitions = [
+  { key: 'visibility', label: 'Visibilité' },
+  { key: 'engagement', label: 'Engagement' },
+  { key: 'conversion', label: 'Conversion' },
+  { key: 'intention', label: 'Intention client' },
+  { key: 'regularity', label: 'Régularité / exécution' },
+  { key: 'progression', label: 'Progression' }
+];
 
-  const objectivesRate = computeObjectivesRate(monthData);
-  const actionsRate = computeActionCompletionRate(monthData);
+const pillarSignalGetters = {
+  visibility: [
+    (m) => parseMetricValue(m.googleBusiness.profileViews),
+    (m) => parseMetricValue(m.instagram.reach),
+    (m) => parseMetricValue(m.facebook.pageVisits)
+  ],
+  engagement: [(m) => parseMetricValue(m.instagram.interactions), (m) => parseMetricValue(m.facebook.interactions), (m) => computeEngagementRate(m)],
+  conversion: [(m) => computeInstagramProfileConversionRatio(m), (m) => parseMetricValue(m.instagram.linkClicks)],
+  intention: [(m) => computeGoogleIntentions(m), (m) => sumOrNull([m.beacons.bookingClicks, m.beacons.phoneClicks, m.beacons.directionsClicks])]
+};
 
-  const components = [
-    scoreFromEvolutionPercent(googlePercent),
-    scoreFromEvolutionPercent(instagramPercent),
-    scoreFromEvolutionPercent(intentionsPercent),
-    objectivesRate === null ? 50 : objectivesRate,
-    actionsRate === null ? 50 : actionsRate
-  ];
+const pillarKpiFieldKeys = {
+  visibility: [
+    ['googleBusiness', 'profileViews'],
+    ['instagram', 'reach'],
+    ['facebook', 'pageVisits']
+  ],
+  engagement: [
+    ['instagram', 'interactions'],
+    ['facebook', 'interactions']
+  ],
+  conversion: [['instagram', 'linkClicks']],
+  intention: [
+    ['googleBusiness', 'calls'],
+    ['googleBusiness', 'directions'],
+    ['googleBusiness', 'websiteClicks'],
+    ['googleBusiness', 'bookings'],
+    ['beacons', 'bookingClicks'],
+    ['beacons', 'phoneClicks'],
+    ['beacons', 'directionsClicks']
+  ]
+};
 
-  const average = components.reduce((total, value) => total + value, 0) / components.length;
-  return Math.round(clamp(average, 0, 100));
+function evolutionPercentFromSignals(signalGetters, monthData, previousMonthData) {
+  if (!previousMonthData) {
+    return null;
+  }
+  const percents = signalGetters
+    .map((getter) => {
+      const current = getter(monthData);
+      const previous = getter(previousMonthData);
+      if (current === null || previous === null) {
+        return null;
+      }
+      return computeEvolution(previous, current).percent;
+    })
+    .filter((percent) => percent !== null && !Number.isNaN(percent));
+  if (!percents.length) {
+    return null;
+  }
+  return percents.reduce((total, percent) => total + percent, 0) / percents.length;
 }
 
-function getScoreBadge(score) {
+function computePillarScore(pillarKey, monthData, previousMonthData, objectives) {
+  const matchingObjective = objectives.find(
+    (objective) => isObjectiveQuantitative(objective) && pillarKpiFieldKeys[pillarKey].some(([section, field]) => section === objective.kpiSection && field === objective.kpiField)
+  );
+  if (matchingObjective) {
+    const progress = computeObjectiveProgress(matchingObjective, monthData);
+    if (progress !== null) {
+      return { score: Math.round(clamp(progress, 0, 100)), reason: `Basé sur la progression vers l’objectif « ${matchingObjective.label} ».` };
+    }
+  }
+
+  const percent = evolutionPercentFromSignals(pillarSignalGetters[pillarKey], monthData, previousMonthData);
+  if (percent !== null) {
+    return { score: Math.round(clamp(50 + percent, 0, 100)), reason: `Basé sur l’évolution vs mois précédent (${formatSignedPercent(percent)}).` };
+  }
+
+  return { score: null, reason: 'ni objectif chiffré ni mois précédent pour évaluer ce pilier' };
+}
+
+// La régularité/exécution est la seule dimension mesurable en valeur absolue dès le premier
+// mois : le taux de complétion du plan d'action ne dépend d'aucune comparaison historique.
+function computePillarRegularity(monthData) {
+  const actionsRate = computeActionCompletionRate(monthData);
+  if (actionsRate !== null) {
+    return { score: Math.round(actionsRate), reason: `${Math.round(actionsRate)}% des actions du plan d’action ont été menées à terme.` };
+  }
+  const volume = sumOrNull([
+    monthData.instagram.posts,
+    monthData.instagram.reels,
+    monthData.instagram.stories,
+    monthData.googleBusiness.googlePosts,
+    monthData.facebook.posts
+  ]);
+  if (volume !== null && volume > 0) {
+    return { score: 70, reason: 'Production de contenu active sur la période ; aucun plan d’action structuré à mesurer pour affiner ce score.' };
+  }
+  return { score: null, reason: 'Pas assez de données de production ou d’exécution pour évaluer la régularité.' };
+}
+
+function computePillarProgression(monthData, previousMonthData) {
+  if (!previousMonthData) {
+    return { score: null, reason: 'Mois de référence : la progression pourra être évaluée à partir du prochain reporting.' };
+  }
+  const percents = [
+    averagePercentEvolution(googleScoreFields, monthData, previousMonthData),
+    averagePercentEvolution(instagramScoreFields, monthData, previousMonthData),
+    evolutionPercentFromSignals([(m) => computeIntentionsFromMonth(m)], monthData, previousMonthData)
+  ].filter((percent) => percent !== null);
+  if (!percents.length) {
+    return { score: null, reason: 'Pas assez d’indicateurs comparables pour évaluer la progression ce mois-ci.' };
+  }
+  const average = percents.reduce((total, percent) => total + percent, 0) / percents.length;
+  return { score: Math.round(clamp(50 + average, 0, 100)), reason: `Évolution moyenne des indicateurs suivis : ${formatSignedPercent(average)}.` };
+}
+
+function computeScorePillars(monthData, previousMonthData) {
+  const objectives = monthData.monthlyObjectives || [];
+  return {
+    visibility: computePillarScore('visibility', monthData, previousMonthData, objectives),
+    engagement: computePillarScore('engagement', monthData, previousMonthData, objectives),
+    conversion: computePillarScore('conversion', monthData, previousMonthData, objectives),
+    intention: computePillarScore('intention', monthData, previousMonthData, objectives),
+    regularity: computePillarRegularity(monthData),
+    progression: computePillarProgression(monthData, previousMonthData)
+  };
+}
+
+// Score global = moyenne des piliers disponibles seulement : un pilier "non évalué" (score
+// null) est exclu du calcul plutôt que remplacé par une valeur par défaut arbitraire — sa
+// pondération est donc redistribuée proportionnellement sur les piliers restants. Si aucun
+// pilier n'est évaluable, le score global lui-même est "non disponible" (jamais 0 ni 50 par défaut).
+function computeGlobalScoreFromPillars(pillars) {
+  const available = scorePillarDefinitions.map((def) => pillars[def.key]).filter((pillar) => pillar.score !== null);
+  if (!available.length) {
+    return null;
+  }
+  const sum = available.reduce((total, pillar) => total + pillar.score, 0);
+  return Math.round(clamp(sum / available.length, 0, 100));
+}
+
+// Une ligne par pilier, avec une explication brève de comment le score a été obtenu (ou
+// pourquoi il ne l'a pas été) — jamais un chiffre nu sans justification.
+function formatPillarLine(def, pillar) {
+  if (pillar.score === null) {
+    return def.key === 'progression' ? `${def.label} : non évaluée — mois de référence` : `${def.label} : non évalué — ${pillar.reason}`;
+  }
+  return `${def.label} : ${pillar.score}/100 — ${pillar.reason}`;
+}
+
+function buildScorePillarsLines(pillars) {
+  return scorePillarDefinitions.map((def) => formatPillarLine(def, pillars[def.key]));
+}
+
+function computeGlobalScore(monthData, previousMonthData) {
+  return computeGlobalScoreFromPillars(computeScorePillars(monthData, previousMonthData));
+}
+
+function getScoreBadge(score, hasPreviousMonth) {
+  if (hasPreviousMonth === false) {
+    return { label: 'Mois de référence', badgeClass: 'neutral' };
+  }
+  if (score === null) {
+    return { label: 'Score non disponible', badgeClass: 'neutral' };
+  }
   if (score < 50) {
     return { label: 'À surveiller', badgeClass: 'negative' };
   }
@@ -1079,7 +1352,7 @@ function createIntentionsSummaryCard(current, evolution) {
   card.className = 'kpi-card card summary-card';
   const fmt = formatEvolution(evolution, '');
   card.innerHTML = `
-    <span class="kpi-label">Intentions clients générées</span>
+    <span class="kpi-label">Actions à forte intention (Google + Beacons)</span>
     <strong>${current === null ? '—' : formatNumber(current)}</strong>
     <span class="evolution-badge ${fmt.badgeClass}">${fmt.text} vs mois précédent</span>
   `;
@@ -1104,7 +1377,7 @@ function createScoreSummaryCard(score, badge) {
   card.className = 'kpi-card card summary-card';
   card.innerHTML = `
     <span class="kpi-label">Score global du mois</span>
-    <strong>${score}/100</strong>
+    <strong>${score === null ? '—' : `${score}/100`}</strong>
     <span class="evolution-badge ${badge.badgeClass}">${escapeHtml(badge.label)}</span>
   `;
   return card;
@@ -1171,12 +1444,13 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation) {
   const intentionsPrevious = previousMonthData ? computeIntentionsFromMonth(previousMonthData) : null;
   const intentionsEvolution = computeEvolution(intentionsPrevious, intentionsCurrent);
 
-  const objectivesDone = monthData.monthlyObjectives.filter((objective) => objective.done).length;
-  const objectivesTotal = monthData.monthlyObjectives.length;
+  const quantitativeObjectives = monthData.monthlyObjectives.filter(isObjectiveQuantitative);
+  const objectivesDone = quantitativeObjectives.filter((objective) => objective.done).length;
+  const objectivesTotal = quantitativeObjectives.length;
   const objectivesRate = computeObjectivesRate(monthData);
 
   const score = computeGlobalScore(monthData, previousMonthData);
-  const scoreBadge = getScoreBadge(score);
+  const scoreBadge = getScoreBadge(score, Boolean(previousMonthData));
 
   grid.appendChild(createEvolutionSummaryCard('Évolution Google Business', googlePercent));
   grid.appendChild(createEvolutionSummaryCard('Évolution Instagram', instagramPercent));
@@ -1198,7 +1472,7 @@ const synthesisRowConfigs = [
   { label: 'Abonnés Instagram', section: 'instagram', field: 'followers' },
   { label: 'Portée Instagram', section: 'instagram', field: 'reach' },
   { label: 'Interactions Instagram', section: 'instagram', field: 'interactions' },
-  { label: 'Taux d’engagement', unit: '%', compute: computeEngagementRate, computeInitial: computeEngagementRateFromInitial },
+  { label: 'Taux d’engagement sur la portée', unit: '%', compute: computeEngagementRate, computeInitial: computeEngagementRateFromInitial },
   { label: 'Clics lien', section: 'instagram', field: 'linkClicks' },
   { label: 'Clics réservation Beacons', section: 'beacons', field: 'bookingClicks' },
   { label: 'Intentions clients', compute: computeIntentionsFromMonth, computeInitial: computeIntentionsFromInitial }
@@ -1366,26 +1640,36 @@ function trendClause(percent) {
   return `${describeTrend(percent)} (${formatSignedPercent(percent)})`;
 }
 
+// Distingue toujours performance absolue (le score du mois) et progression (l'évolution vs le
+// mois précédent) : au premier mois, aucune progression n'existe, donc on ne l'affiche jamais
+// comme "non disponible" ou "stagnation" — c'est simplement hors sujet, pas une donnée manquante.
 function generateExecutiveSummary(ctx) {
   const name = ctx.generalData?.name || 'Ce client';
   const sentences = [];
 
-  sentences.push(
-    `En ${ctx.monthLabel}, ${name} obtient un score global de ${ctx.score}/100, ce qui correspond à un mois « ${ctx.scoreBadge.label.toLowerCase()} ».`
-  );
-
   if (!ctx.hasPreviousMonth) {
     sentences.push(
-      `${ctx.monthLabel} constitue le premier mois de référence enregistré dans le Dashboard. Les évolutions pourront être analysées à partir du prochain reporting.`
+      `${ctx.monthLabel} constitue le premier mois de référence de l’accompagnement. Les données collectées permettent d’établir une baseline. Les premières évolutions de performance pourront être mesurées à partir du prochain reporting.`
     );
   }
 
-  const { best, worst } = ctx.evolutions;
-  if (best) {
-    sentences.push(`Le point fort du mois est : ${best.label}, ${trendClause(best.percent)}.`);
+  if (ctx.score !== null) {
+    const statusText = ctx.hasPreviousMonth
+      ? `ce qui correspond à un mois « ${ctx.scoreBadge.label.toLowerCase()} »`
+      : 'dans le cadre du mois de référence de l’accompagnement';
+    sentences.push(`En ${ctx.monthLabel}, ${name} obtient un score global de ${ctx.score}/100 (performance absolue du mois), ${statusText}.`);
+  } else {
+    sentences.push('Score de progression : non disponible — mois de référence.');
   }
-  if (worst && worst.percent < 0 && (!best || worst.field !== best.field)) {
-    sentences.push(`À l’inverse, un point de vigilance : ${worst.label}, ${trendClause(worst.percent)}, qui mérite une attention particulière.`);
+
+  if (ctx.hasPreviousMonth) {
+    const { best, worst } = ctx.evolutions;
+    if (best) {
+      sentences.push(`Le point fort du mois est : ${best.label}, ${trendClause(best.percent)}.`);
+    }
+    if (worst && worst.percent < 0 && (!best || worst.field !== best.field)) {
+      sentences.push(`À l’inverse, un point de vigilance : ${worst.label}, ${trendClause(worst.percent)}, qui mérite une attention particulière.`);
+    }
   }
 
   sentences.push(ctx.objectivesSentence);
@@ -1437,30 +1721,60 @@ function generateGoogleAnalysis(monthData, previousMonthData) {
     }
   }
 
-  const visibilityParts = [];
+  // Visibilité (vues de la fiche) et actions à forte intention (appels, itinéraires, clics
+  // site, réservations) sont deux choses différentes : ne jamais les mélanger dans la même
+  // catégorie, l'une mesure l'exposition, l'autre des signaux d'intention client.
   if (hasValue(gb.profileViews)) {
     const trend = trendClause(viewsEvo.percent);
-    visibilityParts.push(trend ? `les vues de la fiche sont ${trend}` : `${formatNumber(gb.profileViews)} vues de la fiche`);
+    sentences.push(
+      trend ? `Sur le plan de la visibilité, les vues de la fiche sont ${trend}.` : `Sur le plan de la visibilité, la fiche a totalisé ${formatNumber(gb.profileViews)} vues.`
+    );
   }
+
+  const intentionParts = [];
   if (hasValue(gb.calls)) {
     const trend = trendClause(callsEvo.percent);
-    visibilityParts.push(trend ? `les appels sont ${trend}` : `${formatNumber(gb.calls)} appels`);
+    intentionParts.push(trend ? `les appels sont ${trend}` : `${formatNumber(gb.calls)} appels`);
   }
   if (hasValue(gb.directions)) {
     const trend = trendClause(directionsEvo.percent);
-    visibilityParts.push(trend ? `les demandes d’itinéraire sont ${trend}` : `${formatNumber(gb.directions)} demandes d’itinéraire`);
+    intentionParts.push(trend ? `les demandes d’itinéraire sont ${trend}` : `${formatNumber(gb.directions)} demandes d’itinéraire`);
   }
   if (hasValue(gb.websiteClicks)) {
     const trend = trendClause(clicksEvo.percent);
-    visibilityParts.push(trend ? `les clics vers le site sont ${trend}` : `${formatNumber(gb.websiteClicks)} clics vers le site`);
+    intentionParts.push(trend ? `les clics vers le site sont ${trend}` : `${formatNumber(gb.websiteClicks)} clics vers le site`);
   }
-  if (visibilityParts.length) {
-    sentences.push(`Sur le plan de la visibilité : ${joinWithAnd(visibilityParts)}.`);
-  }
-
   if (hasValue(gb.bookings)) {
     const count = parseMetricValue(gb.bookings);
-    sentences.push(`${formatNumber(count)} réservation${count > 1 ? 's ont' : ' a'} été enregistrée${count > 1 ? 's' : ''} via Google Business ce mois-ci.`);
+    intentionParts.push(`${formatNumber(count)} réservation${count > 1 ? 's' : ''}`);
+  }
+  if (intentionParts.length) {
+    const googleIntentions = computeGoogleIntentions(monthData);
+    sentences.push(
+      `Sur le plan des actions à forte intention (des signaux observés, pas un nombre de clients uniques) : ${joinWithAnd(intentionParts)}${
+        googleIntentions !== null ? `, soit ${formatNumber(googleIntentions)} actions à forte intention cumulées ce mois-ci` : ''
+      }.`
+    );
+  }
+
+  const conversionRatios = computeGoogleConversionRatios(monthData);
+  if (conversionRatios) {
+    const conversionParts = [];
+    if (conversionRatios.calls !== null) {
+      conversionParts.push(`${(conversionRatios.calls * 100).toFixed(1)}% en appels`);
+    }
+    if (conversionRatios.directions !== null) {
+      conversionParts.push(`${(conversionRatios.directions * 100).toFixed(1)}% en demandes d’itinéraire`);
+    }
+    if (conversionRatios.websiteClicks !== null) {
+      conversionParts.push(`${(conversionRatios.websiteClicks * 100).toFixed(1)}% en clics vers le site`);
+    }
+    if (conversionRatios.bookings !== null) {
+      conversionParts.push(`${(conversionRatios.bookings * 100).toFixed(1)}% en réservations`);
+    }
+    if (conversionParts.length) {
+      sentences.push(`Les vues de la fiche se convertissent à hauteur de ${joinWithAnd(conversionParts)}.`);
+    }
   }
 
   if (!sentences.length) {
@@ -1514,7 +1828,9 @@ function generateInstagramAnalysis(monthData, previousMonthData) {
   if (engagementRate !== null) {
     const engagementEvo = computeEvolution(prevEngagementRate, engagementRate);
     const trend = trendClause(engagementEvo.percent);
-    sentences.push(`Le taux d’engagement calculé (interactions / portée) est de ${engagementRate.toFixed(1)}%${trend ? `, ${trend} par rapport au mois précédent` : ''}.`);
+    // Le libellé précise toujours la méthode de calcul (interactions / portée) : ne jamais
+    // comparer ce taux à un taux calculé autrement (ex. interactions / abonnés).
+    sentences.push(`Taux d’engagement sur la portée : ${engagementRate.toFixed(1)}%${trend ? `, ${trend} par rapport au mois précédent` : ''}.`);
   }
 
   const volumeParts = [];
@@ -1531,12 +1847,25 @@ function generateInstagramAnalysis(monthData, previousMonthData) {
     sentences.push(`Le rythme de publication du mois représente ${joinWithAnd(volumeParts)}.`);
   }
 
+  if (hasValue(ig.profileVisits)) {
+    sentences.push(`Le profil a enregistré ${formatNumber(ig.profileVisits)} visites sur la période.`);
+  }
+
   if (hasValue(ig.linkClicks)) {
     const trend = trendClause(linkClicksEvo.percent);
     sentences.push(
       trend
         ? `Les clics sur le lien de la bio sont ${trend}, avec ${formatNumber(ig.linkClicks)} clics enregistrés.`
         : `${formatNumber(ig.linkClicks)} clics ont été enregistrés sur le lien de la bio.`
+    );
+  }
+
+  // Distingue explicitement l'intérêt (visite de profil) de la conversion mesurable (clic sur
+  // le lien) : une vue, un like ou une visite de profil n'est jamais un résultat business.
+  const profileConversionRatio = computeInstagramProfileConversionRatio(monthData);
+  if (profileConversionRatio !== null) {
+    sentences.push(
+      `${(profileConversionRatio * 100).toFixed(1)}% des visites de profil ont généré un clic sur le lien : la conversion du profil vers une action externe est un axe à suivre.`
     );
   }
 
@@ -1621,6 +1950,23 @@ function generateBeaconsAnalysis(monthData, previousMonthData) {
     sentences.push(trend ? `Les clics itinéraire sont ${trend}.` : `${formatNumber(bc.directionsClicks)} clics itinéraire ont été enregistrés.`);
   }
 
+  const beaconsRatios = computeBeaconsConversionRatios(monthData);
+  if (beaconsRatios) {
+    const parts = [];
+    if (beaconsRatios.bookingClicks !== null) {
+      parts.push(`${(beaconsRatios.bookingClicks * 100).toFixed(1)}% réservation`);
+    }
+    if (beaconsRatios.phoneClicks !== null) {
+      parts.push(`${(beaconsRatios.phoneClicks * 100).toFixed(1)}% téléphone`);
+    }
+    if (beaconsRatios.directionsClicks !== null) {
+      parts.push(`${(beaconsRatios.directionsClicks * 100).toFixed(1)}% itinéraire`);
+    }
+    if (parts.length) {
+      sentences.push(`Répartition des clics Beacons : ${joinWithAnd(parts)}.`);
+    }
+  }
+
   if (!sentences.length) {
     return 'Aucune donnée Beacons n’a encore été saisie pour ce mois.';
   }
@@ -1634,13 +1980,26 @@ function generateObjectivesAnalysis(monthData) {
   const sentences = [];
 
   if (objectives.length) {
-    const done = objectives.filter((objective) => objective.done).length;
-    sentences.push(
-      `${done} objectif${done > 1 ? 's' : ''} sur ${objectives.length} ${done > 1 ? 'ont été atteints' : 'a été atteint'} ce mois-ci (${Math.round((done / objectives.length) * 100)}%).`
-    );
-    const remaining = objectives.filter((objective) => !objective.done).map((objective) => objective.label);
-    if (remaining.length) {
-      sentences.push(`Reste${remaining.length > 1 ? 'nt' : ''} à finaliser : ${remaining.join(', ')}.`);
+    const quantitative = objectives.filter(isObjectiveQuantitative);
+    const qualitative = objectives.filter((objective) => !isObjectiveQuantitative(objective));
+
+    if (quantitative.length) {
+      const done = quantitative.filter((objective) => objective.done).length;
+      sentences.push(
+        `${done} objectif${done > 1 ? 's' : ''} mesurable${done > 1 ? 's' : ''} sur ${quantitative.length} ${done > 1 ? 'ont été atteints' : 'a été atteint'} ce mois-ci (${Math.round((done / quantitative.length) * 100)}%).`
+      );
+      const remaining = quantitative.filter((objective) => !objective.done).map((objective) => objective.label);
+      if (remaining.length) {
+        sentences.push(`Reste${remaining.length > 1 ? 'nt' : ''} à finaliser : ${remaining.join(', ')}.`);
+      }
+    } else {
+      sentences.push('Aucun objectif mesurable (KPI + cible) n’a encore été défini pour ce mois.');
+    }
+
+    if (qualitative.length) {
+      sentences.push(
+        `${qualitative.length} objectif${qualitative.length > 1 ? 's' : ''} qualitatif${qualitative.length > 1 ? 's' : ''} (non mesurable${qualitative.length > 1 ? 's' : ''} en l’état) ${qualitative.length > 1 ? 'sont suivis' : 'est suivi'} sans entrer dans le taux d’atteinte : ${qualitative.map((o) => o.label).join(', ')}.`
+      );
     }
   } else {
     sentences.push('Aucun objectif n’a encore été défini pour ce mois.');
@@ -1657,6 +2016,45 @@ function generateObjectivesAnalysis(monthData) {
   return sentences.join(' ');
 }
 
+// Une force n'est pas obligatoirement une progression : sans mois précédent, on cherche des
+// signaux positifs objectivement présents dans les données absolues du mois plutôt que de se
+// rabattre sur "pas de progression marquante" (qui n'a pas de sens sans historique).
+function buildAbsoluteStrengthSignals(monthData) {
+  const gb = monthData.googleBusiness;
+  const ig = monthData.instagram;
+  const signals = [];
+
+  const googleIntentions = computeGoogleIntentions(monthData);
+  if (googleIntentions !== null && googleIntentions >= GOOGLE_STRONG_INTENTIONS_THRESHOLD) {
+    signals.push(
+      `Un volume élevé d’actions à forte intention sur Google Business (${formatNumber(googleIntentions)} appels, itinéraires, clics site et réservations cumulés).`
+    );
+  }
+  if (hasValue(gb.directions) && parseMetricValue(gb.directions) >= 50) {
+    signals.push(`Un volume notable de demandes d’itinéraire (${formatNumber(gb.directions)}), signe d’un intérêt local concret.`);
+  }
+  const actionsRate = computeActionCompletionRate(monthData);
+  if (actionsRate !== null && actionsRate >= 70) {
+    signals.push(`Une bonne régularité d’exécution : ${Math.round(actionsRate)}% des actions du plan d’action ont été menées à terme.`);
+  }
+  const engagementRate = computeEngagementRate(monthData);
+  if (engagementRate !== null && engagementRate >= 5) {
+    signals.push(`Un bon taux d’engagement sur la portée (${engagementRate.toFixed(1)}%).`);
+  }
+  if (hasValue(ig.profileVisits) && parseMetricValue(ig.profileVisits) >= 100) {
+    signals.push(`Une bonne capacité à générer des visites de profil Instagram (${formatNumber(ig.profileVisits)} sur la période).`);
+  }
+  const contentVolume = computeInstagramContentVolume(monthData);
+  if (contentVolume !== null && contentVolume >= INSTAGRAM_HIGH_CONTENT_VOLUME) {
+    signals.push(`Un volume de contenu déjà conséquent (${formatNumber(contentVolume)} publications/Reels/Stories sur le mois).`);
+  }
+
+  if (!signals.length) {
+    return ['Les données de ce premier mois établissent la baseline ; les points d’appui se préciseront avec le recul du prochain reporting.'];
+  }
+  return signals.slice(0, 4);
+}
+
 function generateStrengths(monthData, previousMonthData) {
   const evolutions = collectFieldEvolutions(monthData, previousMonthData, allInsightFields);
   const positives = evolutions
@@ -1664,11 +2062,15 @@ function generateStrengths(monthData, previousMonthData) {
     .sort((a, b) => b.percent - a.percent)
     .slice(0, 3);
 
-  if (!positives.length) {
+  if (positives.length) {
+    return positives.map((item) => `${item.label} : ${formatSignedPercent(item.percent)} vs mois précédent.`);
+  }
+
+  if (previousMonthData) {
     return ['Pas de progression marquante à isoler ce mois-ci, la situation reste stable.'];
   }
 
-  return positives.map((item) => `${item.label} : ${formatSignedPercent(item.percent)} vs mois précédent.`);
+  return buildAbsoluteStrengthSignals(monthData);
 }
 
 // Seuils utilisés pour transformer des relations entre KPI en constats mesurables (portée
@@ -1708,6 +2110,40 @@ function isInstagramLowProfileConversion(monthData) {
   );
 }
 
+// Le nombre d'abonnés reste un indicateur de contexte, jamais la base principale du diagnostic :
+// on croise plusieurs signaux (portée, évolution, vues, interactions, visites de profil) et on
+// formule une observation prudente plutôt qu'une conclusion automatique de "problème de
+// distribution" — et on ne mentionne jamais d'hypothèse d'abonnés achetés.
+function buildInstagramReachCautionMessage(monthData, previousMonthData) {
+  const ig = monthData.instagram;
+  const reachRatio = computeInstagramReachRatio(monthData);
+  const followers = parseMetricValue(ig.followers);
+  if (reachRatio === null || followers === null || followers < INSTAGRAM_MEANINGFUL_COMMUNITY || reachRatio >= INSTAGRAM_LOW_REACH_RATIO) {
+    return [];
+  }
+
+  const supportingSignals = [];
+  if (hasValue(ig.views)) {
+    supportingSignals.push(`${formatNumber(ig.views)} vues`);
+  }
+  if (hasValue(ig.interactions)) {
+    supportingSignals.push(`${formatNumber(ig.interactions)} interactions`);
+  }
+  if (hasValue(ig.profileVisits)) {
+    supportingSignals.push(`${formatNumber(ig.profileVisits)} visites de profil`);
+  }
+  const reachEvo = previousMonthData ? computeEvolution(previousMonthData.instagram.reach, ig.reach) : { percent: null };
+  const trend = trendClause(reachEvo.percent);
+  if (trend) {
+    supportingSignals.push(`une portée ${trend}`);
+  }
+  const contextText = supportingSignals.length ? ` À mettre en regard de ${joinWithAnd(supportingSignals)} sur la période.` : '';
+
+  return [
+    `La portée observée (${formatNumber(ig.reach)} comptes touchés) reste limitée au regard de la taille affichée de la communauté (${formatNumber(ig.followers)} abonnés, soit ${Math.round(reachRatio * 100)}%).${contextText} Ce ratio doit toutefois être interprété avec prudence et suivi dans le temps afin d’évaluer la qualité et l’activité réelle de l’audience.`
+  ];
+}
+
 function generateWeaknesses(monthData, previousMonthData) {
   const evolutions = collectFieldEvolutions(monthData, previousMonthData, allInsightFields);
   const negatives = evolutions
@@ -1718,13 +2154,7 @@ function generateWeaknesses(monthData, previousMonthData) {
   const items = negatives.map((item) => `${item.label} : ${formatSignedPercent(item.percent)} vs mois précédent.`);
 
   const ig = monthData.instagram;
-  const reachRatio = computeInstagramReachRatio(monthData);
-  const followers = parseMetricValue(ig.followers);
-  if (reachRatio !== null && followers !== null && followers >= INSTAGRAM_MEANINGFUL_COMMUNITY && reachRatio < INSTAGRAM_LOW_REACH_RATIO) {
-    items.push(
-      `La portée Instagram (${formatNumber(ig.reach)} comptes touchés) reste faible par rapport à la taille de la communauté (${formatNumber(ig.followers)} abonnés, soit ${Math.round(reachRatio * 100)}% de portée) : un problème de distribution plutôt qu’un manque de volume de publication.`
-    );
-  }
+  items.push(...buildInstagramReachCautionMessage(monthData, previousMonthData));
 
   const conversionRatio = computeInstagramProfileConversionRatio(monthData);
   const profileVisits = parseMetricValue(ig.profileVisits);
@@ -1734,8 +2164,10 @@ function generateWeaknesses(monthData, previousMonthData) {
     );
   }
 
+  // Un objectif fixé ce mois-ci n'est pas encore "en échec" faute de recul : ce constat n'a de
+  // sens qu'à partir du moment où il y a eu au moins un mois pour progresser vers la cible.
   const objectivesRate = computeObjectivesRate(monthData);
-  if (objectivesRate !== null && objectivesRate < 50) {
+  if (previousMonthData && objectivesRate !== null && objectivesRate < 50) {
     items.push(`Seulement ${Math.round(objectivesRate)}% des objectifs du mois ont été atteints.`);
   }
 
@@ -1771,7 +2203,7 @@ function generateOpportunities(monthData, previousMonthData) {
   const googleIntentions = computeGoogleIntentions(monthData);
   if (googleIntentions !== null && googleIntentions >= GOOGLE_STRONG_INTENTIONS_THRESHOLD) {
     opportunities.push(
-      `Google Business génère un fort volume d’actions clients (${formatNumber(googleIntentions)} appels, itinéraires et clics site cumulés ce mois-ci) : un levier d’intention à exploiter davantage (avis, offres, publications régulières).`
+      `Google Business génère un fort volume d’actions à forte intention (${formatNumber(googleIntentions)} appels, itinéraires, clics site et réservations cumulés ce mois-ci — des actions observées, pas un nombre de clients uniques) : un levier d’intention à exploiter davantage (avis, offres, publications régulières).`
     );
   }
 
@@ -1846,7 +2278,7 @@ function generateRecommendations(monthData, previousMonthData) {
   }
 
   const objectivesRate = computeObjectivesRate(monthData);
-  if (objectivesRate !== null && objectivesRate < 50) {
+  if (previousMonthData && objectivesRate !== null && objectivesRate < 50) {
     recommendations.push(
       highVolumeLowReach || lowProfileConversion
         ? 'Prioriser les objectifs du mois en retard, en particulier ceux liés à la portée et à la conversion Instagram identifiées ci-dessus.'
@@ -1859,6 +2291,81 @@ function generateRecommendations(monthData, previousMonthData) {
   }
 
   return recommendations.slice(0, 6);
+}
+
+// Le plan d'action répond à "qu'allons-nous concrètement faire le mois prochain ?" — des
+// tâches précises et opérationnelles, jamais une reformulation des constats de la section
+// Recommandations (qui répond elle à "qu'est-ce que l'analyse montre qu'il faut améliorer ?").
+function generateActionPlanItems(monthData, previousMonthData) {
+  const actions = [];
+  const gb = monthData.googleBusiness;
+  const ig = monthData.instagram;
+  const fb = monthData.facebook;
+  const bc = monthData.beacons;
+
+  const highVolumeLowReach = isInstagramHighVolumeLowReach(monthData);
+  if (highVolumeLowReach) {
+    actions.push('Tester 3 formats de Reels orientés découverte (hook dès la première seconde, sujet grand public) plutôt que d’augmenter le volume.');
+    actions.push('Analyser les 3 meilleurs et les 3 moins bons contenus du mois pour identifier ce qui fait réellement la portée.');
+  } else if (hasValue(ig.posts) && hasValue(ig.reels) && parseMetricValue(ig.posts) > 0 && parseMetricValue(ig.reels) < parseMetricValue(ig.posts) / 3) {
+    actions.push('Publier au moins 2 Reels supplémentaires ce mois-ci pour dynamiser la portée Instagram.');
+  }
+
+  if (isInstagramLowProfileConversion(monthData)) {
+    actions.push('Retravailler la bio Instagram et la mise en avant du lien (réservation/menu) pour faciliter le passage à l’action.');
+    actions.push('Intégrer un CTA de visite ou de réservation dans les contenus à forte intention (Reels, Stories).');
+  }
+
+  if (hasValue(gb.newReviews) && hasValue(gb.newReviewsAnswered) && parseMetricValue(gb.newReviews) > parseMetricValue(gb.newReviewsAnswered)) {
+    const unanswered = parseMetricValue(gb.newReviews) - parseMetricValue(gb.newReviewsAnswered);
+    actions.push(`Répondre aux ${formatNumber(unanswered)} avis Google récents encore sans réponse.`);
+  }
+
+  const reviewsEvo = previousMonthData ? computeEvolution(previousMonthData.googleBusiness.reviewsCount, gb.reviewsCount) : { percent: null };
+  if (reviewsEvo.percent !== null && reviewsEvo.percent < 8) {
+    actions.push('Solliciter activement 5 avis Google auprès des derniers clients satisfaits.');
+  }
+
+  if (hasValue(gb.googlePosts) && parseMetricValue(gb.googlePosts) < 2) {
+    actions.push('Publier au moins 2 publications Google Business ce mois-ci (offre, actualité, coulisses).');
+  }
+
+  if (hasValue(ig.stories) && hasValue(ig.posts) && parseMetricValue(ig.stories) < parseMetricValue(ig.posts)) {
+    actions.push('Programmer une Story quasi quotidienne (coulisses, plat du jour, équipe) pour garder le contact avec la communauté.');
+  }
+
+  const ratingEvo = previousMonthData ? computeEvolution(previousMonthData.googleBusiness.rating, gb.rating) : { percent: null };
+  if (ratingEvo.percent !== null && ratingEvo.percent <= 0) {
+    actions.push('Mettre à jour les photos et informations de la fiche Google Business (menu, horaires, ambiance).');
+  }
+
+  if (hasValue(fb.posts) && parseMetricValue(fb.posts) < 2) {
+    actions.push('Programmer au moins 2 publications Facebook ce mois-ci pour ne pas perdre le lien avec cette audience.');
+  }
+
+  const bookingEvo = previousMonthData ? computeEvolution(previousMonthData.beacons.bookingClicks, bc.bookingClicks) : { percent: null };
+  if (bookingEvo.percent !== null && bookingEvo.percent < 0) {
+    actions.push('Mettre en avant le bouton de réservation en ligne (Beacons) dans les contenus et la bio.');
+  }
+
+  const googleIntentions = computeGoogleIntentions(monthData);
+  if (googleIntentions !== null && googleIntentions >= GOOGLE_STRONG_INTENTIONS_THRESHOLD) {
+    actions.push('Développer 2 contenus autour d’un produit, d’une expérience ou d’une raison concrète de venir, pour capitaliser sur l’intérêt local déjà fort.');
+  }
+
+  const quantitativeObjectives = (monthData.monthlyObjectives || []).filter(isObjectiveQuantitative);
+  quantitativeObjectives
+    .filter((objective) => !objective.done)
+    .slice(0, 2)
+    .forEach((objective) => {
+      actions.push(`Avancer concrètement sur l’objectif « ${objective.label} » : définir avec le consultant les 2 actions prioritaires pour rattraper l’écart à la cible.`);
+    });
+
+  if (!actions.length) {
+    actions.push('Maintenir le rythme actuel et documenter les formats qui fonctionnent le mieux ce mois-ci.');
+  }
+
+  return actions.slice(0, 8);
 }
 
 function generateAlerts(monthData, previousMonthData) {
@@ -2021,17 +2528,21 @@ function renderAnalysisSection(clientData, monthKey, monthData, previousMonthDat
     hasPreviousMonth: Boolean(previousMonthData)
   });
 
+  const pillars = computeScorePillars(monthData, previousMonthData);
+  const strengthsTitle = previousMonthData ? '8. Forces du mois' : '8. Points d’appui identifiés';
+
   const sections = [
     { title: '1. Résumé exécutif', paragraphs: [executiveSummary] },
-    { title: '2. Analyse Google Business', paragraphs: [generateGoogleAnalysis(monthData, previousMonthData)] },
-    { title: '3. Analyse Instagram', paragraphs: [generateInstagramAnalysis(monthData, previousMonthData)] },
-    { title: '4. Analyse Facebook', paragraphs: [generateFacebookAnalysis(monthData, previousMonthData)] },
-    { title: '5. Analyse Beacons', paragraphs: [generateBeaconsAnalysis(monthData, previousMonthData)] },
-    { title: '6. Analyse des objectifs', paragraphs: [generateObjectivesAnalysis(monthData)] },
-    { title: '7. Forces du mois', list: generateStrengths(monthData, previousMonthData) },
-    { title: '8. Faiblesses', list: generateWeaknesses(monthData, previousMonthData) },
-    { title: '9. Opportunités', list: generateOpportunities(monthData, previousMonthData) },
-    { title: '10. Recommandations concrètes pour le mois suivant', list: generateRecommendations(monthData, previousMonthData) }
+    { title: '2. Score détaillé par pilier', list: buildScorePillarsLines(pillars) },
+    { title: '3. Analyse Google Business', paragraphs: [generateGoogleAnalysis(monthData, previousMonthData)] },
+    { title: '4. Analyse Instagram', paragraphs: [generateInstagramAnalysis(monthData, previousMonthData)] },
+    { title: '5. Analyse Facebook', paragraphs: [generateFacebookAnalysis(monthData, previousMonthData)] },
+    { title: '6. Analyse Beacons', paragraphs: [generateBeaconsAnalysis(monthData, previousMonthData)] },
+    { title: '7. Analyse des objectifs', paragraphs: [generateObjectivesAnalysis(monthData)] },
+    { title: strengthsTitle, list: generateStrengths(monthData, previousMonthData) },
+    { title: '9. Faiblesses', list: generateWeaknesses(monthData, previousMonthData) },
+    { title: '10. Opportunités', list: generateOpportunities(monthData, previousMonthData) },
+    { title: '11. Recommandations', list: generateRecommendations(monthData, previousMonthData) }
   ];
 
   sections.forEach((section) => {
@@ -2061,31 +2572,6 @@ function renderAnalysisSection(clientData, monthKey, monthData, previousMonthDat
 
     block.appendChild(subsection);
   });
-
-  return block;
-}
-
-function renderRecommendationsSection(monthData, previousMonthData) {
-  const block = document.createElement('div');
-  block.className = 'section-block';
-  block.innerHTML = `
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">Actions suggérées</p>
-        <h3>Recommandations</h3>
-      </div>
-    </div>
-  `;
-
-  const list = document.createElement('div');
-  list.className = 'insight-list';
-  generateRecommendations(monthData, previousMonthData).forEach((text) => {
-    const item = document.createElement('div');
-    item.className = 'insight-item tone-neutral';
-    item.innerHTML = `<span class="insight-icon">💡</span><span class="insight-text">${escapeHtml(text)}</span>`;
-    list.appendChild(item);
-  });
-  block.appendChild(list);
 
   return block;
 }
@@ -2174,9 +2660,9 @@ function createNoMonthsState() {
   return el;
 }
 
-function createObjectiveRow(clientId, monthKey, objective, onRemove) {
+function createObjectiveRow(clientId, monthKey, objective, monthData, onRemove) {
   const row = document.createElement('div');
-  row.className = `checklist-item${objective.done ? ' done' : ''}`;
+  row.className = `checklist-item objective-item${objective.done ? ' done' : ''}`;
 
   const label = document.createElement('label');
   const checkbox = document.createElement('input');
@@ -2186,6 +2672,32 @@ function createObjectiveRow(clientId, monthKey, objective, onRemove) {
   span.textContent = objective.label;
   label.appendChild(checkbox);
   label.appendChild(span);
+
+  const quantitative = isObjectiveQuantitative(objective);
+  const meta = document.createElement('div');
+  meta.className = 'objective-meta';
+  if (quantitative) {
+    const kpiOption = findObjectiveKpiOption(objective.kpiSection, objective.kpiField);
+    const progress = computeObjectiveProgress(objective, monthData);
+    const currentValue = monthData ? monthData[objective.kpiSection]?.[objective.kpiField] : null;
+    const parts = [`🎯 ${kpiOption ? kpiOption.label : objective.kpiField}`];
+    if (hasValue(objective.baselineValue)) {
+      parts.push(`départ ${formatNumber(objective.baselineValue)}`);
+    }
+    parts.push(`cible ${formatNumber(objective.targetValue)}`);
+    if (hasValue(currentValue)) {
+      parts.push(`actuel ${formatNumber(currentValue)}`);
+    }
+    if (progress !== null) {
+      parts.push(`${Math.round(progress)}% de la cible`);
+    }
+    if (objective.deadline) {
+      parts.push(`échéance ${objective.deadline}`);
+    }
+    meta.textContent = parts.join(' · ');
+  } else {
+    meta.textContent = 'Objectif qualitatif (non mesurable en l’état) — n’entre pas dans le taux d’atteinte.';
+  }
 
   const removeButton = document.createElement('button');
   removeButton.type = 'button';
@@ -2214,8 +2726,13 @@ function createObjectiveRow(clientId, monthKey, objective, onRemove) {
     onRemove();
   });
 
-  row.appendChild(label);
-  row.appendChild(removeButton);
+  const rowHeader = document.createElement('div');
+  rowHeader.className = 'objective-row-header';
+  rowHeader.appendChild(label);
+  rowHeader.appendChild(removeButton);
+
+  row.appendChild(rowHeader);
+  row.appendChild(meta);
   return row;
 }
 
@@ -2230,8 +2747,15 @@ function renderObjectivesSection(clientId, monthKey) {
       </div>
     </div>
     <div class="checklist" data-role="objectives-list"></div>
-    <form class="inline-add-form" data-role="objectives-form">
-      <input type="text" placeholder="Nouvel objectif" required />
+    <form class="inline-add-form objective-add-form" data-role="objectives-form">
+      <input type="text" name="label" placeholder="Nom de l’objectif" required />
+      <select name="kpi">
+        <option value="">Objectif qualitatif (texte libre, non mesurable)</option>
+        ${objectiveKpiOptions.map((option) => `<option value="${option.section}.${option.field}">${escapeHtml(option.label)}</option>`).join('')}
+      </select>
+      <input type="text" name="baseline" placeholder="Valeur de référence" inputmode="decimal" />
+      <input type="text" name="target" placeholder="Valeur cible" inputmode="decimal" />
+      <input type="month" name="deadline" />
       <button type="submit" class="client-open-btn">Ajouter</button>
     </form>
   `;
@@ -2247,14 +2771,14 @@ function renderObjectivesSection(clientId, monthKey) {
     }
     list.innerHTML = '';
     month.monthlyObjectives.forEach((objective) => {
-      list.appendChild(createObjectiveRow(clientId, monthKey, objective, renderList));
+      list.appendChild(createObjectiveRow(clientId, monthKey, objective, month, renderList));
     });
   };
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
-    const input = form.querySelector('input');
-    const label = input.value.trim();
+    const labelInput = form.elements.label;
+    const label = labelInput.value.trim();
     if (!label) {
       return;
     }
@@ -2263,9 +2787,22 @@ function renderObjectivesSection(clientId, monthKey) {
     if (!month) {
       return;
     }
-    month.monthlyObjectives.push({ id: generateId(), label, done: false });
+
+    const kpiValue = form.elements.kpi.value;
+    const [kpiSection, kpiField] = kpiValue ? kpiValue.split('.') : [null, null];
+
+    month.monthlyObjectives.push({
+      id: generateId(),
+      label,
+      done: false,
+      kpiSection: kpiSection || null,
+      kpiField: kpiField || null,
+      baselineValue: form.elements.baseline.value.trim(),
+      targetValue: form.elements.target.value.trim(),
+      deadline: form.elements.deadline.value || null
+    });
     saveClientData(clientId, data);
-    input.value = '';
+    form.reset();
     renderList();
   });
 
@@ -3016,11 +3553,10 @@ function createDashboardCard(clientId) {
     monthContent.appendChild(renderSynthesisSection(monthData, previousMonthData, freshData.initialSituation));
 
     const monthlyScore = computeGlobalScore(monthData, previousMonthData);
-    const monthlyScoreBadge = getScoreBadge(monthlyScore);
+    const monthlyScoreBadge = getScoreBadge(monthlyScore, Boolean(previousMonthData));
     monthContent.appendChild(renderAlertsSection(monthData, previousMonthData));
     monthContent.appendChild(renderWinsSection(freshData, selectedMonth, monthData, previousMonthData));
     monthContent.appendChild(renderAnalysisSection(freshData, selectedMonth, monthData, previousMonthData, monthlyScore, monthlyScoreBadge));
-    monthContent.appendChild(renderRecommendationsSection(monthData, previousMonthData));
 
     monthContent.appendChild(renderObjectivesSection(clientId, selectedMonth));
     monthContent.appendChild(renderActionPlanSection(clientId, selectedMonth));
@@ -3062,7 +3598,16 @@ function createDashboardCard(clientId) {
 
       newMonth.monthlyObjectives = (previousMonth.monthlyObjectives || [])
         .filter((objective) => !objective.done)
-        .map((objective) => ({ id: generateId(), label: objective.label, done: false }));
+        .map((objective) => ({
+          id: generateId(),
+          label: objective.label,
+          done: false,
+          kpiSection: objective.kpiSection || null,
+          kpiField: objective.kpiField || null,
+          baselineValue: objective.baselineValue || '',
+          targetValue: objective.targetValue || '',
+          deadline: objective.deadline || null
+        }));
 
       newMonth.actionPlan = buildCarriedOverActionPlanItems(previousMonth, beforePreviousMonth)
         .map((actionLabel) => ({ id: generateId(), label: actionLabel, status: actionStatusOptions[0] }));
@@ -3576,6 +4121,56 @@ function getMonthlyIntentionsSeries(clientData) {
   return clientData.monthOrder.map((key) => computeIntentionsFromMonth(clientData.months[key]));
 }
 
+// Cartes KPI de référence pour le premier mois (baseline), affichées à la place de graphiques
+// à un seul point qui n'apporteraient aucune valeur analytique.
+function buildBaselineKpiRows(monthData) {
+  const rows = [];
+  if (hasValue(monthData.googleBusiness.profileViews)) {
+    rows.push(['Google Business', 'Vues de la fiche', formatNumber(monthData.googleBusiness.profileViews)]);
+  }
+  if (hasValue(monthData.instagram.reach)) {
+    rows.push(['Instagram', 'Comptes touchés', formatNumber(monthData.instagram.reach)]);
+  }
+  if (hasValue(monthData.facebook.pageVisits)) {
+    rows.push(['Facebook', 'Visites de la page', formatNumber(monthData.facebook.pageVisits)]);
+  }
+  const intentions = computeIntentionsFromMonth(monthData);
+  if (intentions !== null) {
+    rows.push(['Intention client', 'Actions à forte intention (Google + Beacons)', formatNumber(intentions)]);
+  }
+  const conversionRatio = computeInstagramProfileConversionRatio(monthData);
+  if (conversionRatio !== null) {
+    rows.push(['Conversion Instagram', 'Profil → lien', `${(conversionRatio * 100).toFixed(1)}%`]);
+  }
+  if (!rows.length) {
+    rows.push(['—', 'Aucune donnée saisie pour ce mois', '—']);
+  }
+  return rows;
+}
+
+// Tendance simple (hausse/baisse/stabilité) calculée sur les 3 derniers points valides d'une
+// série, affichée uniquement à partir de 3 mois de données.
+function computeSeriesTrendLabel(series) {
+  const valid = series.filter((value) => value !== null && value !== undefined && !Number.isNaN(value));
+  if (valid.length < 3) {
+    return null;
+  }
+  const lastThree = valid.slice(-3);
+  const first = lastThree[0];
+  const last = lastThree[lastThree.length - 1];
+  if (first === 0) {
+    return null;
+  }
+  const change = ((last - first) / Math.abs(first)) * 100;
+  if (change > 5) {
+    return 'Tendance : hausse';
+  }
+  if (change < -5) {
+    return 'Tendance : baisse';
+  }
+  return 'Tendance : stabilité';
+}
+
 function drawPdfCoverPage(doc, data, monthData, consultantName) {
   const pageWidth = 210;
   const pageHeight = 297;
@@ -3632,19 +4227,47 @@ function drawPdfCoverPage(doc, data, monthData, consultantName) {
   doc.text('Document confidentiel préparé exclusivement pour ce client.', 18, pageHeight - 20);
 }
 
-function generateConclusion(clientData, score, scoreBadge) {
+// La conclusion synthétise (1) le niveau de recul disponible, (2) le principal constat, (3) le
+// principal point de friction, (4) la priorité du mois suivant — jamais uniquement le score, et
+// jamais de formulation anxiogène ("vigilance particulière", "relancer la dynamique") quand il
+// n'existe encore aucune comparaison historique.
+function generateConclusion(clientData, monthData, previousMonthData, score, scoreBadge) {
   const name = clientData.general.name || 'ce client';
-  let tone;
-  if (score >= 85) {
-    tone = `Ce mois marque une dynamique très positive pour ${name}. La stratégie mise en place porte ses fruits et mérite d’être poursuivie sans changement majeur.`;
-  } else if (score >= 70) {
-    tone = `${name} affiche un bon mois, avec des indicateurs globalement bien orientés. Quelques ajustements ciblés permettront de passer un cap supplémentaire.`;
-  } else if (score >= 50) {
-    tone = `${name} progresse ce mois-ci, avec des résultats encourageants sur certains canaux. Un focus sur les recommandations ci-dessus permettra d’accélérer la dynamique le mois prochain.`;
+  const monthLabel = monthData.label;
+  const sentences = [];
+
+  if (!previousMonthData) {
+    sentences.push(`${monthLabel} constitue le premier mois de référence de l’accompagnement pour ${name}.`);
   } else {
-    tone = `Ce mois demande une vigilance particulière pour ${name}. Les actions prioritaires identifiées dans ce rapport doivent être mises en œuvre rapidement pour relancer la dynamique.`;
+    sentences.push(`${monthLabel} s’inscrit dans la continuité de l’accompagnement de ${name}, avec plusieurs mois de recul désormais disponibles.`);
   }
-  return `${tone} Score global du mois : ${score}/100 (${scoreBadge.label}). L’équipe AnaVibe reste à disposition pour accompagner la mise en œuvre du plan d’action du mois prochain.`;
+
+  const strengths = generateStrengths(monthData, previousMonthData);
+  const genericStrengthPrefixes = ['Pas de progression', 'Les données de ce premier mois'];
+  const mainStrength = strengths.find((item) => !genericStrengthPrefixes.some((prefix) => item.startsWith(prefix)));
+  if (mainStrength) {
+    sentences.push(`Les données mettent en évidence : ${mainStrength}`);
+  }
+
+  const weaknesses = generateWeaknesses(monthData, previousMonthData);
+  const mainWeakness = weaknesses.find((item) => !item.startsWith('Aucune faiblesse'));
+  if (mainWeakness) {
+    sentences.push(`Le principal point de friction identifié : ${mainWeakness}`);
+  }
+
+  const actionItems = generateActionPlanItems(monthData, previousMonthData);
+  const mainAction = actionItems.find((item) => !item.startsWith('Maintenir le rythme'));
+  if (mainAction) {
+    sentences.push(`Priorité du mois suivant : ${mainAction}`);
+  }
+
+  if (score !== null) {
+    sentences.push(`Score global du mois : ${score}/100 (${scoreBadge.label}).`);
+  }
+
+  sentences.push('L’équipe AnaVibe reste à disposition pour accompagner la mise en œuvre du plan d’action du mois prochain.');
+
+  return sentences.join(' ');
 }
 
 function buildNextMonthActionPlan(monthData, previousMonthData) {
@@ -3652,10 +4275,10 @@ function buildNextMonthActionPlan(monthData, previousMonthData) {
     .filter((action) => action.status !== 'Terminé')
     .map((action) => `${action.label} (statut actuel : ${action.status})`);
 
-  const recommendations = generateRecommendations(monthData, previousMonthData);
+  const actionItems = generateActionPlanItems(monthData, previousMonthData);
 
   const seen = new Set();
-  return [...carriedOver, ...recommendations].filter((item) => {
+  return [...carriedOver, ...actionItems].filter((item) => {
     if (seen.has(item)) {
       return false;
     }
@@ -3665,18 +4288,18 @@ function buildNextMonthActionPlan(monthData, previousMonthData) {
 }
 
 // Seeds a brand-new month's action plan from the previous one, so closing a month and
-// opening the next never requires retyping open actions or the recommendations the
-// analysis already produced (unlike buildNextMonthActionPlan's narrative version above,
-// these are usable as-is as fresh action-plan item labels).
+// opening the next never requires retyping open actions or the operational tasks the
+// analysis already produced (generateActionPlanItems — never the diagnostic recommendations,
+// which answer a different question: "what should improve" vs "what will we do").
 function buildCarriedOverActionPlanItems(monthData, previousMonthData) {
   const carriedLabels = (monthData.actionPlan || [])
     .filter((action) => action.status !== 'Terminé')
     .map((action) => action.label);
 
-  const recommendations = generateRecommendations(monthData, previousMonthData);
+  const actionItems = generateActionPlanItems(monthData, previousMonthData);
 
   const seen = new Set();
-  return [...carriedLabels, ...recommendations].filter((label) => {
+  return [...carriedLabels, ...actionItems].filter((label) => {
     if (seen.has(label)) {
       return false;
     }
@@ -3717,7 +4340,7 @@ function generateClientReportPdf(clientId) {
   const previousMonthData = previousMonthKey ? data.months[previousMonthKey] : null;
 
   const score = computeGlobalScore(monthData, previousMonthData);
-  const scoreBadge = getScoreBadge(score);
+  const scoreBadge = getScoreBadge(score, Boolean(previousMonthData));
   const consultantName = promptConsultantName();
 
   const { jsPDF } = window.jspdf;
@@ -3754,6 +4377,9 @@ function generateClientReportPdf(clientId) {
     })
   );
 
+  addPdfSubTitle(state, 'Score détaillé par pilier');
+  addPdfBulletList(state, buildScorePillarsLines(computeScorePillars(monthData, previousMonthData)));
+
   addPdfSectionTitle(state, '2. Tableau des KPI');
   monthlySectionSchema.forEach((section) => {
     addPdfSubTitle(state, section.title);
@@ -3780,31 +4406,65 @@ function generateClientReportPdf(clientId) {
 
   doc.addPage();
   state.cursorY = state.marginTop;
-  addPdfSectionTitle(state, '3. Évolution dans le temps');
-  const monthLabels = monthOrder.map((key) => data.months[key].label);
-  const chartDefinitions = [
-    { title: 'Google Business — Vues de la fiche', getSeries: () => getMonthlySeries(data, 'googleBusiness', 'profileViews') },
-    { title: 'Instagram — Portée', getSeries: () => getMonthlySeries(data, 'instagram', 'reach') },
-    { title: 'Facebook — Visites de la page', getSeries: () => getMonthlySeries(data, 'facebook', 'pageVisits') },
-    { title: 'Intentions clients (Google + Beacons)', getSeries: () => getMonthlyIntentionsSeries(data) }
-  ];
 
-  const chartColumnWidth = 84;
-  const chartRowHeight = 58;
-  const chartGap = 6;
+  if (monthOrder.length < 2) {
+    // Un seul mois de données : 4 graphiques à un point n'apportent aucune valeur analytique.
+    // On affiche à la place une "Baseline du mois" sous forme de cartes KPI de référence.
+    addPdfSectionTitle(state, '3. Baseline du mois');
+    addPdfParagraph(
+      state,
+      'Premier mois de données : les graphiques d’évolution apparaîtront à partir du deuxième mois de reporting. Voici les indicateurs de référence (baseline) sur lesquels les prochaines évolutions seront mesurées.'
+    );
+    addPdfTable(
+      state,
+      [
+        { header: 'Canal', width: 50 },
+        { header: 'Indicateur', width: 84 },
+        { header: 'Valeur de référence', width: 40 }
+      ],
+      buildBaselineKpiRows(monthData).map((row) => row.map((text) => ({ text })))
+    );
+  } else {
+    addPdfSectionTitle(state, '3. Évolution dans le temps');
+    const monthLabels = monthOrder.map((key) => data.months[key].label);
+    const chartDefinitions = [
+      { title: 'Google Business — Vues de la fiche', getSeries: () => getMonthlySeries(data, 'googleBusiness', 'profileViews') },
+      { title: 'Instagram — Portée', getSeries: () => getMonthlySeries(data, 'instagram', 'reach') },
+      { title: 'Facebook — Visites de la page', getSeries: () => getMonthlySeries(data, 'facebook', 'pageVisits') },
+      { title: 'Intentions clients (Google + Beacons)', getSeries: () => getMonthlyIntentionsSeries(data) }
+    ];
 
-  chartDefinitions.forEach((chartDef, index) => {
-    const imageData = createCompactLineChartImage(chartDef.title, monthLabels, chartDef.getSeries());
-    const column = index % 2;
-    if (column === 0) {
-      ensurePdfSpace(state, chartRowHeight + 6);
-    }
-    const x = state.marginLeft + column * (chartColumnWidth + chartGap);
-    doc.addImage(imageData, 'PNG', x, state.cursorY, chartColumnWidth, chartRowHeight);
-    if (column === 1 || index === chartDefinitions.length - 1) {
-      state.cursorY += chartRowHeight + 6;
-    }
-  });
+    const chartColumnWidth = 84;
+    const chartImageHeight = 58;
+    // À partir de 3 mois, une ligne de tendance (hausse/baisse/stabilité) est ajoutée sous
+    // chaque graphique : la ligne supplémentaire a besoin d'un peu plus de hauteur de rangée.
+    const showTrend = monthOrder.length >= 3;
+    const chartRowHeight = showTrend ? chartImageHeight + 5 : chartImageHeight;
+    const chartGap = 6;
+
+    chartDefinitions.forEach((chartDef, index) => {
+      const series = chartDef.getSeries();
+      const imageData = createCompactLineChartImage(chartDef.title, monthLabels, series);
+      const column = index % 2;
+      if (column === 0) {
+        ensurePdfSpace(state, chartRowHeight + 6);
+      }
+      const x = state.marginLeft + column * (chartColumnWidth + chartGap);
+      doc.addImage(imageData, 'PNG', x, state.cursorY, chartColumnWidth, chartImageHeight);
+      if (showTrend) {
+        const trendLabel = computeSeriesTrendLabel(series);
+        if (trendLabel) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(...PDF_COLORS.textSoft);
+          doc.text(trendLabel, x, state.cursorY + chartImageHeight + 4);
+        }
+      }
+      if (column === 1 || index === chartDefinitions.length - 1) {
+        state.cursorY += chartRowHeight + 6;
+      }
+    });
+  }
 
   doc.addPage();
   state.cursorY = state.marginTop;
@@ -3821,7 +4481,7 @@ function generateClientReportPdf(clientId) {
     addPdfParagraph(state, section.text);
   });
 
-  addPdfSubTitle(state, 'Forces du mois');
+  addPdfSubTitle(state, previousMonthData ? 'Forces du mois' : 'Points d’appui identifiés');
   addPdfBulletList(state, generateStrengths(monthData, previousMonthData));
   addPdfSubTitle(state, 'Faiblesses');
   addPdfBulletList(state, generateWeaknesses(monthData, previousMonthData));
@@ -3835,7 +4495,10 @@ function generateClientReportPdf(clientId) {
 
   addPdfSectionTitle(state, '6. Objectifs du mois');
   if (monthData.monthlyObjectives.length) {
-    addPdfChecklist(state, monthData.monthlyObjectives);
+    addPdfChecklist(
+      state,
+      monthData.monthlyObjectives.map((objective) => ({ ...objective, label: buildObjectivePdfLabel(objective, monthData) }))
+    );
   } else {
     addPdfParagraph(state, 'Aucun objectif n’a été défini pour ce mois.');
   }
@@ -3849,7 +4512,7 @@ function generateClientReportPdf(clientId) {
   }
 
   addPdfSectionTitle(state, '8. Conclusion');
-  addPdfParagraph(state, generateConclusion(data, score, scoreBadge));
+  addPdfParagraph(state, generateConclusion(data, monthData, previousMonthData, score, scoreBadge));
 
   addPdfFootersAndPageNumbers(doc, data.general.name || 'ce client');
 
