@@ -17,6 +17,10 @@ const objectiveKpiOptions = [
   { section: 'googleBusiness', field: 'bookings', label: 'Réservations Google' },
   { section: 'googleBusiness', field: 'reviewsCount', label: 'Avis Google' },
   { section: 'facebook', field: 'pageVisits', label: 'Visites de la page Facebook' },
+  { section: 'tiktok', field: 'views', label: 'Vues TikTok' },
+  { section: 'tiktok', field: 'profileVisits', label: 'Visites de profil TikTok' },
+  { section: 'tiktok', field: 'linkClicks', label: 'Clics sur le lien TikTok' },
+  { section: 'tiktok', field: 'followers', label: 'Abonnés TikTok' },
   { section: 'beacons', field: 'bookingClicks', label: 'Clics réservation Beacons' }
 ];
 
@@ -95,22 +99,27 @@ const initialSituationSchema = {
   eyebrow: 'Point de départ',
   title: 'Situation initiale',
   fields: [
-    { key: 'googleRating', label: 'Note Google initiale', type: 'metric', step: '0.1' },
-    { key: 'googleReviews', label: 'Avis Google initiaux', type: 'metric' },
-    { key: 'googleViews', label: 'Vues Google initiales', type: 'metric' },
-    { key: 'googleCalls', label: 'Appels Google initiaux', type: 'metric' },
-    { key: 'googleDirections', label: 'Itinéraires initiaux', type: 'metric' },
-    { key: 'googleWebsiteClicks', label: 'Clics site initiaux', type: 'metric' },
-    { key: 'instagramFollowers', label: 'Abonnés Instagram initiaux', type: 'metric' },
-    { key: 'instagramReach', label: 'Portée Instagram initiale', type: 'metric' },
-    { key: 'instagramViews', label: 'Vues Instagram initiales', type: 'metric' },
-    { key: 'instagramInteractions', label: 'Interactions initiales', type: 'metric' },
-    { key: 'instagramProfileVisits', label: 'Visites profil initiales', type: 'metric' },
-    { key: 'instagramLinkClicks', label: 'Clics lien initiaux', type: 'metric' },
-    { key: 'facebookFollowers', label: 'Abonnés Facebook initiaux', type: 'metric' },
-    { key: 'facebookPageVisits', label: 'Visites de la page Facebook initiales', type: 'metric' },
-    { key: 'facebookViews', label: 'Vues Facebook initiales', type: 'metric' },
-    { key: 'facebookInteractions', label: 'Interactions Facebook initiales', type: 'metric' }
+    { key: 'googleRating', label: 'Note Google initiale', type: 'metric', step: '0.1', platform: 'googleBusiness' },
+    { key: 'googleReviews', label: 'Avis Google initiaux', type: 'metric', platform: 'googleBusiness' },
+    { key: 'googleViews', label: 'Vues Google initiales', type: 'metric', platform: 'googleBusiness' },
+    { key: 'googleCalls', label: 'Appels Google initiaux', type: 'metric', platform: 'googleBusiness' },
+    { key: 'googleDirections', label: 'Itinéraires initiaux', type: 'metric', platform: 'googleBusiness' },
+    { key: 'googleWebsiteClicks', label: 'Clics site initiaux', type: 'metric', platform: 'googleBusiness' },
+    { key: 'instagramFollowers', label: 'Abonnés Instagram initiaux', type: 'metric', platform: 'instagram' },
+    { key: 'instagramReach', label: 'Portée Instagram initiale', type: 'metric', platform: 'instagram' },
+    { key: 'instagramViews', label: 'Vues Instagram initiales', type: 'metric', platform: 'instagram' },
+    { key: 'instagramInteractions', label: 'Interactions initiales', type: 'metric', platform: 'instagram' },
+    { key: 'instagramProfileVisits', label: 'Visites profil initiales', type: 'metric', platform: 'instagram' },
+    { key: 'instagramLinkClicks', label: 'Clics lien initiaux', type: 'metric', platform: 'instagram' },
+    { key: 'facebookFollowers', label: 'Abonnés Facebook initiaux', type: 'metric', platform: 'facebook' },
+    { key: 'facebookPageVisits', label: 'Visites de la page Facebook initiales', type: 'metric', platform: 'facebook' },
+    { key: 'facebookViews', label: 'Vues Facebook initiales', type: 'metric', platform: 'facebook' },
+    { key: 'facebookInteractions', label: 'Interactions Facebook initiales', type: 'metric', platform: 'facebook' },
+    { key: 'tiktokFollowers', label: 'Abonnés TikTok initiaux', type: 'metric', platform: 'tiktok' },
+    { key: 'tiktokViews', label: 'Vues TikTok initiales', type: 'metric', platform: 'tiktok' },
+    { key: 'tiktokInteractions', label: 'Interactions TikTok initiales', type: 'metric', platform: 'tiktok' },
+    { key: 'tiktokProfileVisits', label: 'Visites profil TikTok initiales', type: 'metric', platform: 'tiktok' },
+    { key: 'tiktokLinkClicks', label: 'Clics lien TikTok initiaux', type: 'metric', platform: 'tiktok' }
   ]
 };
 
@@ -131,8 +140,44 @@ const baselineFieldMap = {
   facebookFollowers: { section: 'facebook', field: 'followers' },
   facebookPageVisits: { section: 'facebook', field: 'pageVisits' },
   facebookViews: { section: 'facebook', field: 'views' },
-  facebookInteractions: { section: 'facebook', field: 'interactions' }
+  facebookInteractions: { section: 'facebook', field: 'interactions' },
+  tiktokFollowers: { section: 'tiktok', field: 'followers' },
+  tiktokViews: { section: 'tiktok', field: 'views' },
+  tiktokInteractions: { section: 'tiktok', field: 'interactions' },
+  tiktokProfileVisits: { section: 'tiktok', field: 'profileVisits' },
+  tiktokLinkClicks: { section: 'tiktok', field: 'linkClicks' }
 };
+
+// Réseaux que l'app sait suivre ; chaque client choisit lesquels sont réellement dans sa
+// prestation (cf. general.trackedPlatforms) pour ne jamais l'obliger à remplir des champs
+// pour un réseau qu'il ne suit pas.
+const trackablePlatformOptions = [
+  { key: 'googleBusiness', label: 'Google Business' },
+  { key: 'instagram', label: 'Instagram' },
+  { key: 'facebook', label: 'Facebook' },
+  { key: 'tiktok', label: 'TikTok' }
+];
+
+function createDefaultTrackedPlatforms() {
+  return { googleBusiness: true, instagram: true, facebook: true, tiktok: false };
+}
+
+// Un réseau non répertorié dans trackedPlatforms (ex: anciennes données, ou "beacons"/
+// "businessResults" qui ne sont pas des réseaux) reste visible par défaut.
+function isPlatformTracked(trackedPlatforms, platformKey) {
+  if (!platformKey || !trackedPlatforms || !(platformKey in trackedPlatforms)) {
+    return true;
+  }
+  return trackedPlatforms[platformKey] !== false;
+}
+
+function filterFieldsByTrackedPlatforms(fields, trackedPlatforms) {
+  return fields.filter((field) => isPlatformTracked(trackedPlatforms, field.platform));
+}
+
+function getVisibleMonthlySections(trackedPlatforms) {
+  return monthlySectionSchema.filter((section) => isPlatformTracked(trackedPlatforms, section.key));
+}
 
 const monthlySectionSchema = [
   {
@@ -185,6 +230,19 @@ const monthlySectionSchema = [
     ]
   },
   {
+    key: 'tiktok',
+    eyebrow: 'Réseaux & visibilité',
+    title: 'TikTok',
+    fields: [
+      { key: 'followers', label: 'Abonnés', type: 'metric' },
+      { key: 'views', label: 'Vues', type: 'metric' },
+      { key: 'interactions', label: 'Interactions (likes, commentaires, partages)', type: 'metric' },
+      { key: 'profileVisits', label: 'Visites du profil', type: 'metric' },
+      { key: 'linkClicks', label: 'Clics sur le lien', type: 'metric' },
+      { key: 'posts', label: 'Publications', type: 'metric' }
+    ]
+  },
+  {
     key: 'beacons',
     eyebrow: 'Réseaux & visibilité',
     title: 'Beacons',
@@ -222,7 +280,12 @@ function createEmptyInitialSituation() {
     facebookFollowers: '',
     facebookPageVisits: '',
     facebookViews: '',
-    facebookInteractions: ''
+    facebookInteractions: '',
+    tiktokFollowers: '',
+    tiktokViews: '',
+    tiktokInteractions: '',
+    tiktokProfileVisits: '',
+    tiktokLinkClicks: ''
   };
 }
 
@@ -261,6 +324,14 @@ function createEmptyMonthData(label) {
       pageVisits: '',
       views: '',
       interactions: '',
+      linkClicks: '',
+      posts: ''
+    },
+    tiktok: {
+      followers: '',
+      views: '',
+      interactions: '',
+      profileVisits: '',
       linkClicks: '',
       posts: ''
     },
@@ -353,7 +424,8 @@ function createEmptyClientData(id, name) {
       mainGoal: '',
       monthStatus: 'À définir',
       averageBasket: '',
-      monthlyFee: ''
+      monthlyFee: '',
+      trackedPlatforms: createDefaultTrackedPlatforms()
     },
     initialSituation: createEmptyInitialSituation(),
     strategicProfile: createEmptyClientStrategicProfile(),
@@ -379,7 +451,8 @@ const clientSeedData = [
       mainGoal: 'Booster la visibilité locale et structurer le suivi mensuel.',
       monthStatus: 'En bonne voie',
       averageBasket: '',
-      monthlyFee: ''
+      monthlyFee: '',
+      trackedPlatforms: createDefaultTrackedPlatforms()
     },
     initialSituation: createEmptyInitialSituation(),
     strategicProfile: createEmptyClientStrategicProfile(),
@@ -402,7 +475,8 @@ const clientSeedData = [
       mainGoal: 'Améliorer la notoriété et accélérer la production éditoriale.',
       monthStatus: 'Objectif atteint',
       averageBasket: '',
-      monthlyFee: ''
+      monthlyFee: '',
+      trackedPlatforms: createDefaultTrackedPlatforms()
     },
     initialSituation: createEmptyInitialSituation(),
     strategicProfile: createEmptyClientStrategicProfile(),
@@ -554,6 +628,12 @@ function getClientData(id) {
       if (parsed.general && parsed.general.averageBasket === undefined) {
         parsed.general.averageBasket = '';
         parsed.general.monthlyFee = '';
+      }
+      if (parsed.general && !parsed.general.trackedPlatforms) {
+        // Un client existant utilisait déjà Google/Instagram/Facebook sans distinction : on
+        // les active tous par défaut pour ne rien changer à ce qu'il voyait déjà. TikTok, lui,
+        // est nouveau et reste décoché tant qu'il n'est pas explicitement activé.
+        parsed.general.trackedPlatforms = createDefaultTrackedPlatforms();
       }
       if (!parsed.strategicProfile) {
         parsed.strategicProfile = migrateClientDnaToStrategicProfile(parsed.clientDna) || createEmptyClientStrategicProfile();
@@ -722,6 +802,55 @@ function createFieldControl(sectionKey, field, monthKey) {
     wrapper.classList.add('idea-field-full');
   }
   return wrapper;
+}
+
+// Certains clients n'incluent pas tous les réseaux dans leur prestation (ex : pas de Google
+// Business mais du TikTok) : cette section permet de choisir, par client, quels réseaux sont
+// réellement suivis. Les autres n'apparaissent plus ni dans la situation initiale, ni dans le
+// suivi mensuel, ni dans l'analyse générée — sans jamais obliger à remplir un champ inutile.
+function renderTrackedPlatformsSection(clientId, onChange) {
+  const block = document.createElement('div');
+  block.className = 'section-block';
+  block.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Configuration client</p>
+        <h3>Réseaux suivis pour ce client</h3>
+      </div>
+    </div>
+    <p class="notes-hint">Cochez uniquement les réseaux réellement inclus dans la prestation de ce client. Les réseaux décochés disparaissent de la situation initiale, du suivi mensuel et de l’analyse.</p>
+    <div class="platform-checklist" data-role="tracked-platforms-checklist"></div>
+  `;
+
+  const list = block.querySelector('[data-role="tracked-platforms-checklist"]');
+  const data = getClientData(clientId);
+  const tracked = data.general.trackedPlatforms || createDefaultTrackedPlatforms();
+
+  trackablePlatformOptions.forEach((platform) => {
+    const isChecked = tracked[platform.key] !== false;
+    const label = document.createElement('label');
+    label.className = `platform-option${isChecked ? ' checked' : ''}`;
+    label.innerHTML = `
+      <input type="checkbox" ${isChecked ? 'checked' : ''} />
+      <span>${escapeHtml(platform.label)}</span>
+    `;
+    const checkbox = label.querySelector('input');
+    checkbox.addEventListener('change', () => {
+      const freshData = getClientData(clientId);
+      if (!freshData.general.trackedPlatforms) {
+        freshData.general.trackedPlatforms = createDefaultTrackedPlatforms();
+      }
+      freshData.general.trackedPlatforms[platform.key] = checkbox.checked;
+      saveClientData(clientId, freshData);
+      label.classList.toggle('checked', checkbox.checked);
+      if (onChange) {
+        onChange();
+      }
+    });
+    list.appendChild(label);
+  });
+
+  return block;
 }
 
 function renderFieldSection(section, monthKey) {
@@ -970,6 +1099,18 @@ function computeInstagramProfileConversionRatio(monthData) {
   return linkClicks / profileVisits;
 }
 
+function computeTiktokProfileConversionRatio(monthData) {
+  if (!monthData) {
+    return null;
+  }
+  const profileVisits = parseMetricValue(monthData.tiktok.profileVisits);
+  const linkClicks = parseMetricValue(monthData.tiktok.linkClicks);
+  if (profileVisits === null || linkClicks === null || profileVisits === 0) {
+    return null;
+  }
+  return linkClicks / profileVisits;
+}
+
 function computeInstagramContentVolume(monthData) {
   if (!monthData) {
     return null;
@@ -1168,10 +1309,21 @@ const pillarSignalGetters = {
   visibility: [
     (m) => parseMetricValue(m.googleBusiness.profileViews),
     (m) => parseMetricValue(m.instagram.reach),
-    (m) => parseMetricValue(m.facebook.pageVisits)
+    (m) => parseMetricValue(m.facebook.pageVisits),
+    (m) => parseMetricValue(m.tiktok.views)
   ],
-  engagement: [(m) => parseMetricValue(m.instagram.interactions), (m) => parseMetricValue(m.facebook.interactions), (m) => computeEngagementRate(m)],
-  conversion: [(m) => computeInstagramProfileConversionRatio(m), (m) => parseMetricValue(m.instagram.linkClicks)],
+  engagement: [
+    (m) => parseMetricValue(m.instagram.interactions),
+    (m) => parseMetricValue(m.facebook.interactions),
+    (m) => parseMetricValue(m.tiktok.interactions),
+    (m) => computeEngagementRate(m)
+  ],
+  conversion: [
+    (m) => computeInstagramProfileConversionRatio(m),
+    (m) => parseMetricValue(m.instagram.linkClicks),
+    (m) => computeTiktokProfileConversionRatio(m),
+    (m) => parseMetricValue(m.tiktok.linkClicks)
+  ],
   intention: [(m) => computeGoogleIntentions(m), (m) => sumOrNull([m.beacons.bookingClicks, m.beacons.phoneClicks, m.beacons.directionsClicks])]
 };
 
@@ -1179,13 +1331,18 @@ const pillarKpiFieldKeys = {
   visibility: [
     ['googleBusiness', 'profileViews'],
     ['instagram', 'reach'],
-    ['facebook', 'pageVisits']
+    ['facebook', 'pageVisits'],
+    ['tiktok', 'views']
   ],
   engagement: [
     ['instagram', 'interactions'],
-    ['facebook', 'interactions']
+    ['facebook', 'interactions'],
+    ['tiktok', 'interactions']
   ],
-  conversion: [['instagram', 'linkClicks']],
+  conversion: [
+    ['instagram', 'linkClicks'],
+    ['tiktok', 'linkClicks']
+  ],
   intention: [
     ['googleBusiness', 'calls'],
     ['googleBusiness', 'directions'],
@@ -1248,7 +1405,8 @@ function computePillarRegularity(monthData) {
     monthData.instagram.reels,
     monthData.instagram.stories,
     monthData.googleBusiness.googlePosts,
-    monthData.facebook.posts
+    monthData.facebook.posts,
+    monthData.tiktok.posts
   ]);
   if (volume !== null && volume > 0) {
     return { score: 70, reason: 'Production de contenu active sur la période ; aucun plan d’action structuré à mesurer pour affiner ce score.' };
@@ -1463,17 +1621,29 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation) {
 }
 
 const synthesisRowConfigs = [
-  { label: 'Avis Google', section: 'googleBusiness', field: 'reviewsCount' },
-  { label: 'Taux de réponse aux nouveaux avis', unit: '%', compute: computeReviewResponseRate },
-  { label: 'Note Google', section: 'googleBusiness', field: 'rating' },
-  { label: 'Vues Google', section: 'googleBusiness', field: 'profileViews' },
-  { label: 'Appels Google', section: 'googleBusiness', field: 'calls' },
-  { label: 'Itinéraires Google', section: 'googleBusiness', field: 'directions' },
-  { label: 'Abonnés Instagram', section: 'instagram', field: 'followers' },
-  { label: 'Portée Instagram', section: 'instagram', field: 'reach' },
-  { label: 'Interactions Instagram', section: 'instagram', field: 'interactions' },
-  { label: 'Taux d’engagement sur la portée', unit: '%', compute: computeEngagementRate, computeInitial: computeEngagementRateFromInitial },
-  { label: 'Clics lien', section: 'instagram', field: 'linkClicks' },
+  { label: 'Avis Google', section: 'googleBusiness', field: 'reviewsCount', platform: 'googleBusiness' },
+  { label: 'Taux de réponse aux nouveaux avis', unit: '%', compute: computeReviewResponseRate, platform: 'googleBusiness' },
+  { label: 'Note Google', section: 'googleBusiness', field: 'rating', platform: 'googleBusiness' },
+  { label: 'Vues Google', section: 'googleBusiness', field: 'profileViews', platform: 'googleBusiness' },
+  { label: 'Appels Google', section: 'googleBusiness', field: 'calls', platform: 'googleBusiness' },
+  { label: 'Itinéraires Google', section: 'googleBusiness', field: 'directions', platform: 'googleBusiness' },
+  { label: 'Abonnés Instagram', section: 'instagram', field: 'followers', platform: 'instagram' },
+  { label: 'Portée Instagram', section: 'instagram', field: 'reach', platform: 'instagram' },
+  { label: 'Interactions Instagram', section: 'instagram', field: 'interactions', platform: 'instagram' },
+  {
+    label: 'Taux d’engagement sur la portée',
+    unit: '%',
+    compute: computeEngagementRate,
+    computeInitial: computeEngagementRateFromInitial,
+    platform: 'instagram'
+  },
+  { label: 'Clics lien Instagram', section: 'instagram', field: 'linkClicks', platform: 'instagram' },
+  { label: 'Abonnés Facebook', section: 'facebook', field: 'followers', platform: 'facebook' },
+  { label: 'Visites de la page Facebook', section: 'facebook', field: 'pageVisits', platform: 'facebook' },
+  { label: 'Abonnés TikTok', section: 'tiktok', field: 'followers', platform: 'tiktok' },
+  { label: 'Vues TikTok', section: 'tiktok', field: 'views', platform: 'tiktok' },
+  { label: 'Interactions TikTok', section: 'tiktok', field: 'interactions', platform: 'tiktok' },
+  { label: 'Clics lien TikTok', section: 'tiktok', field: 'linkClicks', platform: 'tiktok' },
   { label: 'Clics réservation Beacons', section: 'beacons', field: 'bookingClicks' },
   { label: 'Intentions clients', compute: computeIntentionsFromMonth, computeInitial: computeIntentionsFromInitial }
 ];
@@ -1494,7 +1664,7 @@ function getSynthesisRowValues(rowConfig, monthData, previousMonthData, initialS
   };
 }
 
-function renderSynthesisSection(monthData, previousMonthData, initialSituation) {
+function renderSynthesisSection(monthData, previousMonthData, initialSituation, trackedPlatforms) {
   const block = document.createElement('div');
   block.className = 'section-block';
   block.innerHTML = `
@@ -1526,7 +1696,7 @@ function renderSynthesisSection(monthData, previousMonthData, initialSituation) 
   `;
 
   const tbody = table.querySelector('tbody');
-  synthesisRowConfigs.forEach((rowConfig) => {
+  synthesisRowConfigs.filter((rowConfig) => isPlatformTracked(trackedPlatforms, rowConfig.platform)).forEach((rowConfig) => {
     const values = getSynthesisRowValues(rowConfig, monthData, previousMonthData, initialSituation);
     tbody.appendChild(
       createComparisonRow(
@@ -1546,7 +1716,7 @@ function hasValue(value) {
 }
 
 function monthHasAnyData(monthData) {
-  return ['googleBusiness', 'instagram', 'facebook', 'beacons'].some((section) =>
+  return ['googleBusiness', 'instagram', 'facebook', 'tiktok', 'beacons'].some((section) =>
     Object.values(monthData[section]).some((value) => hasValue(value))
   );
 }
@@ -1593,7 +1763,22 @@ const facebookFieldsForInsights = [
   ['facebook', 'posts']
 ];
 
-const allInsightFields = [...googleScoreFields, ...instagramScoreFields, ...facebookFieldsForInsights, ...beaconsScoreFields];
+const tiktokFieldsForInsights = [
+  ['tiktok', 'followers'],
+  ['tiktok', 'views'],
+  ['tiktok', 'interactions'],
+  ['tiktok', 'profileVisits'],
+  ['tiktok', 'linkClicks'],
+  ['tiktok', 'posts']
+];
+
+const allInsightFields = [
+  ...googleScoreFields,
+  ...instagramScoreFields,
+  ...facebookFieldsForInsights,
+  ...tiktokFieldsForInsights,
+  ...beaconsScoreFields
+];
 
 const insightFieldLabels = {
   'googleBusiness.rating': 'La note Google',
@@ -1613,6 +1798,12 @@ const insightFieldLabels = {
   'facebook.interactions': 'Les interactions Facebook',
   'facebook.linkClicks': 'Les clics lien Facebook',
   'facebook.posts': 'Les publications Facebook',
+  'tiktok.followers': 'Les abonnés TikTok',
+  'tiktok.views': 'Les vues TikTok',
+  'tiktok.interactions': 'Les interactions TikTok',
+  'tiktok.profileVisits': 'Les visites de profil TikTok',
+  'tiktok.linkClicks': 'Les clics sur le lien TikTok',
+  'tiktok.posts': 'Les publications TikTok',
   'beacons.bookingClicks': 'Les clics réservation Beacons',
   'beacons.phoneClicks': 'Les clics téléphone Beacons',
   'beacons.directionsClicks': 'Les clics itinéraire Beacons'
@@ -1919,6 +2110,62 @@ function generateFacebookAnalysis(monthData, previousMonthData) {
 
   if (!sentences.length) {
     return 'Aucune donnée Facebook n’a encore été saisie pour ce mois.';
+  }
+
+  return sentences.join(' ');
+}
+
+// Même logique que Facebook/Instagram : chaque indicateur TikTok utilise exclusivement sa
+// propre variable, et le ratio visites de profil → clic lien est explicité comme pour Instagram.
+function generateTiktokAnalysis(monthData, previousMonthData) {
+  const tt = monthData.tiktok;
+  const prevTt = previousMonthData ? previousMonthData.tiktok : null;
+  const sentences = [];
+
+  const followersEvo = prevTt ? computeEvolution(prevTt.followers, tt.followers) : { percent: null };
+  const profileVisitsEvo = prevTt ? computeEvolution(prevTt.profileVisits, tt.profileVisits) : { percent: null };
+
+  if (hasValue(tt.followers)) {
+    const trend = trendClause(followersEvo.percent);
+    sentences.push(`Le compte TikTok compte ${formatNumber(tt.followers)} abonnés${trend ? `, ${trend}` : ''}.`);
+  }
+
+  const contentParts = [];
+  if (hasValue(tt.views)) {
+    contentParts.push(`${formatNumber(tt.views)} vues`);
+  }
+  if (hasValue(tt.interactions)) {
+    contentParts.push(`${formatNumber(tt.interactions)} interactions (likes, commentaires, partages)`);
+  }
+  if (contentParts.length) {
+    sentences.push(`Les contenus ont généré ${joinWithAnd(contentParts)} sur la période.`);
+  }
+
+  if (hasValue(tt.posts)) {
+    const count = parseMetricValue(tt.posts);
+    sentences.push(`${formatNumber(count)} publication${count > 1 ? 's ont' : ' a'} été diffusée${count > 1 ? 's' : ''} ce mois-ci.`);
+  }
+
+  if (hasValue(tt.profileVisits)) {
+    const trend = trendClause(profileVisitsEvo.percent);
+    sentences.push(
+      trend ? `Le profil a enregistré ${formatNumber(tt.profileVisits)} visites, ${trend}.` : `Le profil a enregistré ${formatNumber(tt.profileVisits)} visites sur la période.`
+    );
+  }
+
+  if (hasValue(tt.linkClicks)) {
+    sentences.push(`${formatNumber(tt.linkClicks)} clics ont été enregistrés sur le lien du profil.`);
+  }
+
+  const conversionRatio = computeTiktokProfileConversionRatio(monthData);
+  if (conversionRatio !== null) {
+    sentences.push(
+      `${(conversionRatio * 100).toFixed(1)}% des visites de profil ont généré un clic sur le lien : la conversion du profil vers une action externe est un axe à suivre.`
+    );
+  }
+
+  if (!sentences.length) {
+    return 'Aucune donnée TikTok n’a encore été saisie pour ce mois.';
   }
 
   return sentences.join(' ');
@@ -2431,6 +2678,7 @@ const recordCheckFields = [
   { section: 'instagram', field: 'reach', label: 'Portée Instagram' },
   { section: 'instagram', field: 'interactions', label: 'Interactions Instagram' },
   { section: 'facebook', field: 'pageVisits', label: 'Visites de la page Facebook' },
+  { section: 'tiktok', field: 'views', label: 'Vues TikTok' },
   { section: 'beacons', field: 'bookingClicks', label: 'Clics réservation Beacons' }
 ];
 
@@ -2529,21 +2777,31 @@ function renderAnalysisSection(clientData, monthKey, monthData, previousMonthDat
   });
 
   const pillars = computeScorePillars(monthData, previousMonthData);
-  const strengthsTitle = previousMonthData ? '8. Forces du mois' : '8. Points d’appui identifiés';
+  const strengthsTitle = previousMonthData ? 'Forces du mois' : 'Points d’appui identifiés';
+  const tracked = clientData.general.trackedPlatforms;
 
-  const sections = [
-    { title: '1. Résumé exécutif', paragraphs: [executiveSummary] },
-    { title: '2. Score détaillé par pilier', list: buildScorePillarsLines(pillars) },
-    { title: '3. Analyse Google Business', paragraphs: [generateGoogleAnalysis(monthData, previousMonthData)] },
-    { title: '4. Analyse Instagram', paragraphs: [generateInstagramAnalysis(monthData, previousMonthData)] },
-    { title: '5. Analyse Facebook', paragraphs: [generateFacebookAnalysis(monthData, previousMonthData)] },
-    { title: '6. Analyse Beacons', paragraphs: [generateBeaconsAnalysis(monthData, previousMonthData)] },
-    { title: '7. Analyse des objectifs', paragraphs: [generateObjectivesAnalysis(monthData)] },
+  // Seuls les réseaux réellement suivis pour ce client ont leur propre sous-section d'analyse ;
+  // les numéros de section sont recalculés en fonction de ce qui est effectivement affiché.
+  const platformAnalysisSections = [
+    { key: 'googleBusiness', title: 'Analyse Google Business', paragraphs: [generateGoogleAnalysis(monthData, previousMonthData)] },
+    { key: 'instagram', title: 'Analyse Instagram', paragraphs: [generateInstagramAnalysis(monthData, previousMonthData)] },
+    { key: 'facebook', title: 'Analyse Facebook', paragraphs: [generateFacebookAnalysis(monthData, previousMonthData)] },
+    { key: 'tiktok', title: 'Analyse TikTok', paragraphs: [generateTiktokAnalysis(monthData, previousMonthData)] }
+  ].filter((section) => isPlatformTracked(tracked, section.key));
+
+  const unnumberedSections = [
+    { title: 'Résumé exécutif', paragraphs: [executiveSummary] },
+    { title: 'Score détaillé par pilier', list: buildScorePillarsLines(pillars) },
+    ...platformAnalysisSections,
+    { title: 'Analyse Beacons', paragraphs: [generateBeaconsAnalysis(monthData, previousMonthData)] },
+    { title: 'Analyse des objectifs', paragraphs: [generateObjectivesAnalysis(monthData)] },
     { title: strengthsTitle, list: generateStrengths(monthData, previousMonthData) },
-    { title: '9. Faiblesses', list: generateWeaknesses(monthData, previousMonthData) },
-    { title: '10. Opportunités', list: generateOpportunities(monthData, previousMonthData) },
-    { title: '11. Recommandations', list: generateRecommendations(monthData, previousMonthData) }
+    { title: 'Faiblesses', list: generateWeaknesses(monthData, previousMonthData) },
+    { title: 'Opportunités', list: generateOpportunities(monthData, previousMonthData) },
+    { title: 'Recommandations', list: generateRecommendations(monthData, previousMonthData) }
   ];
+
+  const sections = unnumberedSections.map((section, index) => ({ ...section, title: `${index + 1}. ${section.title}` }));
 
   sections.forEach((section) => {
     const subsection = document.createElement('div');
@@ -2967,6 +3225,7 @@ const caseStudyActionCategories = [
   { key: 'reviews', title: 'Gestion des avis', keywords: ['avis', 'review'] },
   { key: 'instagram', title: 'Instagram', keywords: ['instagram', 'reel', 'stories', 'story'] },
   { key: 'facebook', title: 'Facebook', keywords: ['facebook'] },
+  { key: 'tiktok', title: 'TikTok', keywords: ['tiktok'] },
   { key: 'googleBusiness', title: 'Google Business', keywords: ['google', 'gbp', 'fiche'] },
   { key: 'content', title: 'Création de contenu', keywords: ['contenu', 'calendrier', 'édito', 'editorial'] },
   { key: 'optimization', title: 'Optimisations réalisées', keywords: [] }
@@ -3475,7 +3734,27 @@ function createDashboardCard(clientId) {
   dnaPanel.appendChild(renderFieldSection(clientStrategicProfileFieldsSchema));
 
   fichePanel.appendChild(renderFieldSection(generalFieldsSchema));
-  fichePanel.appendChild(renderFieldSection(initialSituationSchema));
+
+  let initialSituationBlock = renderFieldSection({
+    ...initialSituationSchema,
+    fields: filterFieldsByTrackedPlatforms(initialSituationSchema.fields, data.general.trackedPlatforms)
+  });
+  const refreshInitialSituationBlock = () => {
+    const freshData = getClientData(clientId);
+    const nextBlock = renderFieldSection({
+      ...initialSituationSchema,
+      fields: filterFieldsByTrackedPlatforms(initialSituationSchema.fields, freshData.general.trackedPlatforms)
+    });
+    initialSituationBlock.replaceWith(nextBlock);
+    initialSituationBlock = nextBlock;
+    fillFieldValues(article, freshData);
+  };
+
+  fichePanel.appendChild(renderTrackedPlatformsSection(clientId, () => {
+    refreshInitialSituationBlock();
+    refreshMonthContent();
+  }));
+  fichePanel.appendChild(initialSituationBlock);
   fillFieldValues(article, data);
 
   const monthControlBlock = document.createElement('div');
@@ -3544,13 +3823,13 @@ function createDashboardCard(clientId) {
     monthDataIntro.textContent = 'Renseignez ci-dessous les chiffres du mois sélectionné : le tableau de synthèse, les alertes, les victoires et l’analyse sont calculés automatiquement à partir de ces données.';
     monthContent.appendChild(monthDataIntro);
 
-    monthlySectionSchema.forEach((section) => {
+    getVisibleMonthlySections(freshData.general.trackedPlatforms).forEach((section) => {
       monthContent.appendChild(renderMonthlyFieldSection(section, selectedMonth, monthData));
     });
     monthContent.appendChild(renderBusinessResultsComputedSection(monthData, freshData.general));
 
     monthContent.appendChild(renderSummaryCards(monthData, previousMonthData, freshData.initialSituation));
-    monthContent.appendChild(renderSynthesisSection(monthData, previousMonthData, freshData.initialSituation));
+    monthContent.appendChild(renderSynthesisSection(monthData, previousMonthData, freshData.initialSituation, freshData.general.trackedPlatforms));
 
     const monthlyScore = computeGlobalScore(monthData, previousMonthData);
     const monthlyScoreBadge = getScoreBadge(monthlyScore, Boolean(previousMonthData));
@@ -4123,24 +4402,35 @@ function getMonthlyIntentionsSeries(clientData) {
 
 // Cartes KPI de référence pour le premier mois (baseline), affichées à la place de graphiques
 // à un seul point qui n'apporteraient aucune valeur analytique.
-function buildBaselineKpiRows(monthData) {
+function buildBaselineKpiRows(monthData, trackedPlatforms) {
   const rows = [];
-  if (hasValue(monthData.googleBusiness.profileViews)) {
+  if (isPlatformTracked(trackedPlatforms, 'googleBusiness') && hasValue(monthData.googleBusiness.profileViews)) {
     rows.push(['Google Business', 'Vues de la fiche', formatNumber(monthData.googleBusiness.profileViews)]);
   }
-  if (hasValue(monthData.instagram.reach)) {
+  if (isPlatformTracked(trackedPlatforms, 'instagram') && hasValue(monthData.instagram.reach)) {
     rows.push(['Instagram', 'Comptes touchés', formatNumber(monthData.instagram.reach)]);
   }
-  if (hasValue(monthData.facebook.pageVisits)) {
+  if (isPlatformTracked(trackedPlatforms, 'facebook') && hasValue(monthData.facebook.pageVisits)) {
     rows.push(['Facebook', 'Visites de la page', formatNumber(monthData.facebook.pageVisits)]);
+  }
+  if (isPlatformTracked(trackedPlatforms, 'tiktok') && hasValue(monthData.tiktok.views)) {
+    rows.push(['TikTok', 'Vues', formatNumber(monthData.tiktok.views)]);
   }
   const intentions = computeIntentionsFromMonth(monthData);
   if (intentions !== null) {
     rows.push(['Intention client', 'Actions à forte intention (Google + Beacons)', formatNumber(intentions)]);
   }
-  const conversionRatio = computeInstagramProfileConversionRatio(monthData);
-  if (conversionRatio !== null) {
-    rows.push(['Conversion Instagram', 'Profil → lien', `${(conversionRatio * 100).toFixed(1)}%`]);
+  if (isPlatformTracked(trackedPlatforms, 'instagram')) {
+    const conversionRatio = computeInstagramProfileConversionRatio(monthData);
+    if (conversionRatio !== null) {
+      rows.push(['Conversion Instagram', 'Profil → lien', `${(conversionRatio * 100).toFixed(1)}%`]);
+    }
+  }
+  if (isPlatformTracked(trackedPlatforms, 'tiktok')) {
+    const tiktokConversionRatio = computeTiktokProfileConversionRatio(monthData);
+    if (tiktokConversionRatio !== null) {
+      rows.push(['Conversion TikTok', 'Profil → lien', `${(tiktokConversionRatio * 100).toFixed(1)}%`]);
+    }
   }
   if (!rows.length) {
     rows.push(['—', 'Aucune donnée saisie pour ce mois', '—']);
@@ -4381,7 +4671,7 @@ function generateClientReportPdf(clientId) {
   addPdfBulletList(state, buildScorePillarsLines(computeScorePillars(monthData, previousMonthData)));
 
   addPdfSectionTitle(state, '2. Tableau des KPI');
-  monthlySectionSchema.forEach((section) => {
+  getVisibleMonthlySections(data.general.trackedPlatforms).forEach((section) => {
     addPdfSubTitle(state, section.title);
     addPdfTable(
       state,
@@ -4422,17 +4712,18 @@ function generateClientReportPdf(clientId) {
         { header: 'Indicateur', width: 84 },
         { header: 'Valeur de référence', width: 40 }
       ],
-      buildBaselineKpiRows(monthData).map((row) => row.map((text) => ({ text })))
+      buildBaselineKpiRows(monthData, data.general.trackedPlatforms).map((row) => row.map((text) => ({ text })))
     );
   } else {
     addPdfSectionTitle(state, '3. Évolution dans le temps');
     const monthLabels = monthOrder.map((key) => data.months[key].label);
     const chartDefinitions = [
-      { title: 'Google Business — Vues de la fiche', getSeries: () => getMonthlySeries(data, 'googleBusiness', 'profileViews') },
-      { title: 'Instagram — Portée', getSeries: () => getMonthlySeries(data, 'instagram', 'reach') },
-      { title: 'Facebook — Visites de la page', getSeries: () => getMonthlySeries(data, 'facebook', 'pageVisits') },
+      { platform: 'googleBusiness', title: 'Google Business — Vues de la fiche', getSeries: () => getMonthlySeries(data, 'googleBusiness', 'profileViews') },
+      { platform: 'instagram', title: 'Instagram — Portée', getSeries: () => getMonthlySeries(data, 'instagram', 'reach') },
+      { platform: 'facebook', title: 'Facebook — Visites de la page', getSeries: () => getMonthlySeries(data, 'facebook', 'pageVisits') },
+      { platform: 'tiktok', title: 'TikTok — Vues', getSeries: () => getMonthlySeries(data, 'tiktok', 'views') },
       { title: 'Intentions clients (Google + Beacons)', getSeries: () => getMonthlyIntentionsSeries(data) }
-    ];
+    ].filter((chartDef) => isPlatformTracked(data.general.trackedPlatforms, chartDef.platform));
 
     const chartColumnWidth = 84;
     const chartImageHeight = 58;
@@ -4470,12 +4761,13 @@ function generateClientReportPdf(clientId) {
   state.cursorY = state.marginTop;
   addPdfSectionTitle(state, '4. Analyse du mois');
   const analysisSections = [
-    { title: 'Analyse Google Business', text: generateGoogleAnalysis(monthData, previousMonthData) },
-    { title: 'Analyse Instagram', text: generateInstagramAnalysis(monthData, previousMonthData) },
-    { title: 'Analyse Facebook', text: generateFacebookAnalysis(monthData, previousMonthData) },
+    { platform: 'googleBusiness', title: 'Analyse Google Business', text: generateGoogleAnalysis(monthData, previousMonthData) },
+    { platform: 'instagram', title: 'Analyse Instagram', text: generateInstagramAnalysis(monthData, previousMonthData) },
+    { platform: 'facebook', title: 'Analyse Facebook', text: generateFacebookAnalysis(monthData, previousMonthData) },
+    { platform: 'tiktok', title: 'Analyse TikTok', text: generateTiktokAnalysis(monthData, previousMonthData) },
     { title: 'Analyse Beacons', text: generateBeaconsAnalysis(monthData, previousMonthData) },
     { title: 'Analyse des objectifs', text: generateObjectivesAnalysis(monthData) }
-  ];
+  ].filter((section) => isPlatformTracked(data.general.trackedPlatforms, section.platform));
   analysisSections.forEach((section) => {
     addPdfSubTitle(state, section.title);
     addPdfParagraph(state, section.text);
