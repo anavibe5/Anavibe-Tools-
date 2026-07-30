@@ -2576,6 +2576,16 @@ function renderAnalysisSection(clientData, monthKey, monthData, previousMonthDat
     </div>
   `;
 
+  // Rappel interne uniquement (jamais exporté dans le PDF client) : l'analyse ci-dessous est
+  // calculée à partir des chiffres seuls et ne peut pas savoir qu'un abonné a été acheté, qu'un
+  // avis remonte à une période antérieure, etc. Les Notes internes portent ce contexte.
+  if (clientData.internalNotes && clientData.internalNotes.trim()) {
+    const reminder = document.createElement('div');
+    reminder.className = 'insight-item tone-medium';
+    reminder.innerHTML = '<span class="insight-icon">📌</span><span class="insight-text">Des notes internes existent pour ce client : à relire avant d’interpréter cette analyse, qui est calculée uniquement à partir des chiffres saisis (elle ne tient pas compte d’éléments de contexte comme des abonnés achetés ou des avis anciens). Ce rappel reste interne, il n’apparaît jamais dans le rapport PDF.</span>';
+    block.appendChild(reminder);
+  }
+
   const evolutions = collectFieldEvolutions(monthData, previousMonthData, allInsightFields);
   const best = evolutions.length ? evolutions.reduce((max, item) => (item.percent > max.percent ? item : max), evolutions[0]) : null;
   const worst = evolutions.length ? evolutions.reduce((min, item) => (item.percent < min.percent ? item : min), evolutions[0]) : null;
@@ -3596,6 +3606,11 @@ function createDashboardCard(clientId) {
   `;
   fichePanel.appendChild(monthControlBlock);
 
+  // Les notes internes doivent être lues avant l'analyse automatique : elles portent le
+  // contexte (ex. audience achetée, avis anciens) qui explique des chiffres autrement mal
+  // interprétés.
+  fichePanel.appendChild(renderNotesSection(clientId, data));
+
   const monthContent = document.createElement('div');
   monthContent.dataset.role = 'month-content';
   fichePanel.appendChild(monthContent);
@@ -3654,10 +3669,13 @@ function createDashboardCard(clientId) {
     const monthlyScoreBadge = getScoreBadge(monthlyScore, Boolean(previousMonthData));
     monthContent.appendChild(renderAlertsSection(monthData, previousMonthData));
     monthContent.appendChild(renderWinsSection(freshData, selectedMonth, monthData, previousMonthData));
-    monthContent.appendChild(renderAnalysisSection(freshData, selectedMonth, monthData, previousMonthData, monthlyScore, monthlyScoreBadge));
 
     monthContent.appendChild(renderObjectivesSection(clientId, selectedMonth));
     monthContent.appendChild(renderActionPlanSection(clientId, selectedMonth));
+
+    // Le plan d'action est saisi par la consultante elle-même : l'analyse automatique doit
+    // arriver après, pas avant, dans le flux de la fiche.
+    monthContent.appendChild(renderAnalysisSection(freshData, selectedMonth, monthData, previousMonthData, monthlyScore, monthlyScoreBadge));
   };
 
   monthSelect.addEventListener('change', () => {
@@ -3742,7 +3760,6 @@ function createDashboardCard(clientId) {
 
   refreshMonthContent();
 
-  fichePanel.appendChild(renderNotesSection(clientId, data));
   fichePanel.appendChild(renderCaseStudySection(clientId));
 
   const reportButton = document.createElement('button');
