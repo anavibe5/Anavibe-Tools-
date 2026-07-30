@@ -20,8 +20,7 @@ const objectiveKpiOptions = [
   { section: 'tiktok', field: 'views', label: 'Vues TikTok' },
   { section: 'tiktok', field: 'profileVisits', label: 'Visites de profil TikTok' },
   { section: 'tiktok', field: 'linkClicks', label: 'Clics sur le lien TikTok' },
-  { section: 'tiktok', field: 'followers', label: 'Abonnés TikTok' },
-  { section: 'beacons', field: 'bookingClicks', label: 'Clics réservation Beacons' }
+  { section: 'tiktok', field: 'followers', label: 'Abonnés TikTok' }
 ];
 
 function findObjectiveKpiOption(section, field) {
@@ -243,16 +242,6 @@ const monthlySectionSchema = [
     ]
   },
   {
-    key: 'beacons',
-    eyebrow: 'Réseaux & visibilité',
-    title: 'Beacons',
-    fields: [
-      { key: 'bookingClicks', label: 'Clics réservation', type: 'metric' },
-      { key: 'phoneClicks', label: 'Clics téléphone', type: 'metric' },
-      { key: 'directionsClicks', label: 'Clics itinéraire', type: 'metric' }
-    ]
-  },
-  {
     key: 'businessResults',
     eyebrow: 'Performance',
     title: 'Résultats business',
@@ -334,11 +323,6 @@ function createEmptyMonthData(label) {
       profileVisits: '',
       linkClicks: '',
       posts: ''
-    },
-    beacons: {
-      bookingClicks: '',
-      phoneClicks: '',
-      directionsClicks: ''
     },
     businessResults: {
       goalReached: 'Non',
@@ -533,7 +517,7 @@ function migrateLegacyClientData(data) {
         googleBusiness: data.googleBusiness || emptyMonth.googleBusiness,
         instagram: data.instagram || emptyMonth.instagram,
         facebook: data.facebook || emptyMonth.facebook,
-        beacons: data.beacons || emptyMonth.beacons,
+        tiktok: data.tiktok || emptyMonth.tiktok,
         businessResults: data.businessResults || emptyMonth.businessResults,
         monthlyObjectives: data.monthlyObjectives || [],
         actionPlan: data.actionPlan || []
@@ -634,6 +618,16 @@ function getClientData(id) {
         // les active tous par défaut pour ne rien changer à ce qu'il voyait déjà. TikTok, lui,
         // est nouveau et reste décoché tant qu'il n'est pas explicitement activé.
         parsed.general.trackedPlatforms = createDefaultTrackedPlatforms();
+      }
+      // Les mois créés avant l'ajout de TikTok n'ont pas cette clé du tout (contrairement à un
+      // simple champ manquant à l'intérieur d'une section existante) : sans ce correctif, tout
+      // accès à monthData.tiktok.xxx plante immédiatement l'ouverture de la fiche.
+      if (parsed.months) {
+        Object.values(parsed.months).forEach((month) => {
+          if (month && !month.tiktok) {
+            month.tiktok = { followers: '', views: '', interactions: '', profileVisits: '', linkClicks: '', posts: '' };
+          }
+        });
       }
       if (!parsed.strategicProfile) {
         parsed.strategicProfile = migrateClientDnaToStrategicProfile(parsed.clientDna) || createEmptyClientStrategicProfile();
@@ -1031,14 +1025,7 @@ function computeIntentionsFromMonth(monthData) {
   if (!monthData) {
     return null;
   }
-  return sumOrNull([
-    monthData.googleBusiness.calls,
-    monthData.googleBusiness.websiteClicks,
-    monthData.googleBusiness.directions,
-    monthData.beacons.bookingClicks,
-    monthData.beacons.phoneClicks,
-    monthData.beacons.directionsClicks
-  ]);
+  return sumOrNull([monthData.googleBusiness.calls, monthData.googleBusiness.websiteClicks, monthData.googleBusiness.directions]);
 }
 
 function computeIntentionsFromInitial(initialSituation) {
@@ -1100,7 +1087,7 @@ function computeInstagramProfileConversionRatio(monthData) {
 }
 
 function computeTiktokProfileConversionRatio(monthData) {
-  if (!monthData) {
+  if (!monthData || !monthData.tiktok) {
     return null;
   }
   const profileVisits = parseMetricValue(monthData.tiktok.profileVisits);
@@ -1157,27 +1144,6 @@ function computeGoogleConversionRatios(monthData) {
   };
 }
 
-// Ratios de conversion Beacons : quelle part des clics totaux correspond à chaque intention
-// (réservation, téléphone, itinéraire).
-function computeBeaconsConversionRatios(monthData) {
-  if (!monthData) {
-    return null;
-  }
-  const total = sumOrNull([monthData.beacons.bookingClicks, monthData.beacons.phoneClicks, monthData.beacons.directionsClicks]);
-  if (total === null || total === 0) {
-    return null;
-  }
-  const ratio = (field) => {
-    const value = parseMetricValue(monthData.beacons[field]);
-    return value === null ? null : value / total;
-  };
-  return {
-    bookingClicks: ratio('bookingClicks'),
-    phoneClicks: ratio('phoneClicks'),
-    directionsClicks: ratio('directionsClicks')
-  };
-}
-
 // Taux de réponse aux NOUVEAUX avis reçus sur LA période (jamais un total cumulé rapporté à un
 // chiffre mensuel) : borné à 100%, et null (non applicable) si aucun nouvel avis sur la période.
 function computeReviewResponseRate(monthData) {
@@ -1194,13 +1160,13 @@ function computeReviewResponseRate(monthData) {
 
 // Réservations générées / CA estimé / ROI ne sont plus saisis à la main : le consultant ne
 // sait pas toujours les calculer lui-même, donc le Dashboard les déduit des données déjà
-// suivies (réservations Google + Beacons, panier moyen et prix de la prestation renseignés
-// une fois dans "Informations générales").
+// suivies (réservations Google, panier moyen et prix de la prestation renseignés une fois
+// dans "Informations générales").
 function computeBookingsGenerated(monthData) {
   if (!monthData) {
     return null;
   }
-  return sumOrNull([monthData.googleBusiness.bookings, monthData.beacons.bookingClicks]);
+  return sumOrNull([monthData.googleBusiness.bookings]);
 }
 
 function computeEstimatedRevenue(monthData, generalData) {
@@ -1260,12 +1226,6 @@ const instagramScoreFields = [
   ['instagram', 'linkClicks']
 ];
 
-const beaconsScoreFields = [
-  ['beacons', 'bookingClicks'],
-  ['beacons', 'phoneClicks'],
-  ['beacons', 'directionsClicks']
-];
-
 function averagePercentEvolution(fieldPairs, monthData, previousMonthData) {
   if (!previousMonthData) {
     return null;
@@ -1305,26 +1265,29 @@ const scorePillarDefinitions = [
   { key: 'progression', label: 'Progression' }
 ];
 
+// m.tiktok peut être absent sur des mois créés avant l'ajout de TikTok (données déjà
+// enregistrées chez des clients existants) : chaque accès est protégé pour ne jamais faire
+// planter le calcul du score sur d'anciennes données.
 const pillarSignalGetters = {
   visibility: [
     (m) => parseMetricValue(m.googleBusiness.profileViews),
     (m) => parseMetricValue(m.instagram.reach),
     (m) => parseMetricValue(m.facebook.pageVisits),
-    (m) => parseMetricValue(m.tiktok.views)
+    (m) => parseMetricValue(m.tiktok && m.tiktok.views)
   ],
   engagement: [
     (m) => parseMetricValue(m.instagram.interactions),
     (m) => parseMetricValue(m.facebook.interactions),
-    (m) => parseMetricValue(m.tiktok.interactions),
+    (m) => parseMetricValue(m.tiktok && m.tiktok.interactions),
     (m) => computeEngagementRate(m)
   ],
   conversion: [
     (m) => computeInstagramProfileConversionRatio(m),
     (m) => parseMetricValue(m.instagram.linkClicks),
     (m) => computeTiktokProfileConversionRatio(m),
-    (m) => parseMetricValue(m.tiktok.linkClicks)
+    (m) => parseMetricValue(m.tiktok && m.tiktok.linkClicks)
   ],
-  intention: [(m) => computeGoogleIntentions(m), (m) => sumOrNull([m.beacons.bookingClicks, m.beacons.phoneClicks, m.beacons.directionsClicks])]
+  intention: [(m) => computeGoogleIntentions(m)]
 };
 
 const pillarKpiFieldKeys = {
@@ -1347,10 +1310,7 @@ const pillarKpiFieldKeys = {
     ['googleBusiness', 'calls'],
     ['googleBusiness', 'directions'],
     ['googleBusiness', 'websiteClicks'],
-    ['googleBusiness', 'bookings'],
-    ['beacons', 'bookingClicks'],
-    ['beacons', 'phoneClicks'],
-    ['beacons', 'directionsClicks']
+    ['googleBusiness', 'bookings']
   ]
 };
 
@@ -1406,7 +1366,7 @@ function computePillarRegularity(monthData) {
     monthData.instagram.stories,
     monthData.googleBusiness.googlePosts,
     monthData.facebook.posts,
-    monthData.tiktok.posts
+    monthData.tiktok && monthData.tiktok.posts
   ]);
   if (volume !== null && volume > 0) {
     return { score: 70, reason: 'Production de contenu active sur la période ; aucun plan d’action structuré à mesurer pour affiner ce score.' };
@@ -1510,7 +1470,7 @@ function createIntentionsSummaryCard(current, evolution) {
   card.className = 'kpi-card card summary-card';
   const fmt = formatEvolution(evolution, '');
   card.innerHTML = `
-    <span class="kpi-label">Actions à forte intention (Google + Beacons)</span>
+    <span class="kpi-label">Actions à forte intention (Google Business)</span>
     <strong>${current === null ? '—' : formatNumber(current)}</strong>
     <span class="evolution-badge ${fmt.badgeClass}">${fmt.text} vs mois précédent</span>
   `;
@@ -1596,7 +1556,6 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation) {
 
   const googlePercent = averagePercentEvolution(googleScoreFields, monthData, previousMonthData);
   const instagramPercent = averagePercentEvolution(instagramScoreFields, monthData, previousMonthData);
-  const beaconsPercent = averagePercentEvolution(beaconsScoreFields, monthData, previousMonthData);
 
   const intentionsCurrent = computeIntentionsFromMonth(monthData);
   const intentionsPrevious = previousMonthData ? computeIntentionsFromMonth(previousMonthData) : null;
@@ -1612,7 +1571,6 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation) {
 
   grid.appendChild(createEvolutionSummaryCard('Évolution Google Business', googlePercent));
   grid.appendChild(createEvolutionSummaryCard('Évolution Instagram', instagramPercent));
-  grid.appendChild(createEvolutionSummaryCard('Évolution Beacons', beaconsPercent));
   grid.appendChild(createIntentionsSummaryCard(intentionsCurrent, intentionsEvolution));
   grid.appendChild(createObjectivesSummaryCard(objectivesDone, objectivesTotal, objectivesRate));
   grid.appendChild(createScoreSummaryCard(score, scoreBadge));
@@ -1644,7 +1602,6 @@ const synthesisRowConfigs = [
   { label: 'Vues TikTok', section: 'tiktok', field: 'views', platform: 'tiktok' },
   { label: 'Interactions TikTok', section: 'tiktok', field: 'interactions', platform: 'tiktok' },
   { label: 'Clics lien TikTok', section: 'tiktok', field: 'linkClicks', platform: 'tiktok' },
-  { label: 'Clics réservation Beacons', section: 'beacons', field: 'bookingClicks' },
   { label: 'Intentions clients', compute: computeIntentionsFromMonth, computeInitial: computeIntentionsFromInitial }
 ];
 
@@ -1716,8 +1673,8 @@ function hasValue(value) {
 }
 
 function monthHasAnyData(monthData) {
-  return ['googleBusiness', 'instagram', 'facebook', 'tiktok', 'beacons'].some((section) =>
-    Object.values(monthData[section]).some((value) => hasValue(value))
+  return ['googleBusiness', 'instagram', 'facebook', 'tiktok'].some(
+    (section) => monthData[section] && Object.values(monthData[section]).some((value) => hasValue(value))
   );
 }
 
@@ -1776,8 +1733,7 @@ const allInsightFields = [
   ...googleScoreFields,
   ...instagramScoreFields,
   ...facebookFieldsForInsights,
-  ...tiktokFieldsForInsights,
-  ...beaconsScoreFields
+  ...tiktokFieldsForInsights
 ];
 
 const insightFieldLabels = {
@@ -1803,10 +1759,7 @@ const insightFieldLabels = {
   'tiktok.interactions': 'Les interactions TikTok',
   'tiktok.profileVisits': 'Les visites de profil TikTok',
   'tiktok.linkClicks': 'Les clics sur le lien TikTok',
-  'tiktok.posts': 'Les publications TikTok',
-  'beacons.bookingClicks': 'Les clics réservation Beacons',
-  'beacons.phoneClicks': 'Les clics téléphone Beacons',
-  'beacons.directionsClicks': 'Les clics itinéraire Beacons'
+  'tiktok.posts': 'Les publications TikTok'
 };
 
 function collectFieldEvolutions(monthData, previousMonthData, fieldPairs) {
@@ -2118,6 +2071,9 @@ function generateFacebookAnalysis(monthData, previousMonthData) {
 // Même logique que Facebook/Instagram : chaque indicateur TikTok utilise exclusivement sa
 // propre variable, et le ratio visites de profil → clic lien est explicité comme pour Instagram.
 function generateTiktokAnalysis(monthData, previousMonthData) {
+  if (!monthData.tiktok) {
+    return 'Aucune donnée TikTok n’a encore été saisie pour ce mois.';
+  }
   const tt = monthData.tiktok;
   const prevTt = previousMonthData ? previousMonthData.tiktok : null;
   const sentences = [];
@@ -2166,56 +2122,6 @@ function generateTiktokAnalysis(monthData, previousMonthData) {
 
   if (!sentences.length) {
     return 'Aucune donnée TikTok n’a encore été saisie pour ce mois.';
-  }
-
-  return sentences.join(' ');
-}
-
-function generateBeaconsAnalysis(monthData, previousMonthData) {
-  const bc = monthData.beacons;
-  const prevBc = previousMonthData ? previousMonthData.beacons : null;
-  const sentences = [];
-
-  const bookingEvo = prevBc ? computeEvolution(prevBc.bookingClicks, bc.bookingClicks) : { percent: null };
-  const phoneEvo = prevBc ? computeEvolution(prevBc.phoneClicks, bc.phoneClicks) : { percent: null };
-  const directionsEvo = prevBc ? computeEvolution(prevBc.directionsClicks, bc.directionsClicks) : { percent: null };
-  const total = sumOrNull([bc.bookingClicks, bc.phoneClicks, bc.directionsClicks]);
-
-  if (total !== null) {
-    sentences.push(`Les Beacons ont généré ${formatNumber(total)} clics d’intention ce mois-ci (réservation, téléphone, itinéraire confondus).`);
-  }
-  if (hasValue(bc.bookingClicks)) {
-    const trend = trendClause(bookingEvo.percent);
-    sentences.push(trend ? `Les clics de réservation sont ${trend}.` : `${formatNumber(bc.bookingClicks)} clics de réservation ont été enregistrés.`);
-  }
-  if (hasValue(bc.phoneClicks)) {
-    const trend = trendClause(phoneEvo.percent);
-    sentences.push(trend ? `Les clics téléphone sont ${trend}.` : `${formatNumber(bc.phoneClicks)} clics téléphone ont été enregistrés.`);
-  }
-  if (hasValue(bc.directionsClicks)) {
-    const trend = trendClause(directionsEvo.percent);
-    sentences.push(trend ? `Les clics itinéraire sont ${trend}.` : `${formatNumber(bc.directionsClicks)} clics itinéraire ont été enregistrés.`);
-  }
-
-  const beaconsRatios = computeBeaconsConversionRatios(monthData);
-  if (beaconsRatios) {
-    const parts = [];
-    if (beaconsRatios.bookingClicks !== null) {
-      parts.push(`${(beaconsRatios.bookingClicks * 100).toFixed(1)}% réservation`);
-    }
-    if (beaconsRatios.phoneClicks !== null) {
-      parts.push(`${(beaconsRatios.phoneClicks * 100).toFixed(1)}% téléphone`);
-    }
-    if (beaconsRatios.directionsClicks !== null) {
-      parts.push(`${(beaconsRatios.directionsClicks * 100).toFixed(1)}% itinéraire`);
-    }
-    if (parts.length) {
-      sentences.push(`Répartition des clics Beacons : ${joinWithAnd(parts)}.`);
-    }
-  }
-
-  if (!sentences.length) {
-    return 'Aucune donnée Beacons n’a encore été saisie pour ce mois.';
   }
 
   return sentences.join(' ');
@@ -2471,7 +2377,6 @@ function generateRecommendations(monthData, previousMonthData) {
   const gb = monthData.googleBusiness;
   const ig = monthData.instagram;
   const fb = monthData.facebook;
-  const bc = monthData.beacons;
 
   const highVolumeLowReach = isInstagramHighVolumeLowReach(monthData);
   if (highVolumeLowReach) {
@@ -2519,11 +2424,6 @@ function generateRecommendations(monthData, previousMonthData) {
     recommendations.push('Maintenir une publication régulière sur Facebook pour ne pas perdre le lien avec cette audience.');
   }
 
-  const bookingEvo = previousMonthData ? computeEvolution(previousMonthData.beacons.bookingClicks, bc.bookingClicks) : { percent: null };
-  if (bookingEvo.percent !== null && bookingEvo.percent < 0) {
-    recommendations.push('Mettre en avant les options de réservation en ligne (Beacons) pour capter davantage d’intentions clients.');
-  }
-
   const objectivesRate = computeObjectivesRate(monthData);
   if (previousMonthData && objectivesRate !== null && objectivesRate < 50) {
     recommendations.push(
@@ -2548,7 +2448,6 @@ function generateActionPlanItems(monthData, previousMonthData) {
   const gb = monthData.googleBusiness;
   const ig = monthData.instagram;
   const fb = monthData.facebook;
-  const bc = monthData.beacons;
 
   const highVolumeLowReach = isInstagramHighVolumeLowReach(monthData);
   if (highVolumeLowReach) {
@@ -2588,11 +2487,6 @@ function generateActionPlanItems(monthData, previousMonthData) {
 
   if (hasValue(fb.posts) && parseMetricValue(fb.posts) < 2) {
     actions.push('Programmer au moins 2 publications Facebook ce mois-ci pour ne pas perdre le lien avec cette audience.');
-  }
-
-  const bookingEvo = previousMonthData ? computeEvolution(previousMonthData.beacons.bookingClicks, bc.bookingClicks) : { percent: null };
-  if (bookingEvo.percent !== null && bookingEvo.percent < 0) {
-    actions.push('Mettre en avant le bouton de réservation en ligne (Beacons) dans les contenus et la bio.');
   }
 
   const googleIntentions = computeGoogleIntentions(monthData);
@@ -2678,8 +2572,7 @@ const recordCheckFields = [
   { section: 'instagram', field: 'reach', label: 'Portée Instagram' },
   { section: 'instagram', field: 'interactions', label: 'Interactions Instagram' },
   { section: 'facebook', field: 'pageVisits', label: 'Visites de la page Facebook' },
-  { section: 'tiktok', field: 'views', label: 'Vues TikTok' },
-  { section: 'beacons', field: 'bookingClicks', label: 'Clics réservation Beacons' }
+  { section: 'tiktok', field: 'views', label: 'Vues TikTok' }
 ];
 
 function findRecords(clientData, monthKey) {
@@ -2793,7 +2686,6 @@ function renderAnalysisSection(clientData, monthKey, monthData, previousMonthDat
     { title: 'Résumé exécutif', paragraphs: [executiveSummary] },
     { title: 'Score détaillé par pilier', list: buildScorePillarsLines(pillars) },
     ...platformAnalysisSections,
-    { title: 'Analyse Beacons', paragraphs: [generateBeaconsAnalysis(monthData, previousMonthData)] },
     { title: 'Analyse des objectifs', paragraphs: [generateObjectivesAnalysis(monthData)] },
     { title: strengthsTitle, list: generateStrengths(monthData, previousMonthData) },
     { title: 'Faiblesses', list: generateWeaknesses(monthData, previousMonthData) },
@@ -3336,7 +3228,7 @@ function generateCaseStudyConclusion(clientData, beforeAfterRows) {
   return (
     `Depuis le début de sa collaboration avec AnaVibe, ${name} a transformé sa présence digitale : ` +
     `${improved.length || 'plusieurs'} indicateur${improved.length > 1 ? 's ont' : ' a'} progressé sur l’ensemble des canaux suivis ` +
-    `(Google Business, Instagram, Facebook, Beacons).${highlight} Cette dynamique illustre la valeur d’un accompagnement mensuel structuré, ` +
+    `(Google Business, Instagram, Facebook, TikTok).${highlight} Cette dynamique illustre la valeur d’un accompagnement mensuel structuré, ` +
     `avec des actions concrètes et mesurables mois après mois. AnaVibe continue d’accompagner ${name} pour transformer chaque mois en nouvelle ` +
     `opportunité de croissance.`
   );
@@ -4418,7 +4310,7 @@ function buildBaselineKpiRows(monthData, trackedPlatforms) {
   }
   const intentions = computeIntentionsFromMonth(monthData);
   if (intentions !== null) {
-    rows.push(['Intention client', 'Actions à forte intention (Google + Beacons)', formatNumber(intentions)]);
+    rows.push(['Intention client', 'Actions à forte intention (Google Business)', formatNumber(intentions)]);
   }
   if (isPlatformTracked(trackedPlatforms, 'instagram')) {
     const conversionRatio = computeInstagramProfileConversionRatio(monthData);
@@ -4722,7 +4614,7 @@ function generateClientReportPdf(clientId) {
       { platform: 'instagram', title: 'Instagram — Portée', getSeries: () => getMonthlySeries(data, 'instagram', 'reach') },
       { platform: 'facebook', title: 'Facebook — Visites de la page', getSeries: () => getMonthlySeries(data, 'facebook', 'pageVisits') },
       { platform: 'tiktok', title: 'TikTok — Vues', getSeries: () => getMonthlySeries(data, 'tiktok', 'views') },
-      { title: 'Intentions clients (Google + Beacons)', getSeries: () => getMonthlyIntentionsSeries(data) }
+      { title: 'Intentions clients (Google Business)', getSeries: () => getMonthlyIntentionsSeries(data) }
     ].filter((chartDef) => isPlatformTracked(data.general.trackedPlatforms, chartDef.platform));
 
     const chartColumnWidth = 84;
@@ -4765,7 +4657,6 @@ function generateClientReportPdf(clientId) {
     { platform: 'instagram', title: 'Analyse Instagram', text: generateInstagramAnalysis(monthData, previousMonthData) },
     { platform: 'facebook', title: 'Analyse Facebook', text: generateFacebookAnalysis(monthData, previousMonthData) },
     { platform: 'tiktok', title: 'Analyse TikTok', text: generateTiktokAnalysis(monthData, previousMonthData) },
-    { title: 'Analyse Beacons', text: generateBeaconsAnalysis(monthData, previousMonthData) },
     { title: 'Analyse des objectifs', text: generateObjectivesAnalysis(monthData) }
   ].filter((section) => isPlatformTracked(data.general.trackedPlatforms, section.platform));
   analysisSections.forEach((section) => {
