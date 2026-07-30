@@ -187,8 +187,6 @@ const monthlySectionSchema = [
       { key: 'rating', label: 'Note Google', type: 'metric', step: '0.1' },
       { key: 'reviewsCount', label: 'Nombre total d’avis', type: 'metric' },
       { key: 'newReviews', label: 'Nouveaux avis reçus (période)', type: 'metric' },
-      { key: 'reviewsAnswered', label: 'Nombre total d’avis répondus', type: 'metric' },
-      { key: 'newReviewsAnswered', label: 'Nouveaux avis répondus (période)', type: 'metric' },
       { key: 'profileViews', label: 'Vues de la fiche', type: 'metric' },
       { key: 'calls', label: 'Appels', type: 'metric' },
       { key: 'directions', label: 'Itinéraires', type: 'metric' },
@@ -286,8 +284,6 @@ function createEmptyMonthData(label) {
       rating: '',
       reviewsCount: '',
       newReviews: '',
-      reviewsAnswered: '',
-      newReviewsAnswered: '',
       profileViews: '',
       calls: '',
       directions: '',
@@ -1144,20 +1140,6 @@ function computeGoogleConversionRatios(monthData) {
   };
 }
 
-// Taux de réponse aux NOUVEAUX avis reçus sur LA période (jamais un total cumulé rapporté à un
-// chiffre mensuel) : borné à 100%, et null (non applicable) si aucun nouvel avis sur la période.
-function computeReviewResponseRate(monthData) {
-  if (!monthData) {
-    return null;
-  }
-  const newReviews = parseMetricValue(monthData.googleBusiness.newReviews);
-  const newReviewsAnswered = parseMetricValue(monthData.googleBusiness.newReviewsAnswered);
-  if (newReviews === null || newReviews === 0 || newReviewsAnswered === null) {
-    return null;
-  }
-  return Math.min(100, Math.max(0, (newReviewsAnswered / newReviews) * 100));
-}
-
 // Réservations générées / CA estimé / ROI ne sont plus saisis à la main : le consultant ne
 // sait pas toujours les calculer lui-même, donc le Dashboard les déduit des données déjà
 // suivies (réservations Google, panier moyen et prix de la prestation renseignés une fois
@@ -1580,7 +1562,6 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation) {
 
 const synthesisRowConfigs = [
   { label: 'Avis Google', section: 'googleBusiness', field: 'reviewsCount', platform: 'googleBusiness' },
-  { label: 'Taux de réponse aux nouveaux avis', unit: '%', compute: computeReviewResponseRate, platform: 'googleBusiness' },
   { label: 'Note Google', section: 'googleBusiness', field: 'rating', platform: 'googleBusiness' },
   { label: 'Vues Google', section: 'googleBusiness', field: 'profileViews', platform: 'googleBusiness' },
   { label: 'Appels Google', section: 'googleBusiness', field: 'calls', platform: 'googleBusiness' },
@@ -1847,22 +1828,6 @@ function generateGoogleAnalysis(monthData, previousMonthData) {
       reviewSentence += ` dont ${formatNumber(gb.newReviews)} nouveaux ce mois-ci`;
     }
     sentences.push(`${reviewSentence}.`);
-  }
-
-  // Taux de réponse : uniquement nouveaux avis répondus / nouveaux avis reçus sur LA MÊME
-  // période (jamais un total cumulé rapporté à un chiffre mensuel, ce qui produisait des taux
-  // absurdes du type 16175%). Capé à 100%, et pas de "0%" auto quand il n'y a aucun nouvel avis.
-  if (hasValue(gb.newReviews)) {
-    const newReviewsCount = parseMetricValue(gb.newReviews);
-    if (newReviewsCount === 0) {
-      sentences.push('Aucun nouvel avis reçu sur la période, le taux de réponse n’est pas applicable.');
-    } else if (hasValue(gb.newReviewsAnswered)) {
-      const rawRate = (parseMetricValue(gb.newReviewsAnswered) / newReviewsCount) * 100;
-      const responseRate = Math.min(100, Math.max(0, rawRate));
-      sentences.push(
-        `Le taux de réponse aux nouveaux avis est de ${Math.round(responseRate)}% (${formatNumber(gb.newReviewsAnswered)}/${formatNumber(gb.newReviews)}).`
-      );
-    }
   }
 
   // Visibilité (vues de la fiche) et actions à forte intention (appels, itinéraires, clics
@@ -2346,9 +2311,6 @@ function generateOpportunities(monthData, previousMonthData) {
   ) {
     opportunities.push('Le format Reels est sous-exploité par rapport au volume de publications : c’est un levier de portée disponible.');
   }
-  if (hasValue(gb.newReviews) && hasValue(gb.newReviewsAnswered) && parseMetricValue(gb.newReviews) > parseMetricValue(gb.newReviewsAnswered)) {
-    opportunities.push('Des avis Google récents restent sans réponse : une opportunité rapide d’améliorer la relation client.');
-  }
   if (hasValue(gb.googlePosts) && parseMetricValue(gb.googlePosts) < 2) {
     opportunities.push('La fréquence de publication sur Google Business est faible : publier plus régulièrement renforcerait la visibilité locale.');
   }
@@ -2396,9 +2358,6 @@ function generateRecommendations(monthData, previousMonthData) {
     recommendations.push('Travailler la conversion du profil Instagram vers le site (bio, lien mis en avant, appel à l’action dans les contenus) : les visites de profil se transforment trop peu en clics.');
   }
 
-  if (hasValue(gb.newReviews) && hasValue(gb.newReviewsAnswered) && parseMetricValue(gb.newReviews) > parseMetricValue(gb.newReviewsAnswered)) {
-    recommendations.push('Améliorer les réponses aux avis Google : des avis récents restent sans réponse.');
-  }
 
   const reviewsEvo = previousMonthData ? computeEvolution(previousMonthData.googleBusiness.reviewsCount, gb.reviewsCount) : { percent: null };
   if (reviewsEvo.percent !== null && reviewsEvo.percent < 8) {
@@ -2462,10 +2421,6 @@ function generateActionPlanItems(monthData, previousMonthData) {
     actions.push('Intégrer un CTA de visite ou de réservation dans les contenus à forte intention (Reels, Stories).');
   }
 
-  if (hasValue(gb.newReviews) && hasValue(gb.newReviewsAnswered) && parseMetricValue(gb.newReviews) > parseMetricValue(gb.newReviewsAnswered)) {
-    const unanswered = parseMetricValue(gb.newReviews) - parseMetricValue(gb.newReviewsAnswered);
-    actions.push(`Répondre aux ${formatNumber(unanswered)} avis Google récents encore sans réponse.`);
-  }
 
   const reviewsEvo = previousMonthData ? computeEvolution(previousMonthData.googleBusiness.reviewsCount, gb.reviewsCount) : { percent: null };
   if (reviewsEvo.percent !== null && reviewsEvo.percent < 8) {
