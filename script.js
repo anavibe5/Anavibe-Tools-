@@ -12,6 +12,7 @@ const objectiveKpiOptions = [
   { section: 'instagram', field: 'linkClicks', label: 'Clics sur le lien Instagram' },
   { section: 'instagram', field: 'followers', label: 'Abonnés Instagram' },
   { section: 'instagram', field: 'interactions', label: 'Interactions Instagram' },
+  { section: 'instagram', field: 'bookings', label: 'Réservations Instagram' },
   { section: 'googleBusiness', field: 'calls', label: 'Appels Google' },
   { section: 'googleBusiness', field: 'websiteClicks', label: 'Clics site Google' },
   { section: 'googleBusiness', field: 'bookings', label: 'Réservations Google' },
@@ -201,6 +202,7 @@ const monthlySectionSchema = [
       { key: 'interactions', label: 'Interactions', type: 'metric' },
       { key: 'profileVisits', label: 'Visites du profil', type: 'metric' },
       { key: 'linkClicks', label: 'Clics sur le lien', type: 'metric' },
+      { key: 'bookings', label: 'Réservations via Instagram', type: 'metric' },
       { key: 'posts', label: 'Publications', type: 'metric' },
       { key: 'reels', label: 'Reels', type: 'metric' },
       { key: 'stories', label: 'Stories', type: 'metric' }
@@ -287,6 +289,7 @@ function createEmptyMonthData(label) {
       interactions: '',
       profileVisits: '',
       linkClicks: '',
+      bookings: '',
       posts: '',
       reels: '',
       stories: ''
@@ -1105,13 +1108,13 @@ function computeGoogleConversionRatios(monthData) {
 
 // Réservations générées / CA estimé / ROI ne sont plus saisis à la main : le consultant ne
 // sait pas toujours les calculer lui-même, donc le Dashboard les déduit des données déjà
-// suivies (réservations Google, panier moyen et prix de la prestation renseignés une fois
-// dans "Informations générales").
+// suivies (réservations Google + réservations Instagram, panier moyen et prix de la prestation
+// renseignés une fois dans "Informations générales").
 function computeBookingsGenerated(monthData) {
   if (!monthData) {
     return null;
   }
-  return sumOrNull([monthData.googleBusiness.bookings]);
+  return sumOrNull([monthData.googleBusiness.bookings, monthData.instagram.bookings]);
 }
 
 function computeEstimatedRevenue(monthData, generalData) {
@@ -1168,7 +1171,8 @@ const instagramScoreFields = [
   ['instagram', 'reach'],
   ['instagram', 'interactions'],
   ['instagram', 'profileVisits'],
-  ['instagram', 'linkClicks']
+  ['instagram', 'linkClicks'],
+  ['instagram', 'bookings']
 ];
 
 function averagePercentEvolution(fieldPairs, monthData, previousMonthData) {
@@ -1432,10 +1436,10 @@ function createBusinessResultComputedCard(label, value, unit) {
 }
 
 // Réservations générées (et donc CA estimé / ROI, qui en dépendent) ne viennent que des
-// réservations Google Business : si ce réseau n'est pas suivi pour ce client, toute la section
-// est masquée plutôt que d'afficher des cartes vides ou un chiffre à "—" impossible à combler.
+// réservations Google Business et Instagram : si aucun des deux n'est suivi pour ce client,
+// toute la section est masquée plutôt que d'afficher des cartes vides ou un "—" impossible à combler.
 function renderBusinessResultsComputedSection(monthData, generalData, trackedPlatforms) {
-  if (!isPlatformTracked(trackedPlatforms, 'googleBusiness')) {
+  if (!isPlatformTracked(trackedPlatforms, 'googleBusiness') && !isPlatformTracked(trackedPlatforms, 'instagram')) {
     return null;
   }
   const block = document.createElement('div');
@@ -1524,6 +1528,7 @@ const synthesisRowConfigs = [
   { label: 'Portée Instagram', section: 'instagram', field: 'reach', platform: 'instagram' },
   { label: 'Interactions Instagram', section: 'instagram', field: 'interactions', platform: 'instagram' },
   { label: 'Clics lien Instagram', section: 'instagram', field: 'linkClicks', platform: 'instagram' },
+  { label: 'Réservations Instagram', section: 'instagram', field: 'bookings', platform: 'instagram' },
   { label: 'Abonnés Facebook', section: 'facebook', field: 'followers', platform: 'facebook' },
   { label: 'Abonnés TikTok', section: 'tiktok', field: 'followers', platform: 'tiktok' },
   { label: 'Vues TikTok', section: 'tiktok', field: 'views', platform: 'tiktok' },
@@ -1676,6 +1681,7 @@ const insightFieldLabels = {
   'instagram.interactions': 'Les interactions Instagram',
   'instagram.profileVisits': 'Les visites de profil Instagram',
   'instagram.linkClicks': 'Les clics sur le lien Instagram',
+  'instagram.bookings': 'Les réservations via Instagram',
   'facebook.followers': 'Les abonnés Facebook',
   'facebook.views': 'Les vues Facebook',
   'facebook.interactions': 'Les interactions Facebook',
@@ -1910,6 +1916,11 @@ function generateInstagramAnalysis(monthData, previousMonthData) {
     sentences.push(
       `${(profileConversionRatio * 100).toFixed(1)}% des visites de profil ont généré un clic sur le lien : la conversion du profil vers une action externe est un axe à suivre.`
     );
+  }
+
+  if (hasValue(ig.bookings)) {
+    const count = parseMetricValue(ig.bookings);
+    sentences.push(`${formatNumber(ig.bookings)} réservation${count > 1 ? 's ont' : ' a'} été enregistrée${count > 1 ? 's' : ''} via Instagram sur la période.`);
   }
 
   if (!sentences.length) {
@@ -4461,7 +4472,7 @@ function generateClientReportPdf(clientId) {
       buildKpiTableRows(section, monthData, previousMonthData)
     );
   });
-  if (isPlatformTracked(data.general.trackedPlatforms, 'googleBusiness')) {
+  if (isPlatformTracked(data.general.trackedPlatforms, 'googleBusiness') || isPlatformTracked(data.general.trackedPlatforms, 'instagram')) {
     addPdfSubTitle(state, 'Résultats business calculés');
     addPdfTable(
       state,
