@@ -1034,15 +1034,6 @@ function computeEngagementRate(monthData) {
   return (interactions / reach) * 100;
 }
 
-function computeEngagementRateFromInitial(initialSituation) {
-  const interactions = parseMetricValue(initialSituation.instagramInteractions);
-  const reach = parseMetricValue(initialSituation.instagramReach);
-  if (interactions === null || reach === null || reach === 0) {
-    return null;
-  }
-  return (interactions / reach) * 100;
-}
-
 // Portée / abonnés : une communauté importante avec une portée proportionnellement faible
 // indique un problème de distribution (algorithme, formats peu partagés) plutôt qu'un problème
 // de volume de contenu.
@@ -1233,7 +1224,6 @@ const scorePillarDefinitions = [
   { key: 'engagement', label: 'Engagement' },
   { key: 'conversion', label: 'Conversion' },
   { key: 'intention', label: 'Intention client' },
-  { key: 'regularity', label: 'Régularité / exécution' },
   { key: 'progression', label: 'Progression' }
 ];
 
@@ -1323,27 +1313,6 @@ function computePillarScore(pillarKey, monthData, previousMonthData, objectives)
   return { score: null, reason: 'ni objectif chiffré ni mois précédent pour évaluer ce pilier' };
 }
 
-// La régularité/exécution est la seule dimension mesurable en valeur absolue dès le premier
-// mois : le taux de complétion du plan d'action ne dépend d'aucune comparaison historique.
-function computePillarRegularity(monthData) {
-  const actionsRate = computeActionCompletionRate(monthData);
-  if (actionsRate !== null) {
-    return { score: Math.round(actionsRate), reason: `${Math.round(actionsRate)}% des actions du plan d’action ont été menées à terme.` };
-  }
-  const volume = sumOrNull([
-    monthData.instagram.posts,
-    monthData.instagram.reels,
-    monthData.instagram.stories,
-    monthData.googleBusiness.googlePosts,
-    monthData.facebook.posts,
-    monthData.tiktok && monthData.tiktok.posts
-  ]);
-  if (volume !== null && volume > 0) {
-    return { score: 70, reason: 'Production de contenu active sur la période ; aucun plan d’action structuré à mesurer pour affiner ce score.' };
-  }
-  return { score: null, reason: 'Pas assez de données de production ou d’exécution pour évaluer la régularité.' };
-}
-
 function computePillarProgression(monthData, previousMonthData) {
   if (!previousMonthData) {
     return { score: null, reason: 'Mois de référence : la progression pourra être évaluée à partir du prochain reporting.' };
@@ -1367,7 +1336,6 @@ function computeScorePillars(monthData, previousMonthData) {
     engagement: computePillarScore('engagement', monthData, previousMonthData, objectives),
     conversion: computePillarScore('conversion', monthData, previousMonthData, objectives),
     intention: computePillarScore('intention', monthData, previousMonthData, objectives),
-    regularity: computePillarRegularity(monthData),
     progression: computePillarProgression(monthData, previousMonthData)
   };
 }
@@ -1496,24 +1464,34 @@ function renderBusinessResultsComputedSection(monthData, generalData) {
     </div>
   `;
 
+  const hasAverageBasket = Boolean(generalData) && hasValue(generalData.averageBasket);
+  const hasMonthlyFee = Boolean(generalData) && hasValue(generalData.monthlyFee);
+
   const grid = document.createElement('div');
   grid.className = 'kpi-grid summary-grid';
   grid.appendChild(createBusinessResultComputedCard('Réservations générées', computeBookingsGenerated(monthData), ''));
-  grid.appendChild(createBusinessResultComputedCard('Chiffre d’affaires estimé', computeEstimatedRevenue(monthData, generalData), '€'));
-  grid.appendChild(createBusinessResultComputedCard('ROI', computeRoi(monthData, generalData), 'x'));
+  // Chiffre d'affaires estimé et ROI ne s'affichent qu'une fois le panier moyen (et, pour le
+  // ROI, le prix de la prestation) renseignés dans "Informations générales" : tant que ces
+  // valeurs manquent, mieux vaut ne rien montrer plutôt qu'une carte vide ou à "—".
+  if (hasAverageBasket) {
+    grid.appendChild(createBusinessResultComputedCard('Chiffre d’affaires estimé', computeEstimatedRevenue(monthData, generalData), '€'));
+  }
+  if (hasAverageBasket && hasMonthlyFee) {
+    grid.appendChild(createBusinessResultComputedCard('ROI', computeRoi(monthData, generalData), 'x'));
+  }
   block.appendChild(grid);
 
   const missingParts = [];
-  if (!generalData || !hasValue(generalData.averageBasket)) {
+  if (!hasAverageBasket) {
     missingParts.push('le panier moyen');
   }
-  if (!generalData || !hasValue(generalData.monthlyFee)) {
+  if (!hasMonthlyFee) {
     missingParts.push('le prix payé pour la prestation');
   }
   if (missingParts.length) {
     const hint = document.createElement('p');
     hint.className = 'notes-hint';
-    hint.textContent = `Renseignez ${joinWithAnd(missingParts)} dans « Informations générales » pour activer ce calcul.`;
+    hint.textContent = `Renseignez ${joinWithAnd(missingParts)} dans « Informations générales » pour afficher le chiffre d’affaires estimé et le ROI.`;
     block.appendChild(hint);
   }
 
@@ -1557,13 +1535,6 @@ const synthesisRowConfigs = [
   { label: 'Abonnés Instagram', section: 'instagram', field: 'followers', platform: 'instagram' },
   { label: 'Portée Instagram', section: 'instagram', field: 'reach', platform: 'instagram' },
   { label: 'Interactions Instagram', section: 'instagram', field: 'interactions', platform: 'instagram' },
-  {
-    label: 'Taux d’engagement sur la portée',
-    unit: '%',
-    compute: computeEngagementRate,
-    computeInitial: computeEngagementRateFromInitial,
-    platform: 'instagram'
-  },
   { label: 'Clics lien Instagram', section: 'instagram', field: 'linkClicks', platform: 'instagram' },
   { label: 'Abonnés Facebook', section: 'facebook', field: 'followers', platform: 'facebook' },
   { label: 'Abonnés TikTok', section: 'tiktok', field: 'followers', platform: 'tiktok' },
@@ -1915,16 +1886,6 @@ function generateInstagramAnalysis(monthData, previousMonthData) {
     }
   }
 
-  const engagementRate = computeEngagementRate(monthData);
-  const prevEngagementRate = previousMonthData ? computeEngagementRate(previousMonthData) : null;
-  if (engagementRate !== null) {
-    const engagementEvo = computeEvolution(prevEngagementRate, engagementRate);
-    const trend = trendClause(engagementEvo.percent);
-    // Le libellé précise toujours la méthode de calcul (interactions / portée) : ne jamais
-    // comparer ce taux à un taux calculé autrement (ex. interactions / abonnés).
-    sentences.push(`Taux d’engagement sur la portée : ${engagementRate.toFixed(1)}%${trend ? `, ${trend} par rapport au mois précédent` : ''}.`);
-  }
-
   const volumeParts = [];
   if (hasValue(ig.posts)) {
     volumeParts.push(`${formatNumber(ig.posts)} publication${parseMetricValue(ig.posts) > 1 ? 's' : ''}`);
@@ -2127,10 +2088,6 @@ function buildAbsoluteStrengthSignals(monthData) {
   const actionsRate = computeActionCompletionRate(monthData);
   if (actionsRate !== null && actionsRate >= 70) {
     signals.push(`Une bonne régularité d’exécution : ${Math.round(actionsRate)}% des actions du plan d’action ont été menées à terme.`);
-  }
-  const engagementRate = computeEngagementRate(monthData);
-  if (engagementRate !== null && engagementRate >= 5) {
-    signals.push(`Un bon taux d’engagement sur la portée (${engagementRate.toFixed(1)}%).`);
   }
   if (hasValue(ig.profileVisits) && parseMetricValue(ig.profileVisits) >= 100) {
     signals.push(`Une bonne capacité à générer des visites de profil Instagram (${formatNumber(ig.profileVisits)} sur la période).`);
@@ -4010,26 +3967,36 @@ function buildKpiTableRows(section, monthData, previousMonthData) {
 }
 
 function buildComputedBusinessResultsPdfRows(monthData, previousMonthData, generalData) {
+  const hasAverageBasket = Boolean(generalData) && hasValue(generalData.averageBasket);
+  const hasMonthlyFee = Boolean(generalData) && hasValue(generalData.monthlyFee);
+
+  // Chiffre d'affaires estimé et ROI n'ont pas de sens sans panier moyen (et prix de la
+  // prestation pour le ROI) : plutôt qu'une ligne à "—", on ne les affiche pas du tout tant que
+  // ces informations manquent dans "Informations générales".
   const rows = [
     {
       label: 'Réservations générées',
       unit: '',
       current: computeBookingsGenerated(monthData),
       previous: previousMonthData ? computeBookingsGenerated(previousMonthData) : null
-    },
-    {
+    }
+  ];
+  if (hasAverageBasket) {
+    rows.push({
       label: 'Chiffre d’affaires estimé',
       unit: '€',
       current: computeEstimatedRevenue(monthData, generalData),
       previous: previousMonthData ? computeEstimatedRevenue(previousMonthData, generalData) : null
-    },
-    {
+    });
+  }
+  if (hasAverageBasket && hasMonthlyFee) {
+    rows.push({
       label: 'ROI',
       unit: 'x',
       current: computeRoi(monthData, generalData),
       previous: previousMonthData ? computeRoi(previousMonthData, generalData) : null
-    }
-  ];
+    });
+  }
 
   return rows.map((row) => {
     if (row.current === null) {
