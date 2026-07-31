@@ -17,8 +17,7 @@ const objectiveKpiOptions = [
   { section: 'googleBusiness', field: 'bookings', label: 'Réservations Google' },
   { section: 'googleBusiness', field: 'reviewsCount', label: 'Avis Google' },
   { section: 'tiktok', field: 'views', label: 'Vues TikTok' },
-  { section: 'tiktok', field: 'profileVisits', label: 'Visites de profil TikTok' },
-  { section: 'tiktok', field: 'linkClicks', label: 'Clics sur le lien TikTok' },
+  { section: 'tiktok', field: 'profileVisits', label: 'Vues de profil TikTok' },
   { section: 'tiktok', field: 'followers', label: 'Abonnés TikTok' }
 ];
 
@@ -115,8 +114,7 @@ const initialSituationSchema = {
     { key: 'tiktokFollowers', label: 'Abonnés TikTok initiaux', type: 'metric', platform: 'tiktok' },
     { key: 'tiktokViews', label: 'Vues TikTok initiales', type: 'metric', platform: 'tiktok' },
     { key: 'tiktokInteractions', label: 'Interactions TikTok initiales', type: 'metric', platform: 'tiktok' },
-    { key: 'tiktokProfileVisits', label: 'Visites profil TikTok initiales', type: 'metric', platform: 'tiktok' },
-    { key: 'tiktokLinkClicks', label: 'Clics lien TikTok initiaux', type: 'metric', platform: 'tiktok' }
+    { key: 'tiktokProfileVisits', label: 'Vues profil TikTok initiales', type: 'metric', platform: 'tiktok' }
   ]
 };
 
@@ -140,8 +138,7 @@ const baselineFieldMap = {
   tiktokFollowers: { section: 'tiktok', field: 'followers' },
   tiktokViews: { section: 'tiktok', field: 'views' },
   tiktokInteractions: { section: 'tiktok', field: 'interactions' },
-  tiktokProfileVisits: { section: 'tiktok', field: 'profileVisits' },
-  tiktokLinkClicks: { section: 'tiktok', field: 'linkClicks' }
+  tiktokProfileVisits: { section: 'tiktok', field: 'profileVisits' }
 };
 
 // Réseaux que l'app sait suivre ; chaque client choisit lesquels sont réellement dans sa
@@ -228,8 +225,7 @@ const monthlySectionSchema = [
       { key: 'followers', label: 'Abonnés', type: 'metric' },
       { key: 'views', label: 'Vues', type: 'metric' },
       { key: 'interactions', label: 'Interactions (likes, commentaires, partages)', type: 'metric' },
-      { key: 'profileVisits', label: 'Visites du profil', type: 'metric' },
-      { key: 'linkClicks', label: 'Clics sur le lien', type: 'metric' },
+      { key: 'profileVisits', label: 'Vues du profil', type: 'metric' },
       { key: 'posts', label: 'Publications', type: 'metric' }
     ]
   },
@@ -264,8 +260,7 @@ function createEmptyInitialSituation() {
     tiktokFollowers: '',
     tiktokViews: '',
     tiktokInteractions: '',
-    tiktokProfileVisits: '',
-    tiktokLinkClicks: ''
+    tiktokProfileVisits: ''
   };
 }
 
@@ -307,7 +302,6 @@ function createEmptyMonthData(label) {
       views: '',
       interactions: '',
       profileVisits: '',
-      linkClicks: '',
       posts: ''
     },
     businessResults: {
@@ -611,7 +605,7 @@ function getClientData(id) {
       if (parsed.months) {
         Object.values(parsed.months).forEach((month) => {
           if (month && !month.tiktok) {
-            month.tiktok = { followers: '', views: '', interactions: '', profileVisits: '', linkClicks: '', posts: '' };
+            month.tiktok = { followers: '', views: '', interactions: '', profileVisits: '', posts: '' };
           }
         });
       }
@@ -1063,18 +1057,6 @@ function computeInstagramProfileConversionRatio(monthData) {
   return linkClicks / profileVisits;
 }
 
-function computeTiktokProfileConversionRatio(monthData) {
-  if (!monthData || !monthData.tiktok) {
-    return null;
-  }
-  const profileVisits = parseMetricValue(monthData.tiktok.profileVisits);
-  const linkClicks = parseMetricValue(monthData.tiktok.linkClicks);
-  if (profileVisits === null || linkClicks === null || profileVisits === 0) {
-    return null;
-  }
-  return linkClicks / profileVisits;
-}
-
 function computeInstagramContentVolume(monthData) {
   if (!monthData) {
     return null;
@@ -1244,9 +1226,7 @@ const pillarSignalGetters = {
   ],
   conversion: [
     (m) => computeInstagramProfileConversionRatio(m),
-    (m) => parseMetricValue(m.instagram.linkClicks),
-    (m) => computeTiktokProfileConversionRatio(m),
-    (m) => parseMetricValue(m.tiktok && m.tiktok.linkClicks)
+    (m) => parseMetricValue(m.instagram.linkClicks)
   ],
   intention: [(m) => computeGoogleIntentions(m)]
 };
@@ -1263,8 +1243,7 @@ const pillarKpiFieldKeys = {
     ['tiktok', 'interactions']
   ],
   conversion: [
-    ['instagram', 'linkClicks'],
-    ['tiktok', 'linkClicks']
+    ['instagram', 'linkClicks']
   ],
   intention: [
     ['googleBusiness', 'calls'],
@@ -1540,7 +1519,6 @@ const synthesisRowConfigs = [
   { label: 'Abonnés TikTok', section: 'tiktok', field: 'followers', platform: 'tiktok' },
   { label: 'Vues TikTok', section: 'tiktok', field: 'views', platform: 'tiktok' },
   { label: 'Interactions TikTok', section: 'tiktok', field: 'interactions', platform: 'tiktok' },
-  { label: 'Clics lien TikTok', section: 'tiktok', field: 'linkClicks', platform: 'tiktok' },
   { label: 'Intentions clients', compute: computeIntentionsFromMonth, computeInitial: computeIntentionsFromInitial }
 ];
 
@@ -1662,7 +1640,6 @@ const tiktokFieldsForInsights = [
   ['tiktok', 'views'],
   ['tiktok', 'interactions'],
   ['tiktok', 'profileVisits'],
-  ['tiktok', 'linkClicks'],
   ['tiktok', 'posts']
 ];
 
@@ -1692,8 +1669,7 @@ const insightFieldLabels = {
   'tiktok.followers': 'Les abonnés TikTok',
   'tiktok.views': 'Les vues TikTok',
   'tiktok.interactions': 'Les interactions TikTok',
-  'tiktok.profileVisits': 'Les visites de profil TikTok',
-  'tiktok.linkClicks': 'Les clics sur le lien TikTok',
+  'tiktok.profileVisits': 'Les vues de profil TikTok',
   'tiktok.posts': 'Les publications TikTok'
 };
 
@@ -2004,18 +1980,7 @@ function generateTiktokAnalysis(monthData, previousMonthData) {
   if (hasValue(tt.profileVisits)) {
     const trend = trendClause(profileVisitsEvo.percent);
     sentences.push(
-      trend ? `Le profil a enregistré ${formatNumber(tt.profileVisits)} visites, ${trend}.` : `Le profil a enregistré ${formatNumber(tt.profileVisits)} visites sur la période.`
-    );
-  }
-
-  if (hasValue(tt.linkClicks)) {
-    sentences.push(`${formatNumber(tt.linkClicks)} clics ont été enregistrés sur le lien du profil.`);
-  }
-
-  const conversionRatio = computeTiktokProfileConversionRatio(monthData);
-  if (conversionRatio !== null) {
-    sentences.push(
-      `${(conversionRatio * 100).toFixed(1)}% des visites de profil ont généré un clic sur le lien : la conversion du profil vers une action externe est un axe à suivre.`
+      trend ? `Le profil a enregistré ${formatNumber(tt.profileVisits)} vues, ${trend}.` : `Le profil a enregistré ${formatNumber(tt.profileVisits)} vues sur la période.`
     );
   }
 
@@ -4224,12 +4189,6 @@ function buildBaselineKpiRows(monthData, trackedPlatforms) {
     const conversionRatio = computeInstagramProfileConversionRatio(monthData);
     if (conversionRatio !== null) {
       rows.push(['Conversion Instagram', 'Profil → lien', `${(conversionRatio * 100).toFixed(1)}%`]);
-    }
-  }
-  if (isPlatformTracked(trackedPlatforms, 'tiktok')) {
-    const tiktokConversionRatio = computeTiktokProfileConversionRatio(monthData);
-    if (tiktokConversionRatio !== null) {
-      rows.push(['Conversion TikTok', 'Profil → lien', `${(tiktokConversionRatio * 100).toFixed(1)}%`]);
     }
   }
   if (!rows.length) {
