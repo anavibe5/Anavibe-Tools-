@@ -2016,48 +2016,6 @@ function generateTiktokAnalysis(monthData, previousMonthData) {
   return sentences.join(' ');
 }
 
-function generateObjectivesAnalysis(monthData) {
-  const objectives = monthData.monthlyObjectives;
-  const actions = monthData.actionPlan;
-  const sentences = [];
-
-  if (objectives.length) {
-    const quantitative = objectives.filter(isObjectiveQuantitative);
-    const qualitative = objectives.filter((objective) => !isObjectiveQuantitative(objective));
-
-    if (quantitative.length) {
-      const done = quantitative.filter((objective) => objective.done).length;
-      sentences.push(
-        `${done} objectif${done > 1 ? 's' : ''} mesurable${done > 1 ? 's' : ''} sur ${quantitative.length} ${done > 1 ? 'ont été atteints' : 'a été atteint'} ce mois-ci (${Math.round((done / quantitative.length) * 100)}%).`
-      );
-      const remaining = quantitative.filter((objective) => !objective.done).map((objective) => objective.label);
-      if (remaining.length) {
-        sentences.push(`Reste${remaining.length > 1 ? 'nt' : ''} à finaliser : ${remaining.join(', ')}.`);
-      }
-    } else {
-      sentences.push('Aucun objectif mesurable (KPI + cible) n’a encore été défini pour ce mois.');
-    }
-
-    if (qualitative.length) {
-      sentences.push(
-        `${qualitative.length} objectif${qualitative.length > 1 ? 's' : ''} qualitatif${qualitative.length > 1 ? 's' : ''} (non mesurable${qualitative.length > 1 ? 's' : ''} en l’état) ${qualitative.length > 1 ? 'sont suivis' : 'est suivi'} sans entrer dans le taux d’atteinte : ${qualitative.map((o) => o.label).join(', ')}.`
-      );
-    }
-  } else {
-    sentences.push('Aucun objectif n’a encore été défini pour ce mois.');
-  }
-
-  if (actions.length) {
-    const done = actions.filter((action) => action.status === 'Terminé').length;
-    const inProgress = actions.filter((action) => action.status === 'En cours').length;
-    sentences.push(
-      `Le plan d’action compte ${actions.length} action${actions.length > 1 ? 's' : ''} : ${done} terminée${done > 1 ? 's' : ''}, ${inProgress} en cours.`
-    );
-  }
-
-  return sentences.join(' ');
-}
-
 // Une force n'est pas obligatoirement une progression : sans mois précédent, on cherche des
 // signaux positifs objectivement présents dans les données absolues du mois plutôt que de se
 // rabattre sur "pas de progression marquante" (qui n'a pas de sens sans historique).
@@ -2570,7 +2528,6 @@ function renderAnalysisSection(clientData, monthKey, monthData, previousMonthDat
     { title: 'Résumé exécutif', paragraphs: [executiveSummary] },
     { title: 'Score détaillé par pilier', list: buildScorePillarsLines(pillars) },
     ...platformAnalysisSections,
-    { title: 'Analyse des objectifs', paragraphs: [generateObjectivesAnalysis(monthData)] },
     { title: strengthsTitle, list: generateStrengths(monthData, previousMonthData) },
     { title: 'Faiblesses', list: generateWeaknesses(monthData, previousMonthData) },
     { title: 'Opportunités', list: generateOpportunities(monthData, previousMonthData) },
@@ -4555,8 +4512,7 @@ function generateClientReportPdf(clientId) {
     { platform: 'googleBusiness', title: 'Analyse Google Business', text: generateGoogleAnalysis(monthData, previousMonthData) },
     { platform: 'instagram', title: 'Analyse Instagram', text: generateInstagramAnalysis(monthData, previousMonthData) },
     { platform: 'facebook', title: 'Analyse Facebook', text: generateFacebookAnalysis(monthData, previousMonthData) },
-    { platform: 'tiktok', title: 'Analyse TikTok', text: generateTiktokAnalysis(monthData, previousMonthData) },
-    { title: 'Analyse des objectifs', text: generateObjectivesAnalysis(monthData) }
+    { platform: 'tiktok', title: 'Analyse TikTok', text: generateTiktokAnalysis(monthData, previousMonthData) }
   ].filter((section) => isPlatformTracked(data.general.trackedPlatforms, section.platform));
   analysisSections.forEach((section) => {
     addPdfSubTitle(state, section.title);
