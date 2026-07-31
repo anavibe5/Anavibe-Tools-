@@ -1175,12 +1175,20 @@ const instagramScoreFields = [
   ['instagram', 'bookings']
 ];
 
-function averagePercentEvolution(fieldPairs, monthData, previousMonthData) {
-  if (!previousMonthData) {
-    return null;
-  }
+// Sans mois précédent, initialSituation (si fourni) sert de référence de secours : le premier
+// mois compare alors avec la situation initiale plutôt que de n'afficher aucune évolution.
+// Les appelants qui ne veulent jamais ce repli (pilier Progression, alertes de stagnation)
+// omettent simplement ce paramètre et conservent leur comportement d'origine.
+function averagePercentEvolution(fieldPairs, monthData, previousMonthData, initialSituation) {
   const percents = fieldPairs
-    .map(([section, field]) => computeEvolution(previousMonthData[section][field], monthData[section][field]).percent)
+    .map(([section, field]) => {
+      const reference = previousMonthData
+        ? previousMonthData[section][field]
+        : initialSituation
+        ? getBaselineValue(initialSituation, section, field)
+        : null;
+      return computeEvolution(reference, monthData[section][field]).percent;
+    })
     .filter((percent) => percent !== null && !Number.isNaN(percent));
 
   if (!percents.length) {
@@ -1372,7 +1380,7 @@ function getScoreBadge(score, hasPreviousMonth) {
   return { label: 'Excellent mois', badgeClass: 'positive' };
 }
 
-function createEvolutionSummaryCard(label, percent) {
+function createEvolutionSummaryCard(label, percent, comparisonLabel = 'vs mois précédent') {
   const card = document.createElement('div');
   card.className = 'kpi-card card summary-card';
   const hasValue = percent !== null && percent !== undefined && !Number.isNaN(percent);
@@ -1381,19 +1389,19 @@ function createEvolutionSummaryCard(label, percent) {
   card.innerHTML = `
     <span class="kpi-label">${escapeHtml(label)}</span>
     <strong>${valueText}</strong>
-    <span class="evolution-badge ${badgeClass}">vs mois précédent</span>
+    <span class="evolution-badge ${badgeClass}">${escapeHtml(comparisonLabel)}</span>
   `;
   return card;
 }
 
-function createIntentionsSummaryCard(current, evolution) {
+function createIntentionsSummaryCard(current, evolution, comparisonLabel = 'vs mois précédent') {
   const card = document.createElement('div');
   card.className = 'kpi-card card summary-card';
   const fmt = formatEvolution(evolution, '');
   card.innerHTML = `
     <span class="kpi-label">Actions à forte intention (Google Business)</span>
     <strong>${current === null ? '—' : formatNumber(current)}</strong>
-    <span class="evolution-badge ${fmt.badgeClass}">${fmt.text} vs mois précédent</span>
+    <span class="evolution-badge ${fmt.badgeClass}">${fmt.text} ${escapeHtml(comparisonLabel)}</span>
   `;
   return card;
 }
@@ -1491,8 +1499,11 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation, trac
   const grid = document.createElement('div');
   grid.className = 'kpi-grid summary-grid';
 
-  const googlePercent = averagePercentEvolution(googleScoreFields, monthData, previousMonthData);
-  const instagramPercent = averagePercentEvolution(instagramScoreFields, monthData, previousMonthData);
+  // Sans mois précédent (premier mois de suivi), l'évolution se compare à la situation
+  // initiale plutôt que de n'afficher aucun chiffre.
+  const comparisonLabel = previousMonthData ? 'vs mois précédent' : 'vs situation initiale';
+  const googlePercent = averagePercentEvolution(googleScoreFields, monthData, previousMonthData, initialSituation);
+  const instagramPercent = averagePercentEvolution(instagramScoreFields, monthData, previousMonthData, initialSituation);
 
   const quantitativeObjectives = monthData.monthlyObjectives.filter(isObjectiveQuantitative);
   const objectivesDone = quantitativeObjectives.filter((objective) => objective.done).length;
@@ -1505,13 +1516,13 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation, trac
   // Intentions clients et Évolution Google Business ne reposent que sur des données Google
   // Business : sans ce réseau suivi, mieux vaut ne pas les afficher plutôt qu'un "—" trompeur.
   if (isPlatformTracked(trackedPlatforms, 'googleBusiness')) {
-    grid.appendChild(createEvolutionSummaryCard('Évolution Google Business', googlePercent));
+    grid.appendChild(createEvolutionSummaryCard('Évolution Google Business', googlePercent, comparisonLabel));
     const intentionsCurrent = computeIntentionsFromMonth(monthData);
-    const intentionsPrevious = previousMonthData ? computeIntentionsFromMonth(previousMonthData) : null;
-    const intentionsEvolution = computeEvolution(intentionsPrevious, intentionsCurrent);
-    grid.appendChild(createIntentionsSummaryCard(intentionsCurrent, intentionsEvolution));
+    const intentionsReference = previousMonthData ? computeIntentionsFromMonth(previousMonthData) : computeIntentionsFromInitial(initialSituation);
+    const intentionsEvolution = computeEvolution(intentionsReference, intentionsCurrent);
+    grid.appendChild(createIntentionsSummaryCard(intentionsCurrent, intentionsEvolution, comparisonLabel));
   }
-  grid.appendChild(createEvolutionSummaryCard('Évolution Instagram', instagramPercent));
+  grid.appendChild(createEvolutionSummaryCard('Évolution Instagram', instagramPercent, comparisonLabel));
   grid.appendChild(createObjectivesSummaryCard(objectivesDone, objectivesTotal, objectivesRate));
   grid.appendChild(createScoreSummaryCard(score, scoreBadge));
 
@@ -3900,15 +3911,20 @@ function addPdfTable(state, columns, rows) {
   state.cursorY += 6;
 }
 
-function buildKpiTableRows(section, monthData, previousMonthData) {
+// Sans mois précédent (premier mois de suivi), l'évolution se compare à la situation initiale
+// plutôt que de n'afficher aucun chiffre.
+function buildKpiTableRows(section, monthData, previousMonthData, initialSituation) {
   return section.fields.map((field) => {
     const current = monthData[section.key][field.key];
     if (field.type !== 'number' && field.type !== 'metric') {
       return [{ text: field.label }, { text: current || '—' }, { text: '—' }];
     }
-    const evolution = previousMonthData
-      ? computeEvolution(previousMonthData[section.key][field.key], current)
-      : { diff: null, percent: null };
+    const reference = previousMonthData
+      ? previousMonthData[section.key][field.key]
+      : initialSituation
+      ? getBaselineValue(initialSituation, section.key, field.key)
+      : null;
+    const evolution = computeEvolution(reference, current);
     const evoFmt = formatEvolution(evolution, field.unit);
     const color =
       evoFmt.badgeClass === 'positive' ? PDF_COLORS.positive : evoFmt.badgeClass === 'negative' ? PDF_COLORS.negative : PDF_COLORS.textSoft;
@@ -4417,6 +4433,7 @@ function generateClientReportPdf(clientId) {
   addPdfBulletList(state, buildScorePillarsLines(computeScorePillars(monthData, previousMonthData)));
 
   addPdfSectionTitle(state, '2. Tableau des KPI');
+  const evolutionColumnHeader = previousMonthData ? 'Évolution vs mois précédent' : 'Évolution vs situation initiale';
   getVisibleMonthlySections(data.general.trackedPlatforms).forEach((section) => {
     addPdfSubTitle(state, section.title);
     addPdfTable(
@@ -4424,12 +4441,18 @@ function generateClientReportPdf(clientId) {
       [
         { header: 'Indicateur', width: 76 },
         { header: 'Valeur du mois', width: 34 },
-        { header: 'Évolution vs mois précédent', width: 64 }
+        { header: evolutionColumnHeader, width: 64 }
       ],
-      buildKpiTableRows(section, monthData, previousMonthData)
+      buildKpiTableRows(section, monthData, previousMonthData, data.initialSituation)
     );
   });
-  if (isPlatformTracked(data.general.trackedPlatforms, 'googleBusiness') || isPlatformTracked(data.general.trackedPlatforms, 'instagram')) {
+  // Dans le rapport envoyé au client, "Résultats business calculés" ne sort qu'une fois le
+  // panier moyen renseigné : avant ça, même "Réservations générées" seul n'a pas grand intérêt
+  // à être montré (contrairement au dashboard, gardé pour le suivi interne).
+  if (
+    (isPlatformTracked(data.general.trackedPlatforms, 'googleBusiness') || isPlatformTracked(data.general.trackedPlatforms, 'instagram')) &&
+    hasValue(data.general.averageBasket)
+  ) {
     addPdfSubTitle(state, 'Résultats business calculés');
     addPdfTable(
       state,
