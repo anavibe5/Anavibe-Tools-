@@ -1431,7 +1431,13 @@ function createBusinessResultComputedCard(label, value, unit) {
   return card;
 }
 
-function renderBusinessResultsComputedSection(monthData, generalData) {
+// Réservations générées (et donc CA estimé / ROI, qui en dépendent) ne viennent que des
+// réservations Google Business : si ce réseau n'est pas suivi pour ce client, toute la section
+// est masquée plutôt que d'afficher des cartes vides ou un chiffre à "—" impossible à combler.
+function renderBusinessResultsComputedSection(monthData, generalData, trackedPlatforms) {
+  if (!isPlatformTracked(trackedPlatforms, 'googleBusiness')) {
+    return null;
+  }
   const block = document.createElement('div');
   block.className = 'section-block';
   block.innerHTML = `
@@ -1477,16 +1483,12 @@ function renderBusinessResultsComputedSection(monthData, generalData) {
   return block;
 }
 
-function renderSummaryCards(monthData, previousMonthData, initialSituation) {
+function renderSummaryCards(monthData, previousMonthData, initialSituation, trackedPlatforms) {
   const grid = document.createElement('div');
   grid.className = 'kpi-grid summary-grid';
 
   const googlePercent = averagePercentEvolution(googleScoreFields, monthData, previousMonthData);
   const instagramPercent = averagePercentEvolution(instagramScoreFields, monthData, previousMonthData);
-
-  const intentionsCurrent = computeIntentionsFromMonth(monthData);
-  const intentionsPrevious = previousMonthData ? computeIntentionsFromMonth(previousMonthData) : null;
-  const intentionsEvolution = computeEvolution(intentionsPrevious, intentionsCurrent);
 
   const quantitativeObjectives = monthData.monthlyObjectives.filter(isObjectiveQuantitative);
   const objectivesDone = quantitativeObjectives.filter((objective) => objective.done).length;
@@ -1496,9 +1498,16 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation) {
   const score = computeGlobalScore(monthData, previousMonthData);
   const scoreBadge = getScoreBadge(score, Boolean(previousMonthData));
 
-  grid.appendChild(createEvolutionSummaryCard('Évolution Google Business', googlePercent));
+  // Intentions clients et Évolution Google Business ne reposent que sur des données Google
+  // Business : sans ce réseau suivi, mieux vaut ne pas les afficher plutôt qu'un "—" trompeur.
+  if (isPlatformTracked(trackedPlatforms, 'googleBusiness')) {
+    grid.appendChild(createEvolutionSummaryCard('Évolution Google Business', googlePercent));
+    const intentionsCurrent = computeIntentionsFromMonth(monthData);
+    const intentionsPrevious = previousMonthData ? computeIntentionsFromMonth(previousMonthData) : null;
+    const intentionsEvolution = computeEvolution(intentionsPrevious, intentionsCurrent);
+    grid.appendChild(createIntentionsSummaryCard(intentionsCurrent, intentionsEvolution));
+  }
   grid.appendChild(createEvolutionSummaryCard('Évolution Instagram', instagramPercent));
-  grid.appendChild(createIntentionsSummaryCard(intentionsCurrent, intentionsEvolution));
   grid.appendChild(createObjectivesSummaryCard(objectivesDone, objectivesTotal, objectivesRate));
   grid.appendChild(createScoreSummaryCard(score, scoreBadge));
 
@@ -1519,7 +1528,12 @@ const synthesisRowConfigs = [
   { label: 'Abonnés TikTok', section: 'tiktok', field: 'followers', platform: 'tiktok' },
   { label: 'Vues TikTok', section: 'tiktok', field: 'views', platform: 'tiktok' },
   { label: 'Interactions TikTok', section: 'tiktok', field: 'interactions', platform: 'tiktok' },
-  { label: 'Intentions clients', compute: computeIntentionsFromMonth, computeInitial: computeIntentionsFromInitial }
+  {
+    label: 'Intentions clients',
+    compute: computeIntentionsFromMonth,
+    computeInitial: computeIntentionsFromInitial,
+    platform: 'googleBusiness'
+  }
 ];
 
 function getSynthesisRowValues(rowConfig, monthData, previousMonthData, initialSituation) {
@@ -3582,9 +3596,12 @@ function createDashboardCard(clientId) {
     getVisibleMonthlySections(freshData.general.trackedPlatforms).forEach((section) => {
       monthContent.appendChild(renderMonthlyFieldSection(section, selectedMonth, monthData));
     });
-    monthContent.appendChild(renderBusinessResultsComputedSection(monthData, freshData.general));
+    const businessResultsSection = renderBusinessResultsComputedSection(monthData, freshData.general, freshData.general.trackedPlatforms);
+    if (businessResultsSection) {
+      monthContent.appendChild(businessResultsSection);
+    }
 
-    monthContent.appendChild(renderSummaryCards(monthData, previousMonthData, freshData.initialSituation));
+    monthContent.appendChild(renderSummaryCards(monthData, previousMonthData, freshData.initialSituation, freshData.general.trackedPlatforms));
     monthContent.appendChild(renderSynthesisSection(monthData, previousMonthData, freshData.initialSituation, freshData.general.trackedPlatforms));
 
     const monthlyScore = computeGlobalScore(monthData, previousMonthData);
@@ -4181,9 +4198,11 @@ function buildBaselineKpiRows(monthData, trackedPlatforms) {
   if (isPlatformTracked(trackedPlatforms, 'tiktok') && hasValue(monthData.tiktok.views)) {
     rows.push(['TikTok', 'Vues', formatNumber(monthData.tiktok.views)]);
   }
-  const intentions = computeIntentionsFromMonth(monthData);
-  if (intentions !== null) {
-    rows.push(['Intention client', 'Actions à forte intention (Google Business)', formatNumber(intentions)]);
+  if (isPlatformTracked(trackedPlatforms, 'googleBusiness')) {
+    const intentions = computeIntentionsFromMonth(monthData);
+    if (intentions !== null) {
+      rows.push(['Intention client', 'Actions à forte intention (Google Business)', formatNumber(intentions)]);
+    }
   }
   if (isPlatformTracked(trackedPlatforms, 'instagram')) {
     const conversionRatio = computeInstagramProfileConversionRatio(monthData);
@@ -4442,16 +4461,18 @@ function generateClientReportPdf(clientId) {
       buildKpiTableRows(section, monthData, previousMonthData)
     );
   });
-  addPdfSubTitle(state, 'Résultats business calculés');
-  addPdfTable(
-    state,
-    [
-      { header: 'Indicateur', width: 76 },
-      { header: 'Valeur du mois', width: 34 },
-      { header: 'Évolution vs mois précédent', width: 64 }
-    ],
-    buildComputedBusinessResultsPdfRows(monthData, previousMonthData, data.general)
-  );
+  if (isPlatformTracked(data.general.trackedPlatforms, 'googleBusiness')) {
+    addPdfSubTitle(state, 'Résultats business calculés');
+    addPdfTable(
+      state,
+      [
+        { header: 'Indicateur', width: 76 },
+        { header: 'Valeur du mois', width: 34 },
+        { header: 'Évolution vs mois précédent', width: 64 }
+      ],
+      buildComputedBusinessResultsPdfRows(monthData, previousMonthData, data.general)
+    );
+  }
 
   doc.addPage();
   state.cursorY = state.marginTop;
@@ -4481,7 +4502,7 @@ function generateClientReportPdf(clientId) {
       { platform: 'instagram', title: 'Instagram — Portée', getSeries: () => getMonthlySeries(data, 'instagram', 'reach') },
       { platform: 'facebook', title: 'Facebook — Vues', getSeries: () => getMonthlySeries(data, 'facebook', 'views') },
       { platform: 'tiktok', title: 'TikTok — Vues', getSeries: () => getMonthlySeries(data, 'tiktok', 'views') },
-      { title: 'Intentions clients (Google Business)', getSeries: () => getMonthlyIntentionsSeries(data) }
+      { platform: 'googleBusiness', title: 'Intentions clients (Google Business)', getSeries: () => getMonthlyIntentionsSeries(data) }
     ].filter((chartDef) => isPlatformTracked(data.general.trackedPlatforms, chartDef.platform));
 
     const chartColumnWidth = 84;
