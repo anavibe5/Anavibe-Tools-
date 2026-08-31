@@ -1387,19 +1387,6 @@ function createIntentionsSummaryCard(current, evolution, comparisonLabel = 'vs m
   return card;
 }
 
-function createObjectivesSummaryCard(done, total, rate) {
-  const card = document.createElement('div');
-  card.className = 'kpi-card card summary-card';
-  const badgeClass = rate === null ? 'neutral' : rate >= 70 ? 'positive' : rate >= 40 ? 'neutral' : 'negative';
-  const rateText = rate === null ? 'Aucun objectif' : `${Math.round(rate)}% atteints`;
-  card.innerHTML = `
-    <span class="kpi-label">Objectifs atteints</span>
-    <strong>${total ? `${done}/${total}` : '—'}</strong>
-    <span class="evolution-badge ${badgeClass}">${escapeHtml(rateText)}</span>
-  `;
-  return card;
-}
-
 function createScoreSummaryCard(score, badge) {
   const card = document.createElement('div');
   card.className = 'kpi-card card summary-card';
@@ -1486,11 +1473,6 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation, trac
   const googlePercent = averagePercentEvolution(googleScoreFields, monthData, previousMonthData, initialSituation);
   const instagramPercent = averagePercentEvolution(instagramScoreFields, monthData, previousMonthData, initialSituation);
 
-  const quantitativeObjectives = monthData.monthlyObjectives.filter(isObjectiveQuantitative);
-  const objectivesDone = quantitativeObjectives.filter((objective) => objective.done).length;
-  const objectivesTotal = quantitativeObjectives.length;
-  const objectivesRate = computeObjectivesRate(monthData);
-
   const score = computeGlobalScore(monthData, previousMonthData);
   const scoreBadge = getScoreBadge(score, Boolean(previousMonthData));
 
@@ -1504,7 +1486,6 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation, trac
     grid.appendChild(createIntentionsSummaryCard(intentionsCurrent, intentionsEvolution, comparisonLabel));
   }
   grid.appendChild(createEvolutionSummaryCard('Évolution Instagram', instagramPercent, comparisonLabel));
-  grid.appendChild(createObjectivesSummaryCard(objectivesDone, objectivesTotal, objectivesRate));
   grid.appendChild(createScoreSummaryCard(score, scoreBadge));
 
   return grid;
@@ -1744,8 +1725,6 @@ function generateExecutiveSummary(ctx) {
       sentences.push(`À l’inverse, un point de vigilance : ${worst.label}, ${trendClause(worst.percent)}, qui mérite une attention particulière.`);
     }
   }
-
-  sentences.push(ctx.objectivesSentence);
 
   return sentences.join(' ');
 }
@@ -2429,19 +2408,12 @@ function renderAnalysisSection(clientData, monthKey, monthData, previousMonthDat
   const best = evolutions.length ? evolutions.reduce((max, item) => (item.percent > max.percent ? item : max), evolutions[0]) : null;
   const worst = evolutions.length ? evolutions.reduce((min, item) => (item.percent < min.percent ? item : min), evolutions[0]) : null;
 
-  const objectivesRate = computeObjectivesRate(monthData);
-  const objectivesSentence =
-    objectivesRate === null
-      ? 'Aucun objectif n’a encore été défini pour ce mois.'
-      : `${Math.round(objectivesRate)}% des objectifs du mois ont été atteints.`;
-
   const executiveSummary = generateExecutiveSummary({
     generalData: clientData.general,
     monthLabel: monthData.label,
     score,
     scoreBadge,
     evolutions: { best, worst },
-    objectivesSentence,
     hasPreviousMonth: Boolean(previousMonthData)
   });
 
@@ -2583,156 +2555,6 @@ function createNoMonthsState() {
     <p>Ajoutez un premier mois ci-dessus pour commencer le suivi mensuel de ce client.</p>
   `;
   return el;
-}
-
-function createObjectiveRow(clientId, monthKey, objective, monthData, onRemove) {
-  const row = document.createElement('div');
-  row.className = `checklist-item objective-item${objective.done ? ' done' : ''}`;
-
-  const label = document.createElement('label');
-  const checkbox = document.createElement('input');
-  checkbox.type = 'checkbox';
-  checkbox.checked = objective.done;
-  const span = document.createElement('span');
-  span.textContent = objective.label;
-  label.appendChild(checkbox);
-  label.appendChild(span);
-
-  const quantitative = isObjectiveQuantitative(objective);
-  const meta = document.createElement('div');
-  meta.className = 'objective-meta';
-  if (quantitative) {
-    const kpiOption = findObjectiveKpiOption(objective.kpiSection, objective.kpiField);
-    const progress = computeObjectiveProgress(objective, monthData);
-    const currentValue = monthData ? monthData[objective.kpiSection]?.[objective.kpiField] : null;
-    const parts = [`🎯 ${kpiOption ? kpiOption.label : objective.kpiField}`];
-    if (hasValue(objective.baselineValue)) {
-      parts.push(`départ ${formatNumber(objective.baselineValue)}`);
-    }
-    parts.push(`cible ${formatNumber(objective.targetValue)}`);
-    if (hasValue(currentValue)) {
-      parts.push(`actuel ${formatNumber(currentValue)}`);
-    }
-    if (progress !== null) {
-      parts.push(`${Math.round(progress)}% de la cible`);
-    }
-    if (objective.deadline) {
-      parts.push(`échéance ${objective.deadline}`);
-    }
-    meta.textContent = parts.join(' · ');
-  } else {
-    meta.textContent = 'Objectif qualitatif (non mesurable en l’état) — n’entre pas dans le taux d’atteinte.';
-  }
-
-  const removeButton = document.createElement('button');
-  removeButton.type = 'button';
-  removeButton.className = 'remove-item-btn';
-  removeButton.setAttribute('aria-label', 'Supprimer cet objectif');
-  removeButton.textContent = '✕';
-
-  checkbox.addEventListener('change', () => {
-    const data = getClientData(clientId);
-    const month = data.months[monthKey];
-    const target = month?.monthlyObjectives.find((item) => item.id === objective.id);
-    if (target) {
-      target.done = checkbox.checked;
-      saveClientData(clientId, data);
-    }
-    row.classList.toggle('done', checkbox.checked);
-  });
-
-  removeButton.addEventListener('click', () => {
-    const data = getClientData(clientId);
-    const month = data.months[monthKey];
-    if (month) {
-      month.monthlyObjectives = month.monthlyObjectives.filter((item) => item.id !== objective.id);
-      saveClientData(clientId, data);
-    }
-    onRemove();
-  });
-
-  const rowHeader = document.createElement('div');
-  rowHeader.className = 'objective-row-header';
-  rowHeader.appendChild(label);
-  rowHeader.appendChild(removeButton);
-
-  row.appendChild(rowHeader);
-  row.appendChild(meta);
-  return row;
-}
-
-function renderObjectivesSection(clientId, monthKey) {
-  const block = document.createElement('div');
-  block.className = 'section-block';
-  block.innerHTML = `
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">Suivi mensuel</p>
-        <h3>Objectifs du mois</h3>
-      </div>
-    </div>
-    <div class="checklist" data-role="objectives-list"></div>
-    <form class="inline-add-form objective-add-form" data-role="objectives-form">
-      <input type="text" name="label" placeholder="Nom de l’objectif" required />
-      <select name="kpi">
-        <option value="">Objectif qualitatif (texte libre, non mesurable)</option>
-        ${objectiveKpiOptions.map((option) => `<option value="${option.section}.${option.field}">${escapeHtml(option.label)}</option>`).join('')}
-      </select>
-      <input type="text" name="baseline" placeholder="Valeur de référence" inputmode="decimal" />
-      <input type="text" name="target" placeholder="Valeur cible" inputmode="decimal" />
-      <input type="month" name="deadline" />
-      <button type="submit" class="client-open-btn">Ajouter</button>
-    </form>
-  `;
-
-  const list = block.querySelector('[data-role="objectives-list"]');
-  const form = block.querySelector('[data-role="objectives-form"]');
-
-  const renderList = () => {
-    const data = getClientData(clientId);
-    const month = data.months[monthKey];
-    if (!month) {
-      return;
-    }
-    list.innerHTML = '';
-    month.monthlyObjectives.forEach((objective) => {
-      list.appendChild(createObjectiveRow(clientId, monthKey, objective, month, renderList));
-    });
-  };
-
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const labelInput = form.elements.label;
-    const label = labelInput.value.trim();
-    if (!label) {
-      return;
-    }
-    const data = getClientData(clientId);
-    const month = data.months[monthKey];
-    if (!month) {
-      return;
-    }
-
-    const kpiValue = form.elements.kpi.value;
-    const [kpiSection, kpiField] = kpiValue ? kpiValue.split('.') : [null, null];
-
-    month.monthlyObjectives.push({
-      id: generateId(),
-      label,
-      done: false,
-      kpiSection: kpiSection || null,
-      kpiField: kpiField || null,
-      baselineValue: form.elements.baseline.value.trim(),
-      targetValue: form.elements.target.value.trim(),
-      deadline: form.elements.deadline.value || null
-    });
-    saveClientData(clientId, data);
-    form.reset();
-    renderList();
-  });
-
-  renderList();
-  return block;
 }
 
 function createActionRow(clientId, monthKey, action, onRemove) {
@@ -3511,7 +3333,6 @@ function createDashboardCard(clientId) {
     monthContent.appendChild(renderAlertsSection(monthData, previousMonthData));
     monthContent.appendChild(renderWinsSection(freshData, selectedMonth, monthData, previousMonthData));
 
-    monthContent.appendChild(renderObjectivesSection(clientId, selectedMonth));
     monthContent.appendChild(renderActionPlanSection(clientId, selectedMonth));
 
     // Le plan d'action est saisi par la consultante elle-même : l'analyse automatique doit
@@ -4231,22 +4052,6 @@ function generateConclusion(clientData, monthData, previousMonthData, score, sco
   return sentences.join(' ');
 }
 
-function buildNextMonthActionPlan(monthData, previousMonthData) {
-  const carriedOver = monthData.actionPlan
-    .filter((action) => action.status !== 'Terminé')
-    .map((action) => `${action.label} (statut actuel : ${action.status})`);
-
-  const actionItems = generateActionPlanItems(monthData, previousMonthData);
-
-  const seen = new Set();
-  return [...carriedOver, ...actionItems].filter((item) => {
-    if (seen.has(item)) {
-      return false;
-    }
-    seen.add(item);
-    return true;
-  });
-}
 
 // Seeds a brand-new month's action plan from the previous one, so closing a month and
 // opening the next never requires retyping open actions or the operational tasks the
@@ -4294,12 +4099,6 @@ function getReportSectionDefinitions(clientData, monthData, previousMonthData, s
   const worstForSummary = evolutionsForSummary.length
     ? evolutionsForSummary.reduce((min, item) => (item.percent < min.percent ? item : min), evolutionsForSummary[0])
     : null;
-  const objectivesRateForSummary = computeObjectivesRate(monthData);
-  const objectivesSentenceForSummary =
-    objectivesRateForSummary === null
-      ? 'Aucun objectif n’a encore été défini pour ce mois.'
-      : `${Math.round(objectivesRateForSummary)}% des objectifs du mois ont été atteints.`;
-
   const sections = [
     {
       key: 'executiveSummary',
@@ -4312,7 +4111,6 @@ function getReportSectionDefinitions(clientData, monthData, previousMonthData, s
           score,
           scoreBadge,
           evolutions: { best: bestForSummary, worst: worstForSummary },
-          objectivesSentence: objectivesSentenceForSummary,
           hasPreviousMonth: Boolean(previousMonthData)
         })
     },
@@ -4328,7 +4126,15 @@ function getReportSectionDefinitions(clientData, monthData, previousMonthData, s
     },
     { key: 'weaknesses', title: 'Faiblesses', type: 'list', getDefault: () => generateWeaknesses(monthData, previousMonthData) },
     { key: 'opportunities', title: 'Opportunités', type: 'list', getDefault: () => generateOpportunities(monthData, previousMonthData) },
-    { key: 'actionPlan', title: 'Plan d’action du mois suivant', type: 'list', getDefault: () => buildNextMonthActionPlan(monthData, previousMonthData) },
+    {
+      key: 'actionPlan',
+      title: 'Plan d’action du mois suivant',
+      type: 'list',
+      // Uniquement dérivé des résultats du mois (jamais des actions écrites à la main dans le
+      // Plan d'action de la fiche) : le plan proposé au client doit découler des chiffres, pas
+      // de notes de suivi internes.
+      getDefault: () => generateActionPlanItems(monthData, previousMonthData)
+    },
     {
       key: 'conclusion',
       title: 'Conclusion',
