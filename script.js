@@ -294,7 +294,10 @@ function createEmptyMonthData(label) {
       remainingPotential: ''
     },
     monthlyObjectives: [],
-    actionPlan: []
+    actionPlan: [],
+    // Texte réécrit à la main par la consultante pour un thème du rapport (clé = report section
+    // key), qui prime alors sur le texte généré automatiquement lors de l'export PDF.
+    reportOverrides: {}
   };
 }
 
@@ -3577,6 +3580,18 @@ function createDashboardCard(clientId) {
     // Le plan d'action est saisi par la consultante elle-même : l'analyse automatique doit
     // arriver après, pas avant, dans le flux de la fiche.
     monthContent.appendChild(renderAnalysisSection(freshData, selectedMonth, monthData, previousMonthData, monthlyScore, monthlyScoreBadge));
+
+    const generateReportBtn = document.createElement('button');
+    generateReportBtn.type = 'button';
+    generateReportBtn.className = 'btn btn-secondary';
+    generateReportBtn.style.marginTop = '20px';
+    generateReportBtn.textContent = '📝 Générer le rapport (modifiable)';
+    const reportEditorBlock = renderReportEditorSection(clientId, selectedMonth);
+    generateReportBtn.addEventListener('click', () => {
+      reportEditorBlock.style.display = reportEditorBlock.style.display === 'none' ? '' : 'none';
+    });
+    monthContent.appendChild(generateReportBtn);
+    monthContent.appendChild(reportEditorBlock);
   };
 
   monthSelect.addEventListener('change', () => {
@@ -4329,6 +4344,173 @@ function addPdfFootersAndPageNumbers(doc, clientName, documentLabel = 'Rapport c
   }
 }
 
+// Liste unique des thèmes du rapport modifiables par la consultante avant export (Résumé
+// exécutif, analyses par réseau, forces/faiblesses/opportunités, plan d'action, conclusion).
+// Utilisée à la fois par l'éditeur de rapport (dashboard) et par la génération du PDF, pour que
+// les deux affichent toujours exactement le même texte.
+function getReportSectionDefinitions(clientData, monthData, previousMonthData, score, scoreBadge) {
+  const tracked = clientData.general.trackedPlatforms;
+  const evolutionsForSummary = collectFieldEvolutions(monthData, previousMonthData, allInsightFields);
+  const bestForSummary = evolutionsForSummary.length
+    ? evolutionsForSummary.reduce((max, item) => (item.percent > max.percent ? item : max), evolutionsForSummary[0])
+    : null;
+  const worstForSummary = evolutionsForSummary.length
+    ? evolutionsForSummary.reduce((min, item) => (item.percent < min.percent ? item : min), evolutionsForSummary[0])
+    : null;
+  const objectivesRateForSummary = computeObjectivesRate(monthData);
+  const objectivesSentenceForSummary =
+    objectivesRateForSummary === null
+      ? 'Aucun objectif n’a encore été défini pour ce mois.'
+      : `${Math.round(objectivesRateForSummary)}% des objectifs du mois ont été atteints.`;
+
+  const sections = [
+    {
+      key: 'executiveSummary',
+      title: 'Résumé exécutif',
+      type: 'paragraph',
+      getDefault: () =>
+        generateExecutiveSummary({
+          generalData: clientData.general,
+          monthLabel: monthData.label,
+          score,
+          scoreBadge,
+          evolutions: { best: bestForSummary, worst: worstForSummary },
+          objectivesSentence: objectivesSentenceForSummary,
+          hasPreviousMonth: Boolean(previousMonthData)
+        })
+    },
+    { key: 'googleBusinessAnalysis', title: 'Analyse Google Business', type: 'paragraph', platform: 'googleBusiness', getDefault: () => generateGoogleAnalysis(monthData, previousMonthData) },
+    { key: 'instagramAnalysis', title: 'Analyse Instagram', type: 'paragraph', platform: 'instagram', getDefault: () => generateInstagramAnalysis(monthData, previousMonthData) },
+    { key: 'facebookAnalysis', title: 'Analyse Facebook', type: 'paragraph', platform: 'facebook', getDefault: () => generateFacebookAnalysis(monthData, previousMonthData) },
+    { key: 'tiktokAnalysis', title: 'Analyse TikTok', type: 'paragraph', platform: 'tiktok', getDefault: () => generateTiktokAnalysis(monthData, previousMonthData) },
+    {
+      key: 'strengths',
+      title: previousMonthData ? 'Forces du mois' : 'Points d’appui identifiés',
+      type: 'list',
+      getDefault: () => generateStrengths(monthData, previousMonthData)
+    },
+    { key: 'weaknesses', title: 'Faiblesses', type: 'list', getDefault: () => generateWeaknesses(monthData, previousMonthData) },
+    { key: 'opportunities', title: 'Opportunités', type: 'list', getDefault: () => generateOpportunities(monthData, previousMonthData) },
+    { key: 'actionPlan', title: 'Plan d’action du mois suivant', type: 'list', getDefault: () => buildNextMonthActionPlan(monthData, previousMonthData) },
+    {
+      key: 'conclusion',
+      title: 'Conclusion',
+      type: 'paragraph',
+      getDefault: () => generateConclusion(clientData, monthData, previousMonthData, score, scoreBadge)
+    }
+  ];
+
+  return sections.filter((section) => isPlatformTracked(tracked, section.platform));
+}
+
+// Texte actuellement en vigueur pour un thème : la version réécrite par la consultante si elle
+// existe, sinon le texte généré automatiquement.
+function getReportSectionText(monthData, section) {
+  const override = monthData.reportOverrides ? monthData.reportOverrides[section.key] : undefined;
+  if (typeof override === 'string' && override.length) {
+    return override;
+  }
+  const def = section.getDefault();
+  return section.type === 'list' ? def.join('\n') : def;
+}
+
+// Reconvertit le texte (édité ou non) dans la forme attendue par le générateur PDF : un tableau
+// de lignes pour les listes à puces, une chaîne pour les paragraphes.
+function getReportSectionPdfValue(monthData, section) {
+  const text = getReportSectionText(monthData, section);
+  if (section.type === 'list') {
+    return text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+  return text;
+}
+
+// Aperçu modifiable du rapport avant export : chaque thème est pré-rempli avec le texte généré
+// automatiquement, mais reste un champ libre — les modifications sont sauvegardées au fil de la
+// frappe et priment sur le texte généré au moment du téléchargement du PDF.
+function renderReportEditorSection(clientId, monthKey) {
+  const block = document.createElement('div');
+  block.className = 'section-block';
+  block.dataset.role = 'report-editor';
+  block.style.display = 'none';
+  block.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Rapport modifiable</p>
+        <h3>Aperçu du rapport</h3>
+      </div>
+    </div>
+    <p class="notes-hint">Modifie librement chaque paragraphe avant de télécharger le rapport : tes modifications sont sauvegardées automatiquement et remplacent le texte généré à l’export PDF.</p>
+  `;
+
+  const data = getClientData(clientId);
+  const monthOrder = data.monthOrder;
+  const monthIndex = monthOrder.indexOf(monthKey);
+  const previousMonthKey = monthIndex > 0 ? monthOrder[monthIndex - 1] : null;
+  const monthData = data.months[monthKey];
+  const previousMonthData = previousMonthKey ? data.months[previousMonthKey] : null;
+  const score = computeGlobalScore(monthData, previousMonthData);
+  const scoreBadge = getScoreBadge(score, Boolean(previousMonthData));
+
+  const sections = getReportSectionDefinitions(data, monthData, previousMonthData, score, scoreBadge);
+
+  sections.forEach((section) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'report-editor-item';
+
+    const heading = document.createElement('h4');
+    heading.textContent = section.title;
+    wrapper.appendChild(heading);
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'notes-textarea report-editor-textarea';
+    textarea.value = getReportSectionText(monthData, section);
+    textarea.addEventListener('input', () => {
+      const freshData = getClientData(clientId);
+      const freshMonth = freshData.months[monthKey];
+      if (!freshMonth) {
+        return;
+      }
+      freshMonth.reportOverrides = freshMonth.reportOverrides || {};
+      freshMonth.reportOverrides[section.key] = textarea.value;
+      saveClientData(clientId, freshData);
+    });
+    wrapper.appendChild(textarea);
+
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.className = 'report-reset-btn';
+    resetBtn.textContent = '↺ Revenir au texte généré';
+    resetBtn.addEventListener('click', () => {
+      const freshData = getClientData(clientId);
+      const freshMonth = freshData.months[monthKey];
+      if (freshMonth && freshMonth.reportOverrides) {
+        delete freshMonth.reportOverrides[section.key];
+        saveClientData(clientId, freshData);
+      }
+      const def = section.getDefault();
+      textarea.value = section.type === 'list' ? def.join('\n') : def;
+    });
+    wrapper.appendChild(resetBtn);
+
+    block.appendChild(wrapper);
+  });
+
+  const downloadBtn = document.createElement('button');
+  downloadBtn.type = 'button';
+  downloadBtn.className = 'btn btn-primary report-export-btn';
+  downloadBtn.style.marginTop = '20px';
+  downloadBtn.textContent = '📄 Télécharger le rapport en PDF';
+  downloadBtn.addEventListener('click', () => {
+    generateClientReportPdf(clientId);
+  });
+  block.appendChild(downloadBtn);
+
+  return block;
+}
+
 function generateClientReportPdf(clientId) {
   if (!window.jspdf || !window.jspdf.jsPDF) {
     window.alert('Le module de génération PDF n’a pas pu se charger. Rechargez la page et réessayez.');
@@ -4360,31 +4542,11 @@ function generateClientReportPdf(clientId) {
   doc.addPage();
   state.cursorY = state.marginTop;
 
+  const reportSections = getReportSectionDefinitions(data, monthData, previousMonthData, score, scoreBadge);
+  const reportSectionByKey = (key) => reportSections.find((section) => section.key === key);
+
   addPdfSectionTitle(state, '1. Résumé exécutif');
-  const evolutionsForSummary = collectFieldEvolutions(monthData, previousMonthData, allInsightFields);
-  const bestForSummary = evolutionsForSummary.length
-    ? evolutionsForSummary.reduce((max, item) => (item.percent > max.percent ? item : max), evolutionsForSummary[0])
-    : null;
-  const worstForSummary = evolutionsForSummary.length
-    ? evolutionsForSummary.reduce((min, item) => (item.percent < min.percent ? item : min), evolutionsForSummary[0])
-    : null;
-  const objectivesRateForSummary = computeObjectivesRate(monthData);
-  const objectivesSentenceForSummary =
-    objectivesRateForSummary === null
-      ? 'Aucun objectif n’a encore été défini pour ce mois.'
-      : `${Math.round(objectivesRateForSummary)}% des objectifs du mois ont été atteints.`;
-  addPdfParagraph(
-    state,
-    generateExecutiveSummary({
-      generalData: data.general,
-      monthLabel: monthData.label,
-      score,
-      scoreBadge,
-      evolutions: { best: bestForSummary, worst: worstForSummary },
-      objectivesSentence: objectivesSentenceForSummary,
-      hasPreviousMonth: Boolean(previousMonthData)
-    })
-  );
+  addPdfParagraph(state, getReportSectionPdfValue(monthData, reportSectionByKey('executiveSummary')));
 
   addPdfSubTitle(state, 'Score détaillé par pilier');
   addPdfBulletList(state, buildScorePillarsLines(computeScorePillars(monthData, previousMonthData)));
@@ -4488,28 +4650,27 @@ function generateClientReportPdf(clientId) {
   doc.addPage();
   state.cursorY = state.marginTop;
   addPdfSectionTitle(state, '4. Analyse du mois');
-  const analysisSections = [
-    { platform: 'googleBusiness', title: 'Analyse Google Business', text: generateGoogleAnalysis(monthData, previousMonthData) },
-    { platform: 'instagram', title: 'Analyse Instagram', text: generateInstagramAnalysis(monthData, previousMonthData) },
-    { platform: 'facebook', title: 'Analyse Facebook', text: generateFacebookAnalysis(monthData, previousMonthData) },
-    { platform: 'tiktok', title: 'Analyse TikTok', text: generateTiktokAnalysis(monthData, previousMonthData) }
-  ].filter((section) => isPlatformTracked(data.general.trackedPlatforms, section.platform));
-  analysisSections.forEach((section) => {
+  ['googleBusinessAnalysis', 'instagramAnalysis', 'facebookAnalysis', 'tiktokAnalysis'].forEach((key) => {
+    const section = reportSectionByKey(key);
+    if (!section) {
+      return;
+    }
     addPdfSubTitle(state, section.title);
-    addPdfParagraph(state, section.text);
+    addPdfParagraph(state, getReportSectionPdfValue(monthData, section));
   });
 
-  addPdfSubTitle(state, previousMonthData ? 'Forces du mois' : 'Points d’appui identifiés');
-  addPdfBulletList(state, generateStrengths(monthData, previousMonthData));
+  const strengthsSection = reportSectionByKey('strengths');
+  addPdfSubTitle(state, strengthsSection.title);
+  addPdfBulletList(state, getReportSectionPdfValue(monthData, strengthsSection));
   addPdfSubTitle(state, 'Faiblesses');
-  addPdfBulletList(state, generateWeaknesses(monthData, previousMonthData));
+  addPdfBulletList(state, getReportSectionPdfValue(monthData, reportSectionByKey('weaknesses')));
   addPdfSubTitle(state, 'Opportunités');
-  addPdfBulletList(state, generateOpportunities(monthData, previousMonthData));
+  addPdfBulletList(state, getReportSectionPdfValue(monthData, reportSectionByKey('opportunities')));
 
   doc.addPage();
   state.cursorY = state.marginTop;
   addPdfSectionTitle(state, '5. Plan d’action du mois suivant');
-  const nextMonthPlan = buildNextMonthActionPlan(monthData, previousMonthData);
+  const nextMonthPlan = getReportSectionPdfValue(monthData, reportSectionByKey('actionPlan'));
   if (nextMonthPlan.length) {
     addPdfBulletList(state, nextMonthPlan);
   } else {
@@ -4517,7 +4678,7 @@ function generateClientReportPdf(clientId) {
   }
 
   addPdfSectionTitle(state, '6. Conclusion');
-  addPdfParagraph(state, generateConclusion(data, monthData, previousMonthData, score, scoreBadge));
+  addPdfParagraph(state, getReportSectionPdfValue(monthData, reportSectionByKey('conclusion')));
 
   addPdfFootersAndPageNumbers(doc, data.general.name || 'ce client');
 

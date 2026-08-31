@@ -743,6 +743,34 @@ a {
   color: var(--text-soft);
 }
 
+.report-editor-item {
+  margin-top: 20px;
+}
+
+.report-editor-item h4 {
+  margin-bottom: 0;
+}
+
+.report-editor-textarea {
+  min-height: 90px;
+}
+
+.report-reset-btn {
+  margin-top: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.report-reset-btn:hover {
+  color: var(--text);
+}
+
 .month-selector-row {
   margin-top: 4px;
   display: flex;
