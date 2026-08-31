@@ -26,22 +26,6 @@ function findObjectiveKpiOption(section, field) {
   return objectiveKpiOptions.find((option) => option.section === section && option.field === field) || null;
 }
 
-function buildObjectivePdfLabel(objective, monthData) {
-  if (!isObjectiveQuantitative(objective)) {
-    return `${objective.label} (objectif qualitatif — non mesurable en l’état)`;
-  }
-  const kpiOption = findObjectiveKpiOption(objective.kpiSection, objective.kpiField);
-  const progress = computeObjectiveProgress(objective, monthData);
-  const parts = [`${kpiOption ? kpiOption.label : objective.kpiField} → cible ${formatNumber(objective.targetValue)}`];
-  if (progress !== null) {
-    parts.push(`${Math.round(progress)}% de la cible`);
-  }
-  if (objective.deadline) {
-    parts.push(`échéance ${objective.deadline}`);
-  }
-  return `${objective.label} (${parts.join(', ')})`;
-}
-
 // Un objectif est "quantitatif" seulement s'il possède un KPI associé ET une valeur cible :
 // un objectif texte libre (ancien format ou nouveau sans KPI choisi) reste "qualitatif".
 function isObjectiveQuantitative(objective) {
@@ -3843,32 +3827,6 @@ function addPdfBulletList(state, items) {
   state.cursorY += 3;
 }
 
-function addPdfChecklist(state, items) {
-  state.doc.setFont('helvetica', 'normal');
-  state.doc.setFontSize(10);
-  const usableWidth = state.pageWidth - state.marginLeft - state.marginRight - 7;
-  items.forEach((item) => {
-    const lines = state.doc.splitTextToSize(item.label, usableWidth);
-    ensurePdfSpace(state, 5.6 * lines.length);
-    const markerY = state.cursorY - 1.3;
-    if (item.done) {
-      state.doc.setDrawColor(...PDF_COLORS.positive);
-      state.doc.setFillColor(...PDF_COLORS.positive);
-      state.doc.circle(state.marginLeft + 1.3, markerY, 1.3, 'F');
-    } else {
-      state.doc.setDrawColor(...PDF_COLORS.textSoft);
-      state.doc.setLineWidth(0.3);
-      state.doc.circle(state.marginLeft + 1.3, markerY, 1.3, 'S');
-    }
-    state.doc.setTextColor(...PDF_COLORS.text);
-    lines.forEach((line) => {
-      state.doc.text(line, state.marginLeft + 7, state.cursorY);
-      state.cursorY += 5.6;
-    });
-  });
-  state.cursorY += 3;
-}
-
 function addPdfTable(state, columns, rows) {
   const totalWidth = columns.reduce((sum, col) => sum + col.width, 0);
   const rowHeight = 7;
@@ -4551,20 +4509,7 @@ function generateClientReportPdf(clientId) {
 
   doc.addPage();
   state.cursorY = state.marginTop;
-  addPdfSectionTitle(state, '5. Recommandations');
-  addPdfBulletList(state, generateRecommendations(monthData, previousMonthData));
-
-  addPdfSectionTitle(state, '6. Objectifs du mois');
-  if (monthData.monthlyObjectives.length) {
-    addPdfChecklist(
-      state,
-      monthData.monthlyObjectives.map((objective) => ({ ...objective, label: buildObjectivePdfLabel(objective, monthData) }))
-    );
-  } else {
-    addPdfParagraph(state, 'Aucun objectif n’a été défini pour ce mois.');
-  }
-
-  addPdfSectionTitle(state, '7. Plan d’action du mois suivant');
+  addPdfSectionTitle(state, '5. Plan d’action du mois suivant');
   const nextMonthPlan = buildNextMonthActionPlan(monthData, previousMonthData);
   if (nextMonthPlan.length) {
     addPdfBulletList(state, nextMonthPlan);
@@ -4572,7 +4517,7 @@ function generateClientReportPdf(clientId) {
     addPdfParagraph(state, 'Aucune action prioritaire identifiée : maintenir le cap actuel.');
   }
 
-  addPdfSectionTitle(state, '8. Conclusion');
+  addPdfSectionTitle(state, '6. Conclusion');
   addPdfParagraph(state, generateConclusion(data, monthData, previousMonthData, score, scoreBadge));
 
   addPdfFootersAndPageNumbers(doc, data.general.name || 'ce client');
