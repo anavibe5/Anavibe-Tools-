@@ -180,15 +180,15 @@ const monthlySectionSchema = [
     fields: [
       { key: 'followers', label: 'Abonnés', type: 'metric' },
       { key: 'newFollowers', label: 'Nouveaux abonnés', type: 'metric' },
-      { key: 'reach', label: 'Portée', type: 'metric' },
-      { key: 'views', label: 'Vues', type: 'metric' },
+      { key: 'reach', label: 'Portée (vues générées sur le mois)', type: 'metric' },
+      { key: 'reachReels', label: 'Portée via les Reels', type: 'metric' },
+      { key: 'reachStories', label: 'Portée via les Stories', type: 'metric' },
+      { key: 'reachPosts', label: 'Portée via les publications', type: 'metric' },
+      { key: 'views', label: 'Nombre de spectateurs', type: 'metric' },
       { key: 'interactions', label: 'Interactions', type: 'metric' },
       { key: 'profileVisits', label: 'Visites du profil', type: 'metric' },
       { key: 'linkClicks', label: 'Clics sur le lien', type: 'metric' },
-      { key: 'bookings', label: 'Réservations via Instagram', type: 'metric' },
-      { key: 'posts', label: 'Publications', type: 'metric' },
-      { key: 'reels', label: 'Reels', type: 'metric' },
-      { key: 'stories', label: 'Stories', type: 'metric' }
+      { key: 'bookings', label: 'Réservations via Instagram', type: 'metric' }
     ]
   },
   {
@@ -198,8 +198,7 @@ const monthlySectionSchema = [
     fields: [
       { key: 'followers', label: 'Abonnés', type: 'metric' },
       { key: 'views', label: 'Vues', type: 'metric' },
-      { key: 'interactions', label: 'Interactions', type: 'metric' },
-      { key: 'posts', label: 'Publications', type: 'metric' }
+      { key: 'interactions', label: 'Interactions', type: 'metric' }
     ]
   },
   {
@@ -267,20 +266,19 @@ function createEmptyMonthData(label) {
       followers: '',
       newFollowers: '',
       reach: '',
+      reachReels: '',
+      reachStories: '',
+      reachPosts: '',
       views: '',
       interactions: '',
       profileVisits: '',
       linkClicks: '',
-      bookings: '',
-      posts: '',
-      reels: '',
-      stories: ''
+      bookings: ''
     },
     facebook: {
       followers: '',
       views: '',
-      interactions: '',
-      posts: ''
+      interactions: ''
     },
     tiktok: {
       followers: '',
@@ -1045,13 +1043,6 @@ function computeInstagramProfileConversionRatio(monthData) {
   return linkClicks / profileVisits;
 }
 
-function computeInstagramContentVolume(monthData) {
-  if (!monthData) {
-    return null;
-  }
-  return sumOrNull([monthData.instagram.posts, monthData.instagram.reels, monthData.instagram.stories]);
-}
-
 // « Actions à forte intention » Google Business : appels + itinéraires + clics site + réservations.
 // Ce sont des actions observées, pas un nombre de clients uniques (un même client peut générer
 // plusieurs actions) — ne jamais présenter cette somme comme des « clients générés ». Les 4
@@ -1646,8 +1637,7 @@ function describeTrend(percent) {
 const facebookFieldsForInsights = [
   ['facebook', 'followers'],
   ['facebook', 'views'],
-  ['facebook', 'interactions'],
-  ['facebook', 'posts']
+  ['facebook', 'interactions']
 ];
 
 const tiktokFieldsForInsights = [
@@ -1681,7 +1671,6 @@ const insightFieldLabels = {
   'facebook.followers': 'Les abonnés Facebook',
   'facebook.views': 'Les vues Facebook',
   'facebook.interactions': 'Les interactions Facebook',
-  'facebook.posts': 'Les publications Facebook',
   'tiktok.followers': 'Les abonnés TikTok',
   'tiktok.views': 'Les vues TikTok',
   'tiktok.interactions': 'Les interactions TikTok',
@@ -1857,7 +1846,7 @@ function generateInstagramAnalysis(monthData, previousMonthData) {
   const reachTrend = hasValue(ig.reach) ? trendClause(reachEvo.percent) : '';
   const contentParts = [];
   if (hasValue(ig.views)) {
-    contentParts.push(`généré ${formatNumber(ig.views)} vues`);
+    contentParts.push(`généré ${formatNumber(ig.views)} spectateurs`);
   }
   if (hasValue(ig.interactions)) {
     contentParts.push(`${contentParts.length ? '' : 'généré '}${formatNumber(ig.interactions)} interactions`);
@@ -1879,18 +1868,18 @@ function generateInstagramAnalysis(monthData, previousMonthData) {
     }
   }
 
-  const volumeParts = [];
-  if (hasValue(ig.posts)) {
-    volumeParts.push(`${formatNumber(ig.posts)} publication${parseMetricValue(ig.posts) > 1 ? 's' : ''}`);
+  const reachByTypeParts = [];
+  if (hasValue(ig.reachReels)) {
+    reachByTypeParts.push(`${formatNumber(ig.reachReels)} via les Reels`);
   }
-  if (hasValue(ig.reels)) {
-    volumeParts.push(`${formatNumber(ig.reels)} reel${parseMetricValue(ig.reels) > 1 ? 's' : ''}`);
+  if (hasValue(ig.reachStories)) {
+    reachByTypeParts.push(`${formatNumber(ig.reachStories)} via les Stories`);
   }
-  if (hasValue(ig.stories)) {
-    volumeParts.push(`${formatNumber(ig.stories)} story/stories`);
+  if (hasValue(ig.reachPosts)) {
+    reachByTypeParts.push(`${formatNumber(ig.reachPosts)} via les publications`);
   }
-  if (volumeParts.length) {
-    sentences.push(`Le rythme de publication du mois représente ${joinWithAnd(volumeParts)}.`);
+  if (reachByTypeParts.length) {
+    sentences.push(`Répartition de la portée par format : ${joinWithAnd(reachByTypeParts)}.`);
   }
 
   if (hasValue(ig.profileVisits)) {
@@ -1951,11 +1940,6 @@ function generateFacebookAnalysis(monthData, previousMonthData) {
   }
   if (contentParts.length) {
     sentences.push(`Les contenus ont généré ${joinWithAnd(contentParts)} sur la période.`);
-  }
-
-  if (hasValue(fb.posts)) {
-    const count = parseMetricValue(fb.posts);
-    sentences.push(`${formatNumber(count)} publication${count > 1 ? 's ont' : ' a'} été diffusée${count > 1 ? 's' : ''} ce mois-ci.`);
   }
 
   if (!sentences.length) {
@@ -2037,10 +2021,6 @@ function buildAbsoluteStrengthSignals(monthData) {
   if (hasValue(ig.profileVisits) && parseMetricValue(ig.profileVisits) >= 100) {
     signals.push(`Une bonne capacité à générer des visites de profil Instagram (${formatNumber(ig.profileVisits)} sur la période).`);
   }
-  const contentVolume = computeInstagramContentVolume(monthData);
-  if (contentVolume !== null && contentVolume >= INSTAGRAM_HIGH_CONTENT_VOLUME) {
-    signals.push(`Un volume de contenu déjà conséquent (${formatNumber(contentVolume)} publications/Reels/Stories sur le mois).`);
-  }
 
   if (!signals.length) {
     return ['Les données de ce premier mois établissent la baseline ; les points d’appui se préciseront avec le recul du prochain reporting.'];
@@ -2073,23 +2053,7 @@ const INSTAGRAM_MEANINGFUL_COMMUNITY = 500;
 const INSTAGRAM_LOW_REACH_RATIO = 0.3;
 const INSTAGRAM_MEANINGFUL_PROFILE_VISITS = 50;
 const INSTAGRAM_LOW_CONVERSION_RATIO = 0.1;
-const INSTAGRAM_HIGH_CONTENT_VOLUME = 15;
 const GOOGLE_STRONG_INTENTIONS_THRESHOLD = 200;
-
-function isInstagramHighVolumeLowReach(monthData) {
-  const ig = monthData.instagram;
-  const contentVolume = computeInstagramContentVolume(monthData);
-  const reachRatio = computeInstagramReachRatio(monthData);
-  const followers = parseMetricValue(ig.followers);
-  return (
-    contentVolume !== null &&
-    contentVolume >= INSTAGRAM_HIGH_CONTENT_VOLUME &&
-    reachRatio !== null &&
-    followers !== null &&
-    followers >= INSTAGRAM_MEANINGFUL_COMMUNITY &&
-    reachRatio < INSTAGRAM_LOW_REACH_RATIO
-  );
-}
 
 function isInstagramLowProfileConversion(monthData) {
   const ig = monthData.instagram;
@@ -2176,16 +2140,6 @@ function generateOpportunities(monthData, previousMonthData) {
   const ig = monthData.instagram;
   const gb = monthData.googleBusiness;
 
-  const highVolumeLowReach = isInstagramHighVolumeLowReach(monthData);
-  if (
-    !highVolumeLowReach &&
-    hasValue(ig.posts) &&
-    hasValue(ig.reels) &&
-    parseMetricValue(ig.posts) > 0 &&
-    parseMetricValue(ig.reels) < parseMetricValue(ig.posts) / 3
-  ) {
-    opportunities.push('Le format Reels est sous-exploité par rapport au volume de publications : c’est un levier de portée disponible.');
-  }
   if (hasValue(gb.googlePosts) && parseMetricValue(gb.googlePosts) < 2) {
     opportunities.push('La fréquence de publication sur Google Business est faible : publier plus régulièrement renforcerait la visibilité locale.');
   }
@@ -2213,20 +2167,6 @@ function generateRecommendations(monthData, previousMonthData) {
   const recommendations = [];
   const gb = monthData.googleBusiness;
   const ig = monthData.instagram;
-  const fb = monthData.facebook;
-
-  const highVolumeLowReach = isInstagramHighVolumeLowReach(monthData);
-  if (highVolumeLowReach) {
-    // Le volume est déjà conséquent : ne jamais recommander d'en publier davantage. Le vrai
-    // levier est la qualité de découverte (hooks, formats, partage), pas le volume.
-    const reachRatio = computeInstagramReachRatio(monthData);
-    const contentVolume = computeInstagramContentVolume(monthData);
-    recommendations.push(
-      `Le volume de contenu est déjà conséquent (${formatNumber(contentVolume)} publications/Reels/Stories ce mois-ci) mais la portée reste faible par rapport à la communauté (${Math.round(reachRatio * 100)}%) : prioriser l’amélioration des hooks, des formats partageables et des contenus de découverte plutôt que d’augmenter encore le volume.`
-    );
-  } else if (hasValue(ig.posts) && hasValue(ig.reels) && parseMetricValue(ig.posts) > 0 && parseMetricValue(ig.reels) < parseMetricValue(ig.posts) / 3) {
-    recommendations.push('Publier davantage de Reels pour dynamiser la portée Instagram.');
-  }
 
   const lowProfileConversion = isInstagramLowProfileConversion(monthData);
   if (lowProfileConversion) {
@@ -2241,10 +2181,6 @@ function generateRecommendations(monthData, previousMonthData) {
   if (hasValue(gb.googlePosts) && parseMetricValue(gb.googlePosts) < 2) {
     recommendations.push('Publier plus de Google Posts pour dynamiser la fiche Google Business.');
   }
-  if (hasValue(ig.stories) && hasValue(ig.posts) && parseMetricValue(ig.stories) < parseMetricValue(ig.posts)) {
-    recommendations.push('Travailler davantage les Stories pour garder un contact régulier avec la communauté.');
-  }
-
   const reachEvo = previousMonthData ? computeEvolution(previousMonthData.instagram.reach, ig.reach) : { percent: null };
   if (reachEvo.percent !== null && reachEvo.percent < 0) {
     recommendations.push('Mettre en avant vos offres phares (plats signature, promotions) dans les prochains contenus pour relancer la portée.');
@@ -2254,14 +2190,11 @@ function generateRecommendations(monthData, previousMonthData) {
   if (ratingEvo.percent !== null && ratingEvo.percent <= 0) {
     recommendations.push('Améliorer la fiche Google Business (photos récentes, informations à jour) pour soutenir la note.');
   }
-  if (hasValue(fb.posts) && parseMetricValue(fb.posts) < 2) {
-    recommendations.push('Maintenir une publication régulière sur Facebook pour ne pas perdre le lien avec cette audience.');
-  }
 
   const objectivesRate = computeObjectivesRate(monthData);
   if (previousMonthData && objectivesRate !== null && objectivesRate < 50) {
     recommendations.push(
-      highVolumeLowReach || lowProfileConversion
+      lowProfileConversion
         ? 'Prioriser les objectifs du mois en retard, en particulier ceux liés à la portée et à la conversion Instagram identifiées ci-dessus.'
         : 'Prioriser les objectifs du mois en retard pour sécuriser les résultats.'
     );
@@ -2281,15 +2214,6 @@ function generateActionPlanItems(monthData, previousMonthData) {
   const actions = [];
   const gb = monthData.googleBusiness;
   const ig = monthData.instagram;
-  const fb = monthData.facebook;
-
-  const highVolumeLowReach = isInstagramHighVolumeLowReach(monthData);
-  if (highVolumeLowReach) {
-    actions.push('Tester 3 formats de Reels orientés découverte (hook dès la première seconde, sujet grand public) plutôt que d’augmenter le volume.');
-    actions.push('Analyser les 3 meilleurs et les 3 moins bons contenus du mois pour identifier ce qui fait réellement la portée.');
-  } else if (hasValue(ig.posts) && hasValue(ig.reels) && parseMetricValue(ig.posts) > 0 && parseMetricValue(ig.reels) < parseMetricValue(ig.posts) / 3) {
-    actions.push('Publier au moins 2 Reels supplémentaires ce mois-ci pour dynamiser la portée Instagram.');
-  }
 
   if (isInstagramLowProfileConversion(monthData)) {
     actions.push('Retravailler la bio Instagram et la mise en avant du lien (réservation/menu) pour faciliter le passage à l’action.');
@@ -2306,17 +2230,9 @@ function generateActionPlanItems(monthData, previousMonthData) {
     actions.push('Publier au moins 2 publications Google Business ce mois-ci (offre, actualité, coulisses).');
   }
 
-  if (hasValue(ig.stories) && hasValue(ig.posts) && parseMetricValue(ig.stories) < parseMetricValue(ig.posts)) {
-    actions.push('Programmer une Story quasi quotidienne (coulisses, plat du jour, équipe) pour garder le contact avec la communauté.');
-  }
-
   const ratingEvo = previousMonthData ? computeEvolution(previousMonthData.googleBusiness.rating, gb.rating) : { percent: null };
   if (ratingEvo.percent !== null && ratingEvo.percent <= 0) {
     actions.push('Mettre à jour les photos et informations de la fiche Google Business (menu, horaires, ambiance).');
-  }
-
-  if (hasValue(fb.posts) && parseMetricValue(fb.posts) < 2) {
-    actions.push('Programmer au moins 2 publications Facebook ce mois-ci pour ne pas perdre le lien avec cette audience.');
   }
 
   const googleIntentions = computeGoogleIntentions(monthData);
