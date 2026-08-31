@@ -3,55 +3,10 @@ const CLIENT_DATA_PREFIX = 'anavibe-tools-client-data-';
 
 const actionStatusOptions = ['À faire', 'En cours', 'Terminé'];
 
-// KPI qu'un objectif mensuel peut cibler. Un objectif qui associe un de ces KPI + une valeur
-// cible est "quantitatif" (mesurable) ; un objectif texte libre sans KPI reste "qualitatif" et
-// n'entre jamais dans le calcul du taux d'objectifs atteints (cf. computeObjectivesRate).
-const objectiveKpiOptions = [
-  { section: 'instagram', field: 'reach', label: 'Portée Instagram' },
-  { section: 'instagram', field: 'profileVisits', label: 'Visites de profil Instagram' },
-  { section: 'instagram', field: 'linkClicks', label: 'Clics sur le lien Instagram' },
-  { section: 'instagram', field: 'followers', label: 'Abonnés Instagram' },
-  { section: 'instagram', field: 'interactions', label: 'Interactions Instagram' },
-  { section: 'instagram', field: 'bookings', label: 'Réservations Instagram' },
-  { section: 'googleBusiness', field: 'calls', label: 'Appels Google' },
-  { section: 'googleBusiness', field: 'websiteClicks', label: 'Clics site Google' },
-  { section: 'googleBusiness', field: 'bookings', label: 'Réservations Google' },
-  { section: 'googleBusiness', field: 'reviewsCount', label: 'Avis Google' },
-  { section: 'tiktok', field: 'views', label: 'Vues TikTok' },
-  { section: 'tiktok', field: 'profileVisits', label: 'Vues de profil TikTok' },
-  { section: 'tiktok', field: 'followers', label: 'Abonnés TikTok' }
-];
-
-function findObjectiveKpiOption(section, field) {
-  return objectiveKpiOptions.find((option) => option.section === section && option.field === field) || null;
-}
-
 // Un objectif est "quantitatif" seulement s'il possède un KPI associé ET une valeur cible :
 // un objectif texte libre (ancien format ou nouveau sans KPI choisi) reste "qualitatif".
 function isObjectiveQuantitative(objective) {
   return Boolean(objective && objective.kpiSection && objective.kpiField && hasValue(objective.targetValue));
-}
-
-// Progression vers la cible en %, calculée sur (valeur actuelle - référence) / (cible - référence).
-// Sans référence exploitable (ou référence = cible), on retombe sur un simple ratio actuel/cible.
-function computeObjectiveProgress(objective, monthData) {
-  if (!isObjectiveQuantitative(objective) || !monthData) {
-    return null;
-  }
-  const section = monthData[objective.kpiSection];
-  if (!section) {
-    return null;
-  }
-  const current = parseMetricValue(section[objective.kpiField]);
-  const target = parseMetricValue(objective.targetValue);
-  if (current === null || target === null) {
-    return null;
-  }
-  const baseline = parseMetricValue(objective.baselineValue);
-  if (baseline === null || baseline === target) {
-    return target !== 0 ? clamp((current / target) * 100, 0, 150) : null;
-  }
-  return clamp(((current - baseline) / (target - baseline)) * 100, 0, 150);
 }
 
 const generalFieldsSchema = {
@@ -1224,28 +1179,6 @@ const pillarSignalGetters = {
   intention: [(m) => computeGoogleIntentions(m)]
 };
 
-const pillarKpiFieldKeys = {
-  visibility: [
-    ['googleBusiness', 'profileViews'],
-    ['instagram', 'reach'],
-    ['tiktok', 'views']
-  ],
-  engagement: [
-    ['instagram', 'interactions'],
-    ['facebook', 'interactions'],
-    ['tiktok', 'interactions']
-  ],
-  conversion: [
-    ['instagram', 'linkClicks']
-  ],
-  intention: [
-    ['googleBusiness', 'calls'],
-    ['googleBusiness', 'directions'],
-    ['googleBusiness', 'websiteClicks'],
-    ['googleBusiness', 'bookings']
-  ]
-};
-
 function evolutionPercentFromSignals(signalGetters, monthData, previousMonthData) {
   if (!previousMonthData) {
     return null;
@@ -1266,23 +1199,16 @@ function evolutionPercentFromSignals(signalGetters, monthData, previousMonthData
   return percents.reduce((total, percent) => total + percent, 0) / percents.length;
 }
 
-function computePillarScore(pillarKey, monthData, previousMonthData, objectives) {
-  const matchingObjective = objectives.find(
-    (objective) => isObjectiveQuantitative(objective) && pillarKpiFieldKeys[pillarKey].some(([section, field]) => section === objective.kpiSection && field === objective.kpiField)
-  );
-  if (matchingObjective) {
-    const progress = computeObjectiveProgress(matchingObjective, monthData);
-    if (progress !== null) {
-      return { score: Math.round(clamp(progress, 0, 100)), reason: `Basé sur la progression vers l’objectif « ${matchingObjective.label} ».` };
-    }
-  }
-
+// Toujours basé sur l'évolution vs le mois précédent, jamais sur un objectif chiffré : un
+// objectif mal calibré (cible trop haute ou trop basse) faussait sinon la note du pilier
+// indépendamment de la vraie performance du mois.
+function computePillarScore(pillarKey, monthData, previousMonthData) {
   const percent = evolutionPercentFromSignals(pillarSignalGetters[pillarKey], monthData, previousMonthData);
   if (percent !== null) {
     return { score: Math.round(clamp(50 + percent, 0, 100)), reason: `Basé sur l’évolution vs mois précédent (${formatSignedPercent(percent)}).` };
   }
 
-  return { score: null, reason: 'ni objectif chiffré ni mois précédent pour évaluer ce pilier' };
+  return { score: null, reason: 'pas de mois précédent pour évaluer ce pilier' };
 }
 
 function computePillarProgression(monthData, previousMonthData) {
@@ -1302,12 +1228,11 @@ function computePillarProgression(monthData, previousMonthData) {
 }
 
 function computeScorePillars(monthData, previousMonthData) {
-  const objectives = monthData.monthlyObjectives || [];
   return {
-    visibility: computePillarScore('visibility', monthData, previousMonthData, objectives),
-    engagement: computePillarScore('engagement', monthData, previousMonthData, objectives),
-    conversion: computePillarScore('conversion', monthData, previousMonthData, objectives),
-    intention: computePillarScore('intention', monthData, previousMonthData, objectives),
+    visibility: computePillarScore('visibility', monthData, previousMonthData),
+    engagement: computePillarScore('engagement', monthData, previousMonthData),
+    conversion: computePillarScore('conversion', monthData, previousMonthData),
+    intention: computePillarScore('intention', monthData, previousMonthData),
     progression: computePillarProgression(monthData, previousMonthData)
   };
 }
