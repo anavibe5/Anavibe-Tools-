@@ -197,8 +197,10 @@ const monthlySectionSchema = [
     title: 'Facebook',
     fields: [
       { key: 'followers', label: 'Abonnés', type: 'metric' },
+      { key: 'newFollowers', label: 'Nouveaux abonnés', type: 'metric' },
       { key: 'views', label: 'Vues', type: 'metric' },
-      { key: 'interactions', label: 'Interactions', type: 'metric' }
+      { key: 'interactions', label: 'Interactions', type: 'metric' },
+      { key: 'profileVisits', label: 'Visites du profil', type: 'metric' }
     ]
   },
   {
@@ -277,8 +279,10 @@ function createEmptyMonthData(label) {
     },
     facebook: {
       followers: '',
+      newFollowers: '',
       views: '',
-      interactions: ''
+      interactions: '',
+      profileVisits: ''
     },
     tiktok: {
       followers: '',
@@ -1145,6 +1149,7 @@ const googleScoreFields = [
 const instagramScoreFields = [
   ['instagram', 'followers'],
   ['instagram', 'reach'],
+  ['instagram', 'views'],
   ['instagram', 'interactions'],
   ['instagram', 'profileVisits'],
   ['instagram', 'linkClicks'],
@@ -1513,10 +1518,15 @@ const synthesisRowConfigs = [
   { label: 'Itinéraires Google', section: 'googleBusiness', field: 'directions', platform: 'googleBusiness' },
   { label: 'Abonnés Instagram', section: 'instagram', field: 'followers', platform: 'instagram' },
   { label: 'Portée Instagram', section: 'instagram', field: 'reach', platform: 'instagram' },
+  { label: 'Nombre de spectateurs Instagram', section: 'instagram', field: 'views', platform: 'instagram' },
   { label: 'Interactions Instagram', section: 'instagram', field: 'interactions', platform: 'instagram' },
+  { label: 'Visites de profil Instagram', section: 'instagram', field: 'profileVisits', platform: 'instagram' },
   { label: 'Clics lien Instagram', section: 'instagram', field: 'linkClicks', platform: 'instagram' },
   { label: 'Réservations Instagram', section: 'instagram', field: 'bookings', platform: 'instagram' },
   { label: 'Abonnés Facebook', section: 'facebook', field: 'followers', platform: 'facebook' },
+  { label: 'Vues Facebook', section: 'facebook', field: 'views', platform: 'facebook' },
+  { label: 'Interactions Facebook', section: 'facebook', field: 'interactions', platform: 'facebook' },
+  { label: 'Visites de profil Facebook', section: 'facebook', field: 'profileVisits', platform: 'facebook' },
   { label: 'Abonnés TikTok', section: 'tiktok', field: 'followers', platform: 'tiktok' },
   { label: 'Vues TikTok', section: 'tiktok', field: 'views', platform: 'tiktok' },
   { label: 'Interactions TikTok', section: 'tiktok', field: 'interactions', platform: 'tiktok' },
@@ -1637,7 +1647,8 @@ function describeTrend(percent) {
 const facebookFieldsForInsights = [
   ['facebook', 'followers'],
   ['facebook', 'views'],
-  ['facebook', 'interactions']
+  ['facebook', 'interactions'],
+  ['facebook', 'profileVisits']
 ];
 
 const tiktokFieldsForInsights = [
@@ -1664,6 +1675,7 @@ const insightFieldLabels = {
   'googleBusiness.websiteClicks': 'Les clics vers le site',
   'instagram.followers': 'Les abonnés Instagram',
   'instagram.reach': 'La portée Instagram',
+  'instagram.views': 'Le nombre de spectateurs Instagram',
   'instagram.interactions': 'Les interactions Instagram',
   'instagram.profileVisits': 'Les visites de profil Instagram',
   'instagram.linkClicks': 'Les clics sur le lien Instagram',
@@ -1671,6 +1683,7 @@ const insightFieldLabels = {
   'facebook.followers': 'Les abonnés Facebook',
   'facebook.views': 'Les vues Facebook',
   'facebook.interactions': 'Les interactions Facebook',
+  'facebook.profileVisits': 'Les visites de profil Facebook',
   'tiktok.followers': 'Les abonnés TikTok',
   'tiktok.views': 'Les vues TikTok',
   'tiktok.interactions': 'Les interactions TikTok',
@@ -1928,7 +1941,11 @@ function generateFacebookAnalysis(monthData, previousMonthData) {
 
   if (hasValue(fb.followers)) {
     const trend = trendClause(followersEvo.percent);
-    sentences.push(`La page Facebook compte ${formatNumber(fb.followers)} abonnés${trend ? `, ${trend}` : ''}.`);
+    let followersSentence = `La page Facebook compte ${formatNumber(fb.followers)} abonnés${trend ? `, ${trend}` : ''}`;
+    if (hasValue(fb.newFollowers)) {
+      followersSentence += ` dont ${formatNumber(fb.newFollowers)} nouveaux ce mois-ci`;
+    }
+    sentences.push(`${followersSentence}.`);
   }
 
   const contentParts = [];
@@ -1940,6 +1957,10 @@ function generateFacebookAnalysis(monthData, previousMonthData) {
   }
   if (contentParts.length) {
     sentences.push(`Les contenus ont généré ${joinWithAnd(contentParts)} sur la période.`);
+  }
+
+  if (hasValue(fb.profileVisits)) {
+    sentences.push(`Le profil a enregistré ${formatNumber(fb.profileVisits)} visites sur la période.`);
   }
 
   if (!sentences.length) {
