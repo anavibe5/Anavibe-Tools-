@@ -1286,6 +1286,48 @@ function getScoreBadge(score, hasPreviousMonth) {
   return { label: 'Excellent mois', badgeClass: 'positive' };
 }
 
+// Score "depuis le début" : mêmes indicateurs que le pilier Progression (Google + Instagram +
+// intentions clients), mais toujours comparés à la Situation initiale plutôt qu'au mois
+// précédent. Contrairement au score du mois, il reste stable face à un mois atypique isolé
+// (saisonnalité, jour férié...) et raconte "le client va-t-il mieux depuis le début de
+// l'accompagnement ?" plutôt que "comment s'est passé ce mois précis ?". Disponible dès le
+// premier mois, dès lors que la Situation initiale a été renseignée.
+function computeScoreSinceBaseline(monthData, initialSituation) {
+  if (!initialSituation) {
+    return { score: null, reason: 'Situation initiale non renseignée.' };
+  }
+  const intentionsSince = computeEvolution(computeIntentionsFromInitial(initialSituation), computeIntentionsFromMonth(monthData)).percent;
+  const percents = [
+    averagePercentEvolution(googleScoreFields, monthData, null, initialSituation),
+    averagePercentEvolution(instagramScoreFields, monthData, null, initialSituation),
+    intentionsSince
+  ].filter((percent) => percent !== null && !Number.isNaN(percent));
+  if (!percents.length) {
+    return { score: null, reason: 'Pas assez d’indicateurs comparables à la situation initiale pour ce mois.' };
+  }
+  const average = percents.reduce((total, percent) => total + percent, 0) / percents.length;
+  return {
+    score: Math.round(clamp(50 + average, 0, 100)),
+    reason: `Évolution moyenne depuis la situation initiale : ${formatSignedPercent(average)}.`
+  };
+}
+
+function getBaselineScoreBadge(score) {
+  if (score === null) {
+    return { label: 'Score non disponible', badgeClass: 'neutral' };
+  }
+  if (score < 50) {
+    return { label: 'À consolider', badgeClass: 'negative' };
+  }
+  if (score < 70) {
+    return { label: 'En progression', badgeClass: 'neutral' };
+  }
+  if (score < 85) {
+    return { label: 'Bonne dynamique', badgeClass: 'positive' };
+  }
+  return { label: 'Excellent parcours', badgeClass: 'positive' };
+}
+
 function createEvolutionSummaryCard(label, percent, comparisonLabel = 'vs mois précédent') {
   const card = document.createElement('div');
   card.className = 'kpi-card card summary-card';
@@ -1312,11 +1354,11 @@ function createIntentionsSummaryCard(current, evolution, comparisonLabel = 'vs m
   return card;
 }
 
-function createScoreSummaryCard(score, badge) {
+function createScoreSummaryCard(label, score, badge) {
   const card = document.createElement('div');
   card.className = 'kpi-card card summary-card';
   card.innerHTML = `
-    <span class="kpi-label">Score global du mois</span>
+    <span class="kpi-label">${escapeHtml(label)}</span>
     <strong>${score === null ? '—' : `${score}/100`}</strong>
     <span class="evolution-badge ${badge.badgeClass}">${escapeHtml(badge.label)}</span>
   `;
@@ -1400,6 +1442,8 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation, trac
 
   const score = computeGlobalScore(monthData, previousMonthData);
   const scoreBadge = getScoreBadge(score, Boolean(previousMonthData));
+  const sinceBaseline = computeScoreSinceBaseline(monthData, initialSituation);
+  const sinceBaselineBadge = getBaselineScoreBadge(sinceBaseline.score);
 
   // Intentions clients et Évolution Google Business ne reposent que sur des données Google
   // Business : sans ce réseau suivi, mieux vaut ne pas les afficher plutôt qu'un "—" trompeur.
@@ -1411,7 +1455,11 @@ function renderSummaryCards(monthData, previousMonthData, initialSituation, trac
     grid.appendChild(createIntentionsSummaryCard(intentionsCurrent, intentionsEvolution, comparisonLabel));
   }
   grid.appendChild(createEvolutionSummaryCard('Évolution Instagram', instagramPercent, comparisonLabel));
-  grid.appendChild(createScoreSummaryCard(score, scoreBadge));
+  // Le score "depuis le début" est mis en avant en premier : c'est celui qui répond le mieux à
+  // "est-ce que ça marche depuis que je gère ce compte", sans être faussé par un mois atypique
+  // isolé. Le score du mois reste affiché mais comme simple indicateur de tendance récente.
+  grid.appendChild(createScoreSummaryCard('Score depuis le début', sinceBaseline.score, sinceBaselineBadge));
+  grid.appendChild(createScoreSummaryCard('Tendance du mois', score, scoreBadge));
 
   return grid;
 }
@@ -1632,13 +1680,19 @@ function generateExecutiveSummary(ctx) {
     );
   }
 
-  if (ctx.score !== null) {
-    const statusText = ctx.hasPreviousMonth
-      ? `ce qui correspond à un mois « ${ctx.scoreBadge.label.toLowerCase()} »`
-      : 'dans le cadre du mois de référence de l’accompagnement';
-    sentences.push(`En ${ctx.monthLabel}, ${name} obtient un score global de ${ctx.score}/100 (performance absolue du mois), ${statusText}.`);
-  } else {
-    sentences.push('Score de progression : non disponible — mois de référence.');
+  // Score principal : toujours la comparaison depuis le début de l'accompagnement (situation
+  // initiale), disponible dès le premier mois et stable face à un mois atypique isolé — jamais
+  // la seule comparaison au mois précédent, trop sensible à la saisonnalité par exemple.
+  if (ctx.sinceBaselineScore !== null && ctx.sinceBaselineScore !== undefined) {
+    sentences.push(
+      `Depuis le début de l’accompagnement, ${name} affiche un score de ${ctx.sinceBaselineScore}/100 (${ctx.sinceBaselineBadge.label.toLowerCase()}), reflétant l’évolution par rapport à la situation avant AnaVibe.`
+    );
+  }
+
+  if (ctx.hasPreviousMonth && ctx.score !== null) {
+    sentences.push(
+      `Sur ${ctx.monthLabel} spécifiquement, la tendance à court terme ressort à ${ctx.score}/100 (${ctx.scoreBadge.label.toLowerCase()}) par rapport au mois précédent.`
+    );
   }
 
   if (ctx.hasPreviousMonth) {
@@ -2333,11 +2387,14 @@ function renderAnalysisSection(clientData, monthKey, monthData, previousMonthDat
   const best = evolutions.length ? evolutions.reduce((max, item) => (item.percent > max.percent ? item : max), evolutions[0]) : null;
   const worst = evolutions.length ? evolutions.reduce((min, item) => (item.percent < min.percent ? item : min), evolutions[0]) : null;
 
+  const sinceBaseline = computeScoreSinceBaseline(monthData, clientData.initialSituation);
   const executiveSummary = generateExecutiveSummary({
     generalData: clientData.general,
     monthLabel: monthData.label,
     score,
     scoreBadge,
+    sinceBaselineScore: sinceBaseline.score,
+    sinceBaselineBadge: getBaselineScoreBadge(sinceBaseline.score),
     evolutions: { best, worst },
     hasPreviousMonth: Boolean(previousMonthData)
   });
@@ -3968,8 +4025,12 @@ function generateConclusion(clientData, monthData, previousMonthData, score, sco
     sentences.push(`Priorité du mois suivant : ${mainAction}`);
   }
 
+  const sinceBaseline = computeScoreSinceBaseline(monthData, clientData.initialSituation);
+  if (sinceBaseline.score !== null) {
+    sentences.push(`Score depuis le début de l’accompagnement : ${sinceBaseline.score}/100 (${getBaselineScoreBadge(sinceBaseline.score).label}).`);
+  }
   if (score !== null) {
-    sentences.push(`Score global du mois : ${score}/100 (${scoreBadge.label}).`);
+    sentences.push(`Tendance du mois : ${score}/100 (${scoreBadge.label}).`);
   }
 
   sentences.push('L’équipe AnaVibe reste à disposition pour accompagner la mise en œuvre du plan d’action du mois prochain.');
@@ -4024,6 +4085,7 @@ function getReportSectionDefinitions(clientData, monthData, previousMonthData, s
   const worstForSummary = evolutionsForSummary.length
     ? evolutionsForSummary.reduce((min, item) => (item.percent < min.percent ? item : min), evolutionsForSummary[0])
     : null;
+  const sinceBaselineForSummary = computeScoreSinceBaseline(monthData, clientData.initialSituation);
   const sections = [
     {
       key: 'executiveSummary',
@@ -4035,6 +4097,8 @@ function getReportSectionDefinitions(clientData, monthData, previousMonthData, s
           monthLabel: monthData.label,
           score,
           scoreBadge,
+          sinceBaselineScore: sinceBaselineForSummary.score,
+          sinceBaselineBadge: getBaselineScoreBadge(sinceBaselineForSummary.score),
           evolutions: { best: bestForSummary, worst: worstForSummary },
           hasPreviousMonth: Boolean(previousMonthData)
         })
