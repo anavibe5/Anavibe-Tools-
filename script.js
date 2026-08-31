@@ -165,13 +165,11 @@ const monthlySectionSchema = [
     fields: [
       { key: 'rating', label: 'Note Google', type: 'metric', step: '0.1' },
       { key: 'reviewsCount', label: 'Nombre total d’avis', type: 'metric' },
-      { key: 'newReviews', label: 'Nouveaux avis reçus (période)', type: 'metric' },
       { key: 'profileViews', label: 'Vues de la fiche', type: 'metric' },
       { key: 'calls', label: 'Appels', type: 'metric' },
       { key: 'directions', label: 'Itinéraires', type: 'metric' },
       { key: 'websiteClicks', label: 'Clics vers le site', type: 'metric' },
       { key: 'bookings', label: 'Réservations', type: 'metric' },
-      { key: 'photosPublished', label: 'Photos publiées', type: 'metric' },
       { key: 'googlePosts', label: 'Publications Google', type: 'metric' }
     ]
   },
@@ -181,6 +179,7 @@ const monthlySectionSchema = [
     title: 'Instagram',
     fields: [
       { key: 'followers', label: 'Abonnés', type: 'metric' },
+      { key: 'newFollowers', label: 'Nouveaux abonnés', type: 'metric' },
       { key: 'reach', label: 'Portée', type: 'metric' },
       { key: 'views', label: 'Vues', type: 'metric' },
       { key: 'interactions', label: 'Interactions', type: 'metric' },
@@ -257,17 +256,16 @@ function createEmptyMonthData(label) {
     googleBusiness: {
       rating: '',
       reviewsCount: '',
-      newReviews: '',
       profileViews: '',
       calls: '',
       directions: '',
       websiteClicks: '',
       bookings: '',
-      photosPublished: '',
       googlePosts: ''
     },
     instagram: {
       followers: '',
+      newFollowers: '',
       reach: '',
       views: '',
       interactions: '',
@@ -1766,12 +1764,9 @@ function generateGoogleAnalysis(monthData, previousMonthData) {
 
   if (hasValue(gb.reviewsCount)) {
     const trend = trendClause(reviewsEvo.percent);
-    let reviewSentence = trend
+    const reviewSentence = trend
       ? `Le volume d’avis est ${trend}, avec ${formatNumber(gb.reviewsCount)} avis au total`
       : `Le volume d’avis s’élève à ${formatNumber(gb.reviewsCount)} avis au total`;
-    if (hasValue(gb.newReviews)) {
-      reviewSentence += ` dont ${formatNumber(gb.newReviews)} nouveaux ce mois-ci`;
-    }
     sentences.push(`${reviewSentence}.`);
   }
 
@@ -1849,7 +1844,11 @@ function generateInstagramAnalysis(monthData, previousMonthData) {
 
   if (hasValue(ig.followers)) {
     const trend = trendClause(followersEvo.percent);
-    sentences.push(`La communauté Instagram${trend ? ` est ${trend}, avec` : ' compte'} ${formatNumber(ig.followers)} abonnés.`);
+    let followersSentence = `La communauté Instagram${trend ? ` est ${trend}, avec` : ' compte'} ${formatNumber(ig.followers)} abonnés`;
+    if (hasValue(ig.newFollowers)) {
+      followersSentence += ` dont ${formatNumber(ig.newFollowers)} nouveaux ce mois-ci`;
+    }
+    sentences.push(`${followersSentence}.`);
   }
 
   const reachTrend = hasValue(ig.reach) ? trendClause(reachEvo.percent) : '';
